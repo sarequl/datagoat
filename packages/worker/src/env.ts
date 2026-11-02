@@ -4,6 +4,15 @@ export interface Env {
   INSTALL_SECRET: string;
   SECRET_VERSION: string;
   ENV?: string;
+  /** Attribution window in days (§4). Defaults to 30. */
+  ATTRIBUTION_WINDOW_DAYS?: string;
+  /** How long a join can be back-filled (§9.2). Defaults to 90. */
+  REATTRIBUTION_DAYS?: string;
+  /** Fallback webhook secrets for single-site installs (§7.2). */
+  WEBHOOK_SECRET_STRIPE?: string;
+  WEBHOOK_SECRET_POLAR?: string;
+  WEBHOOK_SECRET_DODO?: string;
+  WEBHOOK_SECRET_CREEM?: string;
 }
 
 export interface Website {

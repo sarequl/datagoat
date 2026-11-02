@@ -1,9 +1,11 @@
 import { BOT_PATTERNS } from './data/lists';
 import type { Env } from './env';
 import { handleIngest } from './ingest';
+import { isProvider, type Provider } from './payments/types';
 import { rollup } from './rollup';
 import { TRACKER_JS } from './tracker';
 import { sha256Hex } from './util/crypto';
+import { handlePaymentWebhook } from './webhooks';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -57,12 +59,19 @@ function serveRoot(): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
+    }
+
+    // Provider webhooks (design/attribution.md §7.1; also worker.md §5.3's
+    // `/api/ingest/payment/:provider`). One shared pipeline for all four.
+    const webhookMatch = path.match(/^\/api(?:\/v1)?\/ingest\/payment\/(stripe|polar|dodo|creem)$/);
+    if (webhookMatch && isProvider(webhookMatch[1])) {
+      return handlePaymentWebhook(request, env, webhookMatch[1] as Provider, ctx);
     }
 
     if (path === '/t' || path === '/p.gif') {

@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers';
 import initSql from '../migrations/0001_init.sql?raw';
+import initSql0002 from '../migrations/0002_payments_attribution.sql?raw';
 
 /** Request type accepted by `worker.fetch()`. */
 export type WorkerRequest = Request<unknown, IncomingRequestCfProperties>;
@@ -53,6 +54,9 @@ export const BROWSER_UA =
 
 export async function applySchema(): Promise<void> {
   for (const statement of splitStatements(initSql)) {
+    await env.DB.prepare(statement).run();
+  }
+  for (const statement of splitStatements(initSql0002)) {
     await env.DB.prepare(statement).run();
   }
 }
@@ -124,7 +128,9 @@ export async function resetData(overrides: Partial<SeedSite> = {}): Promise<Seed
   const site: SeedSite = { ...TEST_SITE, ...overrides, created_at: now, updated_at: now };
 
   await env.DB.exec(
-    'DELETE FROM daily_aggregates; DELETE FROM sessions; DELETE FROM visitors; DELETE FROM events;',
+    'DELETE FROM daily_aggregates; DELETE FROM sessions; DELETE FROM visitors; DELETE FROM events;' +
+      ' DELETE FROM payments; DELETE FROM webhook_events; DELETE FROM customers;' +
+      ' DELETE FROM customer_links; DELETE FROM fx_rates; DELETE FROM payment_integrations;',
   );
 
   await env.DB.prepare(
@@ -279,4 +285,180 @@ export async function aggValue(
     .bind(TEST_SITE.id, day, kind, dimKey, dimValue)
     .first<{ value: number }>();
   return row?.value ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Milestone 2 — payments fixtures
+// ---------------------------------------------------------------------------
+
+export interface SeedEvent {
+  website_id: string;
+  visitor_id: string;
+  session_id?: string | null;
+  name?: string;
+  ts: number;
+  channel?: string | null;
+  channel_name?: string | null;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  path?: string | null;
+  referrer?: string | null;
+  is_bot?: number;
+  consent?: number | null;
+}
+
+export async function insertEvent(event: SeedEvent): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO events (
+       id, website_id, event_id, session_id, visitor_id, name, ts, path, referrer,
+       channel, channel_name, utm_source, utm_medium, utm_campaign, is_bot, consent, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      nextId('ev'),
+      event.website_id,
+      nextId('eid'),
+      event.session_id ?? null,
+      event.visitor_id,
+      event.name ?? 'pageview',
+      event.ts,
+      event.path ?? '/',
+      event.referrer ?? null,
+      event.channel ?? null,
+      event.channel_name ?? null,
+      event.utm_source ?? null,
+      event.utm_medium ?? null,
+      event.utm_campaign ?? null,
+      event.is_bot ?? 0,
+      event.consent ?? 1,
+      Math.floor(Date.now() / 1000),
+    )
+    .run();
+}
+
+export async function seedPaymentIntegration(
+  websiteId: string,
+  provider: string,
+  webhookSecret: string,
+): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO payment_integrations (id, website_id, provider, webhook_secret, enabled, created_at)
+     VALUES (?, ?, ?, ?, 1, ?)`,
+  )
+    .bind(nextId('pi'), websiteId, provider, webhookSecret, Math.floor(Date.now() / 1000))
+    .run();
+}
+
+export async function countPayments(where = ''): Promise<number> {
+  const sql = where
+    ? `SELECT COUNT(*) AS n FROM payments WHERE ${where}`
+    : 'SELECT COUNT(*) AS n FROM payments';
+  const row = await env.DB.prepare(sql).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+export async function firstPayment(): Promise<Record<string, unknown> | null> {
+  return env.DB.prepare('SELECT * FROM payments ORDER BY occurred_at ASC LIMIT 1').first<
+    Record<string, unknown>
+  >();
+}
+
+export async function getPayment(
+  providerPaymentId: string,
+): Promise<Record<string, unknown> | null> {
+  return env.DB.prepare('SELECT * FROM payments WHERE provider_payment_id = ?')
+    .bind(providerPaymentId)
+    .first<Record<string, unknown>>();
+}
+
+export async function countWebhookEvents(where = ''): Promise<number> {
+  const sql = where
+    ? `SELECT COUNT(*) AS n FROM webhook_events WHERE ${where}`
+    : 'SELECT COUNT(*) AS n FROM webhook_events';
+  const row = await env.DB.prepare(sql).first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
+export interface WebhookRequestOptions {
+  site?: string;
+  headers?: Record<string, string>;
+  ip?: string;
+}
+
+export function webhookRequest(
+  provider: string,
+  payload: unknown,
+  options: WebhookRequestOptions = {},
+): WorkerRequest {
+  const body = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  const site = options.site ?? TEST_SITE.site_token;
+  const url = `https://example.com/api/v1/ingest/payment/${provider}?site=${encodeURIComponent(site)}`;
+  const init: RequestInit = {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(options.headers ?? {}) },
+    body,
+  };
+  return new Request(url, init) as unknown as WorkerRequest;
+}
+
+export async function stripeSignature(
+  rawBody: string,
+  secret: string,
+  timestamp = Math.floor(Date.now() / 1000),
+): Promise<string> {
+  const { hmacSha256Hex } = await import('../src/util/crypto');
+  const value = await hmacSha256Hex(secret, `${timestamp}.${rawBody}`);
+  return `t=${timestamp},v1=${value}`;
+}
+
+export async function standardWebhooksSignature(
+  id: string,
+  rawBody: string,
+  secret: string,
+  timestamp = Math.floor(Date.now() / 1000),
+): Promise<string> {
+  const { hmacSha256Hex } = await import('../src/util/crypto');
+  const value = await hmacSha256Hex(secret, `${id}.${timestamp}.${rawBody}`);
+  return `v1,${value}`;
+}
+
+export async function creemSignature(rawBody: string, secret: string): Promise<string> {
+  const { hmacSha256Hex } = await import('../src/util/crypto');
+  return hmacSha256Hex(secret, rawBody);
+}
+
+export function stripeEvent(eventType: string, object: Record<string, unknown>, eventId?: string) {
+  return {
+    id: eventId ?? nextId('evt'),
+    type: eventType,
+    created: Math.floor(Date.now() / 1000),
+    data: { object },
+  };
+}
+
+export function polarEvent(eventType: string, data: Record<string, unknown>, eventId?: string) {
+  return {
+    id: eventId ?? nextId('plev'),
+    type: eventType,
+    timestamp: Math.floor(Date.now() / 1000),
+    data,
+  };
+}
+
+export function dodoEvent(eventType: string, data: Record<string, unknown>) {
+  return {
+    type: eventType,
+    timestamp: Math.floor(Date.now() / 1000),
+    data,
+  };
+}
+
+export function creemEvent(eventType: string, object: Record<string, unknown>, eventId?: string) {
+  return {
+    id: eventId ?? nextId('crev'),
+    eventType,
+    created_at: Math.floor(Date.now() / 1000),
+    object,
+  };
 }
