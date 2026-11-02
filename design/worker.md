@@ -16,7 +16,7 @@ Everything below is original design; nothing is copied from their source (their 
 | --- | --- | --- |
 | One script tag, per-website id + domain | databull.app/docs step 2 | `POST /t`, per-`site_token` allow-list of domains |
 | Source per visit: channel, referrer, campaign, landing page, country, device | home | attribution columns on `events`/`sessions`, UTM parse |
-| Realtime visitors, live map | home | `sessions` + `visitors`, last-seen index, `GET .../visitors/live` |
+| Realtime visitors, live map | home | `sessions` + `visitors`, last-seen index, `GET /api/v1/analytics/realtime` (`api.md` §2.1) |
 | Revenue by channel/referrer/campaign/page, next to visitors | home | `payments` + attribution snapshot, joins to sessions/visitors |
 | Payments, renewals, refunds; last-non-direct, first-touch, last-touch credit | home | `payments.status` + `attribution_model` per website |
 | Peak hours: visits, sales, revenue by weekday + hour in site timezone | home | `daily_aggregates` + a per-hour aggregate kind |
@@ -28,7 +28,7 @@ Everything below is original design; nothing is copied from their source (their 
 | Goals and funnels that end at the payment | home | `goals`, `funnels`, `funnel_steps`, `events.name` |
 | Telegram alerts, chart notes | home | out of Worker scope except the trigger table; notes -> `notes` |
 | Cookieless / first-party cookie / cookieless-until-consent, bot filtering | home | `websites.privacy_mode`, `visitor_id` derivation, bot rules |
-| Read-only API keys, CLI/MCP | home, /docs/mcp | `api_keys` table + key-scoped read routes |
+| Read-only API keys, CLI/MCP | home, /docs/mcp | `api_tokens` table + token-scoped read routes |
 | Payments API + provider webhooks | home | `POST /api/v1/ingest/payment`, `POST /api/v1/ingest/payment/:provider` |
 | Switch from DataFast with one tag (`data-fast-goal`, `window.datafast()`, `datafast_visitor_id`) | home | accepted event aliases, see §7.4 |
 
@@ -45,7 +45,8 @@ erDiagram
     websites ||--o{ visitors : "identifies"
     websites ||--o{ goals : "defines"
     websites ||--o{ payments : "attributes"
-    websites ||--o{ api_keys : "authorizes"
+    users        ||--o{ api_tokens : "owns"
+    websites     ||--o{ api_tokens : "scopes"
     websites ||--o{ daily_aggregates : "materializes"
     websites ||--o{ funnels : "defines"
     funnels ||--o{ funnel_steps : "contains"
@@ -106,23 +107,30 @@ CREATE TABLE users (
 CREATE UNIQUE INDEX idx_users_email ON users (email);
 ```
 
-### 3.3 `api_keys` (read-only keys for CLI / MCP / dashboards)
+### 3.3 `api_tokens` (read / ingest / account tokens for CLI / MCP / dashboards)
+
+Contract source: `api.md` §1.3 (decision D6, Phase 0). The raw token is returned once at
+create/roll; only `token_hash` is stored. `dg_read_` and `dg_ingest_` are fixed-scope
+(one site); `dgt_` is account-scoped and carries a JSON `permissions` array (`api.md` §1.2).
 
 ```sql
-CREATE TABLE api_keys (
-  id           TEXT PRIMARY KEY,
-  website_id   TEXT,                            -- NULL = account-scoped key
-  label        TEXT NOT NULL,
-  key_hash     TEXT NOT NULL,                   -- sha256 of the raw key; raw shown once
-  scopes       TEXT NOT NULL DEFAULT '["read"]',-- JSON array, currently ["read"]
-  rate_limit   INTEGER NOT NULL DEFAULT 60,     -- requests/min
-  expires_at   INTEGER,
-  last_used_at INTEGER,
-  created_at   INTEGER NOT NULL,
-  revoked_at   INTEGER
+CREATE TABLE api_tokens (
+  id             TEXT PRIMARY KEY,
+  account_id     TEXT NOT NULL,                  -- references users.id (account owner)
+  site_id        TEXT,                           -- NULL = account-scoped (dgt_)
+  kind           TEXT NOT NULL,                  -- read | ingest | account
+  token_hash     TEXT NOT NULL,                  -- sha256 of the raw token
+  name           TEXT NOT NULL,
+  permissions    TEXT NOT NULL DEFAULT '[]',     -- JSON array; dgt_ only, dg_* are fixed-scope
+  site_allowlist TEXT,                           -- JSON array, nullable; dgt_ only
+  rate_limit     INTEGER NOT NULL DEFAULT 60,    -- requests/min (Worker extension, see §10)
+  last_used_at   INTEGER,
+  created_at     INTEGER NOT NULL,
+  revoked_at     INTEGER
 );
-CREATE UNIQUE INDEX idx_api_keys_hash ON api_keys (key_hash);
-CREATE INDEX idx_api_keys_site ON api_keys (website_id);
+CREATE UNIQUE INDEX idx_api_tokens_hash ON api_tokens (token_hash);
+CREATE INDEX idx_api_tokens_site ON api_tokens (site_id);
+CREATE INDEX idx_api_tokens_account ON api_tokens (account_id);
 ```
 
 ### 3.4 `events` (append-only, one row per beacon)
@@ -560,34 +568,19 @@ Why not roll up in the ingest path: D1 is a single-writer SQLite database, and a
 
 ---
 
-## 10. Read-only API routes
+## 10. Read-only API contract
 
-All routes are `GET` except key management. Auth: `Authorization: Bearer <raw api_key>`, or `?key=` for browser use. Keys are hashed (`sha256`) in `api_keys`; the raw value is returned once at creation. Scopes are `["read"]` today; `write` is reserved for future ingestion keys.
+The authoritative `/api/v1` path list and envelopes are in `api.md` §2 and §0 (owner: API & Integrations Engineer); `dashboard.md` §3 consumes those paths. This section fixes only the Worker-side contract those routes depend on.
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| GET | `/api/v1/websites` | list websites visible to the key |
-| GET | `/api/v1/websites/:id` | website metadata + settings |
-| GET | `/api/v1/websites/:id/analytics?from&to&metrics` | totals from `daily_aggregates` |
-| GET | `/api/v1/websites/:id/breakdowns?from&to&dim` | channel/referrer/path/device/country breakdown |
-| GET | `/api/v1/websites/:id/visitors?from&to&limit&cursor` | paginated visitors |
-| GET | `/api/v1/websites/:id/visitors/live` | sessions active in the last 5 minutes |
-| GET | `/api/v1/websites/:id/sessions?from&to&limit&cursor` | paginated sessions |
-| GET | `/api/v1/websites/:id/goals?from&to` | goal counts and conversion rate |
-| GET | `/api/v1/websites/:id/funnels/:id?from&to` | funnel step counts + drop-off |
-| GET | `/api/v1/websites/:id/payments?from&to&status` | payments with credited channel |
-| GET | `/api/v1/websites/:id/revenue?from&to&model` | revenue by dimension, using `attribution_model` |
-| GET | `/api/v1/websites/:id/identity?visitor_id` | one visitor's journey |
-| GET | `/api/v1/websites/:id/bots?from&to` | bot traffic when `bot_filter_level = off` |
-| GET | `/api/v1/keys` | list keys (account-scoped) |
-| POST | `/api/v1/keys` | create key; returns raw key once |
-| DELETE | `/api/v1/keys/:id` | revoke key |
-| GET | `/api/v1/health` | liveness + schema version |
-| GET | `/` and `/*` | static dashboard (served by the Worker) |
+**Auth.** `Authorization: Bearer <raw token>`, or `?key=` for browser use. Tokens are hashed (`sha256`) in `api_tokens` (see §3.3); the raw value is returned once at creation. `dg_read_` is fixed read-only; `dg_ingest_` writes events; `dgt_` carries a JSON `permissions` array (`api.md` §1.2) and, for site endpoints, a required `siteId`.
 
-Response shape is uniform: `{ "data": ..., "meta": { "from": ..., "to": ..., "cursor": ... } }`. Errors are `{ "error": { "code": "host_not_allowed", "message": "..." } }` with an HTTP status.
+**Read sources.** Totals and breakdowns come from `daily_aggregates` (§3.11), never from `events`. Visitor and session detail reads `visitors` / `sessions` directly with keyset pagination on `(website_id, last_seen)` / `(website_id, started_at)`. Live visitors reads `sessions` where `last_seen > now - 5 min`.
 
-Rate limits: per-key `rate_limit` (default 60/min), per-IP fallback 100/min, per-website ingest burst. Limits are enforced in the Worker with a fixed-window counter in a KV namespace or the `requests` table; the chosen store is an open question (see §12).
+**Rate limits.** Per-token `rate_limit` (default 60/min), per-IP fallback 100/min, per-website ingest burst. Fixed-window counters in KV (D3); the store choice is an open question (§12). Headers: `X-RateLimit-Limit/Remaining/Reset` (`api.md` §0).
+
+**Health and static.** `GET /api/v1/health` is a Worker liveness + schema-version probe (not part of the product surface). The Worker serves the static dashboard for non-`/api/v1`, non-asset paths (`dashboard.md` §4).
+
+Envelopes and error shape are `api.md` §0 (`{"data": ...}` + `pagination`; `{"error": {"code", "message", "details"}}`). The ingest endpoints are the exception: they return `204` on success and the error envelope above on failure.
 
 ---
 
@@ -598,7 +591,7 @@ Rate limits: per-key `rate_limit` (default 60/min), per-IP fallback 100/min, per
 - `privacy_mode = cookieless`: no browser storage; `visitor_id = hex(HMAC_SHA256(install_secret, site_token + ip + user_agent + day_bucket))`, where `day_bucket` is `YYYY-MM-DD` in the site timezone (UTC if unknown). Adopted from script.md §5.2 — HMAC (not plain sha256) and the per-install secret are required. Attribution still works within a day.
 - `privacy_mode = consent`: like cookieless until the site fires consent, then like cookies.
 - **Secret/rotation**: `install_secret` is a Worker secret (not per-site). Store a `secret_version` integer alongside the derived id so rotation can be observed; rotating resets all cookieless ids by design. A single install-wide secret is confirmed (script.md §13.8).
-- Passwords are argon2id; API keys and webhook secrets are hashed/encrypted at rest.
+- Passwords are argon2id; API tokens and webhook secrets are hashed/encrypted at rest.
 - No third-party requests from the Worker; geo comes from `request.cf`.
 - `excluded_ips`, `excluded_paths`, `excluded_ua` are per-website operator controls. `excluded_paths` stores glob patterns (`/admin/*`, `/checkout/*`), matched with a simple `*` -> `.*` glob, not plain prefixes.
 - `uid` is stored hashed (see §5.6); the raw value is never logged.
@@ -631,6 +624,6 @@ Rate limits: per-key `rate_limit` (default 60/min), per-IP fallback 100/min, per
 
 ## 13. Non-goals
 
-- No realtime push/WebSocket; realtime is polling `visitors/live`.
+- No realtime push/WebSocket; realtime is polling `GET /api/v1/analytics/realtime` (`api.md` §2.1).
 - No FTS, no joins across websites, no multi-tenant billing.
 - No copying databull.app code, installer, license checks, or hosted product.
