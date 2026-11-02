@@ -43,6 +43,19 @@ function serveHealth(): Response {
   return json({ status: 'ok', schema_version: 1, time: Math.floor(Date.now() / 1000) });
 }
 
+const ROOT_BODY = [
+  'DataGoat ingestion endpoint',
+  '',
+  'Routes: POST /t (beacon), GET /p.gif (pixel), GET /t.js (script).',
+].join('\n');
+
+function serveRoot(): Response {
+  return new Response(ROOT_BODY, {
+    status: 200,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -63,6 +76,9 @@ export default {
     }
     if (path === '/api/v1/health') {
       return serveHealth();
+    }
+    if (path === '/' && request.method === 'GET') {
+      return serveRoot();
     }
 
     return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });

@@ -220,3 +220,22 @@ describe('POST /t ingestion', () => {
     expect(response.headers.get('access-control-allow-origin')).toBe('*');
   });
 });
+
+describe('GET /', () => {
+  it('returns 200 with a plain-text service hint', async () => {
+    const response = await call(new Request('https://example.com/'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+
+    const body = await response.text();
+    expect(body).toContain('DataGoat ingestion endpoint');
+    expect(body).toContain('/t');
+    expect(body).toContain('/p.gif');
+    expect(body).toContain('/t.js');
+  });
+
+  it('keeps the 404 fallback for unknown paths', async () => {
+    const response = await call(new Request('https://example.com/not-a-route'));
+    expect(response.status).toBe(404);
+  });
+});
