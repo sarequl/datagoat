@@ -9,6 +9,9 @@ build/
 .wrangler/
 .vite/
 
+# Exception: the tracker build output is served by the Worker, so commit it.
+!packages/script/dist/
+
 # Secrets and local config
 .env
 .env.*

@@ -1,0 +1,29 @@
+{
+  "name": "datagoat",
+  "version": "0.1.0",
+  "description": "DataGoat tracking script and browser SDK",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/datagoat.cjs",
+  "module": "./dist/datagoat.js",
+  "exports": {
+    ".": {
+      "import": "./dist/datagoat.js",
+      "require": "./dist/datagoat.cjs"
+    },
+    "./checkout": "./dist/checkout.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs && node --test"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "terser": "^5.51.2"
+  }
+}

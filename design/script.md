@@ -144,7 +144,7 @@ One JSON envelope for pageviews and custom events. Keys are short but reserved; 
 | `tz` | string | no | `Intl.DateTimeFormat().resolvedOptions().timeZone` |
 | `bs` | int | yes | client bot score 0–100 (§7) |
 | `pvid` | string | yes | random 16-hex per pageview; groups that pageview's events (`scroll`, `reading_time`). **Not** the dedup key. |
-| `event_id` | string | yes | per-event idempotency key (§4.1): `pvid` for the pageview, `pvid + ":" + sha256(props.name + ts).slice(0,8)` for custom events |
+| `event_id` | string | yes | per-event idempotency key (§4.1): `pvid` for the pageview, `pvid + ":" + props.name + ":" + ts` for custom events (the Worker's accepted fallback, `worker.md` §5.6; no client-side hash needed) |
 | `gid` | string | no | cross-domain link group id (§8) |
 | `props` | object | no | custom event properties (§4.2) |
 
@@ -308,7 +308,7 @@ sequenceDiagram
 - **Consent**: if the site has a consent banner, call `datagoat('consent', { analytics: true|false })` before the first pageview, or use `data-require-consent="true"` so the script waits for a `window.__datagoat_consent` flag. This is the `privacy_mode = consent` path in `worker.md` §11: cookieless until consent, then cookies. `events.consent` records `1 | 0 | NULL`.
 - **UTM / first-touch**: the script reads UTM from the URL and stores first-touch in a first-party cookie (`_dg_utm`); the Worker derives `channel`/`channel_name`/`direct_type` server-side (`worker.md` §8).
 - **URL redaction**: by default the script strips query keys that look like PII (a configurable list: `email`, `token`, `password`, `api_key`, etc.) and truncates the path/query to 512 chars. `data-redact-url="false"` disables (site owner's responsibility).
-- **Exclusions**: `data-exclude="/admin/*,/checkout/*"` produces glob patterns stored in `websites.excluded_paths` and matched by the Worker.
+- **Exclusions**: the script does not filter paths. Exclusions are a server-side concern: `websites.excluded_paths` globs are matched by the Worker (`worker.md` §5.6).
 - **Never sent**: form input values, `window.name`, `localStorage` contents other than the visitor id, `document.cookie` from other origins, keystrokes.
 - **Retention**: the Worker owns retention (`websites.retention_days`, default 365); the script has no retention logic.
 
@@ -324,7 +324,7 @@ All snippets use `<worker-host>` = the site's DataGoat Worker host and `<SITE_TO
 <script src="https://<worker-host>/t.js" data-site="<SITE_TOKEN>" defer></script>
 ```
 
-### 10.2 Configured (subdomain + exclusions + SPA off)
+### 10.2 Configured (subdomain + SPA off)
 
 ```html
 <script
@@ -335,7 +335,6 @@ All snippets use `<worker-host>` = the site's DataGoat Worker host and `<SITE_TO
   data-auto-track="true"
   data-spa="false"
   data-hash="false"
-  data-exclude="/admin/*,/checkout/*,/api/*"
   data-respect-dnt="true"
   data-require-consent="false"
   data-block-bots="true"
@@ -452,19 +451,28 @@ npm install datagoat
 ```js
 import DataGoat from 'datagoat';
 
-DataGoat.init({
+const tracker = DataGoat.init({
   site: '<SITE_TOKEN>',
   endpoint: 'https://<worker-host>',
   domain: '.example.com',
   cookieless: false,
   respectDnt: true,
   blockBots: true,
-  exclude: ['/admin/*'],
 });
 
-DataGoat.trackEvent('signup', { plan: 'pro' });
-DataGoat.identify('user@example.com');
+tracker.trackEvent({ name: 'signup', plan: 'pro' });
+tracker.identify('user@example.com');
 ```
+
+### 12.1 Checkout handoff
+
+`getCheckoutContext()` / `setCheckoutMetadata()` live in the standalone
+`datagoat/checkout` bundle (`GET /checkout.js`, IIFE global `DataGoatCheckout`)
+so the served `t.js` stays under 5 KB gzipped. `getCheckoutContext()` returns
+`{ visitor_id, session_id, utm }`; `setCheckoutMetadata(payload, ctx)` merges
+`datagoat_visitor_id` (and the DataFast alias `datafast_visitor_id`),
+`session_id`, and the UTM keys into `payload.metadata` and sets
+`client_reference_id` when absent. See `attribution.md` §6.2.
 
 - Framework helpers (thin wrappers, no logic): `useDataGoat()` for React, `datagoat` plugin for Vue, `DataGoatModule` for Nuxt.
 - The npm package loads the same core as `t.js`; it does not reimplement the protocol.
