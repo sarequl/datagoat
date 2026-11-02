@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Usage question
+    url: https://github.com/sarequl/datagoat/discussions
+    about: Ask how to install or configure DataGoat.
+  - name: Security report
+    url: https://github.com/sarequl/datagoat/security/advisories/new
+    about: Report a vulnerability privately instead of opening a public issue.

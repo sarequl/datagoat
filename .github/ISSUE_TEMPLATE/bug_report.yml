@@ -1,0 +1,60 @@
+name: Bug report
+description: Report something that is broken in DataGoat
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much as
+        you can so we can reproduce it.
+  - type: input
+    id: version
+    attributes:
+      label: DataGoat version or commit
+      description: The version string or commit SHA you are running.
+      placeholder: e.g. 0.1.0 or abc1234
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      description: Worker/D1 setup, Node version, browser, or script context.
+      placeholder: e.g. Wrangler dev, Node 20, Chrome 128
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps, request payload, or a small repo that shows it.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: Paste any Worker logs, stack traces, or API error bodies.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true
+        - label: I did not include any secret, token, or personal data
+          required: true
