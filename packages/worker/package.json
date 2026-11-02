@@ -1,0 +1,30 @@
+{
+  "name": "@datagoat/worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DataGoat ingestion Worker and D1 schema.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build:data": "node scripts/build-data.mjs && biome format --write src/data/lists.ts",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "lint": "biome check src test scripts",
+    "format": "biome format --write src test scripts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "migrate:local": "wrangler d1 migrations apply datagoat-local --local --config wrangler.example.toml",
+    "migrate:remote": "wrangler d1 migrations apply datagoat-prod --remote"
+  },
+  "dependencies": {
+    "ulid": "^3.0.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
+    "@cloudflare/vitest-plugin": "^1.5.0",
+    "@cloudflare/workers-types": "^5.20261102.1",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.156.2"
+  }
+}

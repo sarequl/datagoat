@@ -1,0 +1,26 @@
+{
+  "name": "datagoat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source, self-hostable web analytics on Cloudflare Workers + D1.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build:data": "npm run build:data -w packages/worker",
+    "lint": "npm run lint -w packages/worker",
+    "typecheck": "npm run typecheck -w packages/worker",
+    "test": "npm run test -w packages/worker",
+    "migrate:local": "npm run migrate:local -w packages/worker"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "workerd": true
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.5.0"
+  }
+}
