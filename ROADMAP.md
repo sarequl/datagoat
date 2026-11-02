@@ -1,7 +1,16 @@
 # DataGoat Roadmap
 
-Status: planning. The repository scaffold and this roadmap are in place; no
-application code is implemented yet.
+Status: Milestone 1 in progress. The scaffold, roadmap and design docs are done.
+Milestone 1 code has landed on `main` or is in review:
+
+| Deliverable | State |
+| --- | --- |
+| Phase 0 — `packages/worker` layout, `wrangler.example.toml`, `0001_init.sql` (15 tables, `api_tokens` per D6), CI workflow | PR #1 open; CI file pending the GitHub `workflow` scope |
+| Milestone 1 — ingestion Worker (`POST /t`, `GET /p.gif`, `GET /t.js`, validation, idempotency, KV rate limits, bot filter, enrichment, cron rollup) | PR #1 open; 47/47 tests pass |
+| Milestone 1 — tracking script + npm surface (`dist/t.js`, checkout helpers) | merged in `25f22f4`; 25/25 tests pass, 5041 B gzip |
+
+No later milestone has started. See the per-phase sections below for acceptance
+criteria and open decisions.
 
 This document consolidates the five design proposals in [`design/`](design/)
 into one sequenced plan. It is the source of truth for what we build, in what
