@@ -55,6 +55,23 @@ surveys, error monitoring, and multi-tenant billing. See
 
 Self-hosting instructions live in [`docs/INSTALL.md`](docs/INSTALL.md).
 
+## Development
+
+The Worker lives in [`packages/worker`](packages/worker). From the repository
+root:
+
+```sh
+npm install                 # install all workspace dependencies
+npm run build:data          # regenerate src/data/lists.ts from src/data/*.txt
+npm run lint                # biome check
+npm run typecheck           # tsc --noEmit
+npm test                    # vitest (runs inside the Workers runtime)
+npm run migrate:local       # apply packages/worker/migrations/*.sql to local D1
+```
+
+`wrangler.toml` is not committed. Copy `packages/worker/wrangler.example.toml`
+to `wrangler.toml` and fill in real IDs before deploying.
+
 ## Contributing
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md). By participating you agree to the

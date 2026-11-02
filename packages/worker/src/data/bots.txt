@@ -1,0 +1,53 @@
+# DataGoat known-bot User-Agent patterns.
+#
+# One case-insensitive substring per line; blank lines and lines starting with
+# `#` are ignored. This file is the source of truth: `npm run build:data`
+# regenerates `src/data/lists.ts`. Do not edit the generated file by hand.
+#
+# Keep entries lowercase and specific enough to avoid matching real browsers.
+
+googlebot
+bingbot
+msnbot
+semrushbot
+ahrefsbot
+mj12bot
+dotbot
+petalbot
+gptbot
+claudebot
+perplexitybot
+bytespider
+yandexbot
+baiduspider
+sogou spider
+exabot
+facebot
+facebookexternalhit
+twitterbot
+linkedinbot
+slackbot
+discordbot
+applebot
+ia_archiver
+archive.org_bot
+censysinspect
+zgrab
+masscan
+nmap
+curl
+wget
+python-requests
+python-urllib
+go-http-client
+java/
+okhttp
+apache-httpclient
+libwww-perl
+scrapy
+headlesschrome
+phantomjs
+puppeteer
+selenium
+playwright
+webdriver

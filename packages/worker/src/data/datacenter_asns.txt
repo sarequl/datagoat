@@ -1,0 +1,68 @@
+# DataGoat datacenter / hosting ASN list (strict bot filtering only).
+#
+# One Autonomous System Number per line; blank lines and lines starting with
+# `#` are ignored. This file is the source of truth: `npm run build:data`
+# regenerates `src/data/lists.ts`. Do not edit the generated file by hand.
+#
+# At `bot_filter_level = strict`, a request whose request.cf.asn is listed here
+# is dropped with `bot_reason = datacenter`. At `standard` the list is ignored.
+#
+# Sources for the ranges: the major public cloud / hosting providers. Update this
+# file when new ranges should be treated as datacenter traffic.
+
+# Amazon Web Services
+16509
+14618
+38895
+
+# DigitalOcean
+14061
+
+# Google Cloud
+15169
+396982
+
+# Microsoft Azure
+8075
+8068
+
+# Oracle Cloud
+31898
+
+# Cloudflare (own infra; useful for tests)
+13335
+
+# Akamai / Linode
+20940
+63949
+
+# Hetzner
+24940
+
+# OVH
+16276
+
+# Vultr / Constant
+20473
+
+# Scaleway
+12876
+
+# Contabo
+51167
+20773
+
+# GoDaddy
+30083
+
+# G-Core Labs
+199524
+
+# LeaseWeb
+60781
+
+# netcup
+197540
+
+# Serverius
+50673

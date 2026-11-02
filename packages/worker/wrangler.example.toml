@@ -1,0 +1,40 @@
+# DataGoat Worker configuration template.
+#
+# Copy this file to `wrangler.toml` (git-ignored) and fill in real IDs before
+# deploying. For local development the placeholder values below work with
+# `wrangler dev --local` / `wrangler d1 migrations apply --local`.
+#
+#   cp wrangler.example.toml wrangler.toml
+#
+# Required variables:
+#   INSTALL_SECRET   per-install secret used to derive cookieless visitor ids.
+#                    Rotating it resets every cookieless visitor id.
+#   SECRET_VERSION   integer stored alongside derived ids so rotation is visible.
+
+name = "datagoat"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Node.js compatibility is not required at runtime, but keep it on so local
+# tooling that expects Node APIs (vitest, wrangler) behaves predictably.
+compatibility_flags = ["nodejs_compat"]
+
+# Do not send metrics to Cloudflare from self-hosted installs.
+send_metrics = false
+
+[[d1_databases]]
+binding = "DB"
+database_name = "datagoat-local"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "00000000000000000000000000000000"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+INSTALL_SECRET = "dev-only-insecure-install-secret"
+SECRET_VERSION = "1"
