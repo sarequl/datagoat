@@ -1,6 +1,7 @@
 import type { ServerResponse } from 'node:http';
 import { funnelResults } from '../fixtures.ts';
 import { sendJson } from '../http.ts';
+import { resolveSiteScope } from './siteScope.ts';
 
 export const FUNNEL_PREFIX = '/api/v1/analytics/funnel/';
 
@@ -14,6 +15,8 @@ export function handleFunnel(
     sendJson(response, 405, { error: { code: 405, message: 'Method not allowed' } });
     return;
   }
+
+  if (!resolveSiteScope(url, response)) return;
 
   const funnelId = decodeURIComponent(path.slice(FUNNEL_PREFIX.length));
   const data = funnelResults[funnelId];

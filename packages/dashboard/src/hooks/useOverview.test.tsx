@@ -25,7 +25,12 @@ const current: Overview = {
 
 const prior: Overview = { ...current, visitors: 80 };
 
-const options = { startAt: '2026-01-08', endAt: '2026-01-14', timezone: 'UTC' };
+const options = {
+  siteId: 'site_1',
+  startAt: '2026-01-08',
+  endAt: '2026-01-14',
+  timezone: 'UTC',
+};
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },

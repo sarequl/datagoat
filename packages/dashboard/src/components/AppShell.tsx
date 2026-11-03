@@ -1,6 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useSelectedSite } from '../hooks/useSelectedSite';
 import { AccountMenu } from './AccountMenu';
+import { ErrorState } from './ErrorState';
 import { Logo } from './Logo';
+import { FullScreenSkeleton } from './Skeleton';
 import { ThemeToggle } from './ThemeToggle';
 import { WebsiteSwitcher } from './WebsiteSwitcher';
 
@@ -13,6 +16,8 @@ const NAV_ITEMS = [
 ];
 
 export function AppShell() {
+  const { isLoading, isError, refetch } = useSelectedSite();
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -43,7 +48,19 @@ export function AppShell() {
           </div>
         </header>
         <main className="content">
-          <Outlet />
+          {isLoading ? (
+            <FullScreenSkeleton label="Loading your websites…" />
+          ) : isError ? (
+            <ErrorState
+              title="Cannot load your websites"
+              message="The dashboard could not read your sites. Check your connection and try again."
+              onRetry={() => {
+                void refetch();
+              }}
+            />
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
     </div>

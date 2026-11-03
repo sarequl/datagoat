@@ -4,7 +4,8 @@ import { getMetadata } from '../api/analytics';
 export function useMetadata(siteId?: string) {
   return useQuery({
     queryKey: ['metadata', siteId],
-    queryFn: () => getMetadata(siteId ? { siteId } : {}),
+    queryFn: () => getMetadata({ siteId }),
+    enabled: Boolean(siteId),
     staleTime: 5 * 60_000,
   });
 }
