@@ -362,7 +362,7 @@ CREATE TABLE alert_rules (
 - `events (website_id, session_id, ts)` backs funnel and path reconstruction.
 - `events (website_id, name, ts)` backs per-goal counts without scanning all events.
 - `UNIQUE (website_id, event_id)` is the idempotency guarantee for `sendBeacon` retries and double-fires.
-- `sessions (website_id, ended_at)` powers the realtime "live now" query (sessions whose `ended_at` is within N minutes of now, or `ended_at IS NULL`).
+- `sessions (website_id, ended_at)` powers the realtime "live now" query (sessions whose `ended_at` is within the 10-minute realtime window, or `ended_at IS NULL`).
 - `daily_aggregates` PK is the lookup key; no separate index needed beyond it.
 - `visitors` PK is `(website_id, visitor_id)` so first-touch fields update in place.
 
@@ -559,12 +559,12 @@ Attribution credit on a payment uses the website's `attribution_model`:
 
 Ingest writes only `events`. A cron-triggered rollup (Worker `scheduled` handler, e.g. every 5 minutes) does the rest:
 
-1. **Sessions**: group new `events` by `(website_id, visitor_id)` with a 30-minute inactivity gap into new/updated `sessions` rows. A session with no event for 30 minutes is closed (`ended_at` set). "Live now" = `ended_at IS NULL OR ended_at > now - 5min`.
+1. **Sessions**: group new `events` by `(website_id, visitor_id)` with a 30-minute inactivity gap into new/updated `sessions` rows. A session with no event for 30 minutes is closed (`ended_at` set). "Live now" = `ended_at IS NULL OR ended_at > now - 10min` (the realtime window, `api.md` §2.7.4).
 2. **Visitors**: upsert `visitors` on `(website_id, visitor_id)`, updating `last_seen`, counters, and first-touch fields only on first insert.
 3. **Daily aggregates**: `INSERT ... ON CONFLICT DO UPDATE ... = value + excluded.value` into `daily_aggregates` for `visitors`, `pageviews`, `sessions`, `revenue_cents`, and per-dimension breakdowns (channel, channel_name, referrer, path, device_type, country, hour-of-day). This is what the dashboard and API read; they never scan `events` for totals.
 4. **Retention**: delete `events` older than `retention_days`, and rebuild affected aggregates.
 
-Why not roll up in the ingest path: D1 is a single-writer SQLite database, and a synchronous session read-modify-write per beacon would serialize the hot path and blow the 100-statement batch limit. The 5-minute lag is acceptable for a self-hosted analytics tool and matches how databull.app describes realtime (visitors) plus aggregated history.
+Why not roll up in the ingest path: D1 is a single-writer SQLite database, and a synchronous session read-modify-write per beacon would serialize the hot path and blow the 100-statement batch limit. The 5-minute rollup lag (the cron cadence above, not the live window) is acceptable for a self-hosted analytics tool and matches how databull.app describes realtime (visitors) plus aggregated history.
 
 ---
 
@@ -574,7 +574,7 @@ The authoritative `/api/v1` path list and envelopes are in `api.md` §2 and §0 
 
 **Auth.** `Authorization: Bearer <raw token>`, or `?key=` for browser use. Tokens are hashed (`sha256`) in `api_tokens` (see §3.3); the raw value is returned once at creation. `dg_read_` is fixed read-only; `dg_ingest_` writes events; `dgt_` carries a JSON `permissions` array (`api.md` §1.2) and, for site endpoints, a required `siteId`.
 
-**Read sources.** Totals and breakdowns come from `daily_aggregates` (§3.11), never from `events`. Visitor and session detail reads `visitors` / `sessions` directly with keyset pagination on `(website_id, last_seen)` / `(website_id, started_at)`. Live visitors reads `sessions` where `last_seen > now - 5 min`.
+**Read sources.** Totals and breakdowns come from `daily_aggregates` (§3.11), never from `events`. Visitor and session detail reads `visitors` / `sessions` directly with keyset pagination on `(website_id, last_seen)` / `(website_id, started_at)`. Live visitors reads `sessions` where `last_seen > now - 10 min` (the realtime window, `api.md` §2.7.4).
 
 **Rate limits.** Per-token `rate_limit` (default 60/min), per-IP fallback 100/min, per-website ingest burst. Fixed-window counters in KV (D3); the store choice is an open question (§12). Headers: `X-RateLimit-Limit/Remaining/Reset` (`api.md` §0).
 
