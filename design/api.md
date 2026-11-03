@@ -185,14 +185,14 @@ not invent field names. The ingestion Worker (Worker Engineer) owns the actual e
 | GET | `/api/v1/admin/tokens` | `tokens:read` |
 | POST | `/api/v1/admin/tokens` | `tokens:write` |
 | DELETE | `/api/v1/admin/tokens/{tokenId}` | `tokens:write` |
-| GET/POST/PATCH/DELETE | `/api/v1/admin/sites/{siteId}/funnels[...]` | `funnels:read|write` |
+| GET/POST/PATCH/DELETE | `/api/v1/admin/sites/{siteId}/funnels[...]` | `funnels:read|write`; bodies and responses in §2.8 |
 | GET/POST/PATCH/DELETE | `/api/v1/admin/sites/{siteId}/alerts[...]` | `alerts:read|write` |
 | GET | `/api/v1/admin/sites/{siteId}/alerts/{id}/history` | `alerts:read` |
 | GET/POST/PATCH/DELETE | `/api/v1/admin/sites/{siteId}/notes[...]` | `notes:read|write` |
 | GET/POST/DELETE | `/api/v1/admin/sites/{siteId}/team[...]` | `team:read|write` |
 | GET | `/api/v1/admin/account` | any `dgt_` |
 
-Read shape for the site list: §2.7.8.
+Read shape for the site list: §2.7.8. Funnel definition bodies and responses: §2.8.
 
 Notes are always path-scoped by site. Mention reads infer site from a `dg_*` key; `dgt_` and cookie
 sessions must pass `siteId` (§1.4).
@@ -257,6 +257,8 @@ matches any event in their session. Steps are evaluated **in order within one se
   amount from the payment event, so `FunnelChart` can show revenue per step.
 - `POST /api/v1/admin/sites/{siteId}/funnels` validates the predicate set and rejects unknown predicates
   with 400.
+- Wire shape: §2.8. Each step is `{"type": <predicate>, <flattened params>}`; the server assigns position
+  from array order. `maxGapSeconds` is funnel-level, not per-step.
 
 ### 2.7 Pinned response shapes
 
@@ -377,7 +379,7 @@ immediately preceding equal-length range in the site timezone. Without the param
 - `totalVisitors` = first-step visitors; `totalConversionRate` = last ÷ first; `revenue`/`payments` =
   final-step totals; `revenuePerVisitor = revenue ÷ totalVisitors` (`0` when `0`).
 - `startAt`/`endAt` echo the resolved bounds (`null` for all-time); `lastUpdated` is generation time.
-- Inactive or unknown funnels return 404.
+- Inactive or unknown funnels return 404. `isActive` is defined in §2.8.1.
 
 #### 2.7.4 Realtime — `GET /api/v1/analytics/realtime`
 
@@ -520,6 +522,148 @@ Confirms §2.5 with exact bodies:
   → 400.
 - Owner scope. `dg_*` keys are never accepted as the SPA session; the middleware accepts the cookie or
   `Authorization: Bearer`.
+
+### 2.8 Funnel definitions (admin CRUD)
+
+Normative for the funnels list and builder. `GET /api/v1/analytics/funnel/{funnelId}` (§2.7.3) evaluates
+these definitions. Paths are site-scoped (§1.4) and carry the site in the path, so no `siteId` query
+param. There is no `GET .../funnels/{funnelId}` single-item endpoint in v0: the list embeds the full
+definition, and PATCH/DELETE re-list on success.
+
+#### 2.8.1 Funnel definition object
+
+```json
+{
+  "id": "fun_1",
+  "name": "Checkout",
+  "isActive": true,
+  "maxGapSeconds": 86400,
+  "steps": [
+    {"type": "page", "path": "/pricing", "name": "View pricing"},
+    {"type": "goal", "goal": "payment", "name": "Payment"}
+  ],
+  "createdAt": "2026-01-01T00:00:00Z",
+  "updatedAt": "2026-01-02T00:00:00Z"
+}
+```
+
+| Field | Type | Definition |
+| --- | --- | --- |
+| `id` | string | Opaque id, not sequential; used in the results path |
+| `name` | string | 1–100 chars, unique per site (409 on duplicate) |
+| `isActive` | boolean | `false` → not evaluated; `/analytics/funnel/{id}` returns 404 (§2.7.3) |
+| `maxGapSeconds` | int, nullable | Funnel-level cap on time between consecutive steps; `null` = no cap |
+| `steps` | array | 2–8 step objects; array order is the funnel order |
+| `createdAt` / `updatedAt` | timestamp | Creation / last-change time |
+
+Step object:
+
+| Field | Type | Definition |
+| --- | --- | --- |
+| `type` | enum | Predicate discriminator (table below) |
+| `<param>` | mixed | Predicate params, **flattened** at the same level as `type` — not nested under a `params` key |
+| `name` | string, nullable | Optional user label; the server derives one from the predicate when omitted |
+
+| `type` | Allowed flattened params | §2.6 predicate |
+| --- | --- | --- |
+| `page` | `path` | page equals |
+| `pageContains` | `pathContains` | page contains |
+| `goal` | `goal` | goal |
+| `country` | `country` | country |
+| `referrer` | `referrer` or `referrerContains` | referrer |
+| `device` | `device` (`desktop|mobile|tablet`) | device |
+| `host` | `host` | hostname |
+| `utm` | `utmSource`, `utmCampaign` | UTM |
+| `isCustomer` | `isCustomer` | isCustomer |
+| `scrollDepth` | `scrollPercent` | scroll depth |
+
+- Unknown `type`, a missing required param, or a param not allowed for that `type` → 400.
+- A payment step is `{"type": "goal", "goal": "payment"}` (§2.6).
+
+#### 2.8.2 List — `GET /api/v1/admin/sites/{siteId}/funnels`
+
+```json
+{
+  "data": [
+    {
+      "id": "fun_1",
+      "name": "Checkout",
+      "isActive": true,
+      "maxGapSeconds": 86400,
+      "steps": [{"type": "page", "path": "/pricing", "name": "View pricing"}],
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-01-02T00:00:00Z"
+    }
+  ],
+  "pagination": {"limit": 100, "offset": 0, "total": 1, "hasMore": false}
+}
+```
+
+- Each item is a full funnel definition; `steps` is embedded (no N+1).
+- Soft-deleted funnels are omitted.
+- Default sort `createdAt` descending; `order=asc` reverses.
+- Query params: `limit`, `offset`, `order`.
+
+#### 2.8.3 Create — `POST /api/v1/admin/sites/{siteId}/funnels`
+
+```json
+{
+  "name": "Checkout",
+  "isActive": true,
+  "maxGapSeconds": 86400,
+  "steps": [
+    {"type": "page", "path": "/pricing", "name": "View pricing"},
+    {"type": "goal", "goal": "payment", "name": "Payment"}
+  ]
+}
+```
+
+Response: `201` + `{"data": <funnel definition>}` (§2.8.1).
+
+- `name` and `steps` required; `isActive` defaults `true`; `maxGapSeconds` defaults `null`.
+- Duplicate `name` in the site → 409. Requires `funnels:write`.
+
+#### 2.8.4 Update — `PATCH /api/v1/admin/sites/{siteId}/funnels/{funnelId}`
+
+Partial update; body is a subset of the create body, at least one field required.
+
+```json
+{"isActive": false}
+```
+
+```json
+{"name": "Checkout v2", "maxGapSeconds": null, "steps": [{"type": "page", "path": "/pricing"}, {"type": "goal", "goal": "payment"}]}
+```
+
+Response: `200` + `{"data": <funnel definition>}`.
+
+- Only provided fields change; `steps` replaces the entire ordered list (2–8).
+- `id`/`createdAt` immutable; `updatedAt` changes. Unknown funnel → 404. Requires `funnels:write`.
+
+#### 2.8.5 Delete — `DELETE /api/v1/admin/sites/{siteId}/funnels/{funnelId}`
+
+Response: `204`, empty body (no `data` envelope).
+
+- Soft delete: the row is retained in D1 for audit/restore, but the funnel is omitted from the list and
+  `/analytics/funnel/{id}` returns 404. No undelete endpoint in v0.
+- Unknown or already-deleted funnel → 404. Requires `funnels:write`.
+
+#### 2.8.6 Errors
+
+| Code | When |
+| --- | --- |
+| 400 | Missing/invalid `name`, `steps`, `type`, or params; step count outside 2–8; empty PATCH body |
+| 403 | Missing `funnels:read` / `funnels:write` |
+| 404 | Unknown site or funnel; inactive funnel on the results endpoint (§2.7.3) |
+| 409 | Duplicate funnel `name` in the site |
+
+#### 2.8.7 Storage note (Worker Engineer)
+
+`worker.md` §3.8 models `funnel_steps` as `goal_slug` + `window_hours`, which cannot represent the §2.6
+predicate set. The frozen contract is §2.8.1, so `funnel_steps` must store the discriminator and params
+generically: `type TEXT NOT NULL` plus `params TEXT` (JSON of the flattened keys), and
+`funnels.max_gap_seconds INTEGER` (nullable) instead of a per-step `window_hours`. api.md is the source of
+truth; worker.md §3.8 must be updated to match.
 
 ## 3. CLI
 
@@ -699,6 +843,7 @@ plus `pagination` and `meta` (resolved timezone, UTC bounds, total).
 | D1 tables, token hashing, encryption | Worker Engineer | §1.3 token table + §5.2 `gsc_daily` |
 | Revenue-by-page attribution model | Attribution Engineer | §5.3 `estimatedRevenue` join |
 | Dashboard field needs | Dashboard Engineer | §2.1 + §2.7 pinned response shapes |
+| Funnel step storage (`funnels`, `funnel_steps`) | Worker Engineer | §2.8.1 `type` + flattened params; §2.8.7 storage note — worker.md §3.8 must match |
 | Ingestion Worker + cron | Worker Engineer | endpoints above |
 | SPA session auth | Dashboard Engineer | §2.5 endpoints; admin password hash table |
 
@@ -714,6 +859,10 @@ plus `pagination` and `meta` (resolved timezone, UTC bounds, total).
 6. ~~Realtime window: §2.7.4 pins 10 minutes, but worker.md §9/§10 defines "live now" as 5 minutes. The
    Worker Engineer must confirm one number before implementing `/analytics/realtime[/map]`.~~ **Resolved
    2026-11-03:** worker.md was updated to the 10-minute window (PR #7), matching §2.7.4.
+7. ~~Funnel step storage: worker.md §3.8 `funnel_steps` models `goal_slug` + `window_hours`, but api.md
+   §2.6 defines a full predicate set.~~ **Resolved 2026-11-03:** api.md §2.8 pins the wire shape
+   (`type` + flattened params, funnel-level `maxGapSeconds`); worker.md §3.8 must store `type` + `params`
+   JSON. The Worker Engineer owns that edit (§2.8.7).
 
 ## 10. Sources (read 2026-11-02)
 
