@@ -12,6 +12,7 @@ This is original design; nothing here is copied code.
 | Base URL | `/api/v1/` |
 | Transport | HTTPS JSON only, `Authorization: Bearer <token>` |
 | Token types | `dg_read_` site read-only key, `dg_ingest_` site event key, `dgt_` account token |
+| Site selection | `dg_*` key infers the site; `dgt_` tokens and cookie sessions pass `siteId` (§1.4) |
 | Success envelope | `{"data": <endpoint payload>}`; lists also carry `pagination` |
 | Error envelope | `{"error": {"code": <http status>, "message": <string>, "details": [<optional>]}}` |
 | Versioning | URL path (`/api/v1/`). Breaking changes ship as `/api/v2/` |
@@ -34,9 +35,10 @@ never needs read privileges. This is a deliberate, small deviation, not a copy.
 | Site ingest key | `dg_ingest_` | One site, write events | Server-side goals, payments, identify |
 | Account token | `dgt_` | One account, optionally site-allowlisted | CLI sessions, MCP write tools, account automation |
 
-- A `dg_*` key resolves the site from the key itself; no `siteId` query param needed.
-- An `dgt_` token calling site endpoints must pass `siteId` as a query parameter.
-- Admin routes embed the site in the path: `/api/v1/admin/sites/{siteId}/funnels`.
+- A `dg_*` key resolves the site from the key itself; `siteId` is not applicable to it.
+- An `dgt_` token **or a cookie session** calling a site-scoped endpoint must pass `siteId` as a query
+  parameter; see §1.4 for resolution and validation.
+- Admin subroutes embed the site in the path: `/api/v1/admin/sites/{siteId}/funnels`.
 
 ### 1.2 Permissions (for `dgt_`; `dg_*` keys are fixed-scope)
 
@@ -70,12 +72,39 @@ Recommended agent permission sets (documented in the README, not enforced by def
 - On login/token create, the raw token is shown once and never retrievable again.
 - `keys:write` allows roll (old hash stops working immediately) and revoke.
 
+### 1.4 Site resolution
+
+Site-scoped endpoints (`/api/v1/analytics/*`, `/visitors*`, `/mentions`, `/gsc/*`, and the §2.2 ingest
+endpoints) resolve the site from the credential and a `siteId` query parameter when applicable:
+
+| Credential | `siteId` query param | Rule |
+| --- | --- | --- |
+| `dg_read_` / `dg_ingest_` key | not applicable | site is embedded in the key; passing `siteId` is a 400 |
+| `dgt_` token | required | validated against the account's sites |
+| cookie session (`dg_session`) | required | validated against the owner's sites |
+
+- `siteId` selects the site context only; permissions still come from the credential.
+- Cookie sessions use the same rule as `dgt_` (API-owner ruling, 2026-11-03, at the Dashboard Engineer's
+  request): the SPA sends the selected site as `siteId` on every site-scoped call. This avoids server-side
+  "active site" state and keeps one rule for both auth modes; the WebsiteSwitcher gets the value from
+  `GET /api/v1/admin/sites`.
+- Missing `siteId` on a `dgt_` or cookie call to a site-scoped endpoint → 400 with message
+  `siteId is required`.
+- A `siteId` that does not exist or is not owned by the caller → 404, the same response as any inaccessible
+  resource; existence is not disclosed.
+- Duplicate `siteId` parameters → 400, consistent with §2.4.
+- Admin subroutes carry the site in the path instead (`/api/v1/admin/sites/{siteId}/...`, §2.3) and do not
+  accept a `siteId` query param. `GET /api/v1/admin/sites` is not site-scoped and needs none.
+- Bootstrap order for the SPA: wait for `/admin/sites` before firing site-scoped requests. An early call
+  without `siteId` is a 400, not a default to an arbitrary site.
+- `siteId` is not a secret and may appear in URLs and logs.
+
 ## 2. REST API surface
 
 All endpoints return the §0 envelopes. Every list endpoint supports `limit` (default 100, max 1000),
 `offset`, and returns `pagination: {limit, offset, total, hasMore}`.
 
-### 2.1 Site endpoints (`dg_read_` inferred site; `dgt_` needs `siteId`)
+### 2.1 Site endpoints (site resolution in §1.4)
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -102,7 +131,8 @@ All endpoints return the §0 envelopes. Every list endpoint supports `limit` (de
 
 Common query params: `startAt`, `endAt` (inclusive `YYYY-MM-DD` or ISO; a date-only bound covers the whole
 local day in the site tz), `timezone` (IANA, default site tz), `path` filter (e.g. `/blog`), `fields`,
-`interval`, `order` (`asc|desc`).
+`interval`, `order` (`asc|desc`). `siteId` is required by `dgt_` and cookie-session calls on these
+endpoints and validated per §1.4.
 
 ### 2.1.1 Breakdown response shape (all `/analytics/*` breakdowns)
 
@@ -164,7 +194,8 @@ not invent field names. The ingestion Worker (Worker Engineer) owns the actual e
 
 Read shape for the site list: §2.7.8.
 
-Notes are always path-scoped by site. Mention reads infer site from a `dg_*` key; `dgt_` must pass `siteId`.
+Notes are always path-scoped by site. Mention reads infer site from a `dg_*` key; `dgt_` and cookie
+sessions must pass `siteId` (§1.4).
 
 ### 2.4 Errors
 
@@ -198,6 +229,9 @@ funnels, keys, tokens, team, settings). `dg_*` keys are never accepted as the SP
 rate-limited (10 attempts / 15 min / IP). PBKDF2-SHA256 is used because Workers have no Argon2/bcrypt in the
 standard runtime; ≥210k iterations. The admin password is set at first boot and stored as its hash in D1
 (Worker Engineer owns that table).
+
+Cookie-authenticated calls resolve the site exactly like `dgt_`: a required `siteId` query param on every
+site-scoped endpoint (§1.4). The SPA's WebsiteSwitcher supplies it; `/admin/sites` needs no `siteId`.
 
 ### 2.6 Funnel step predicates (Worker contract)
 
@@ -356,8 +390,8 @@ immediately preceding equal-length range in the site timezone. Without the param
 - `windowMinutes` is `10` in v0 and is echoed so clients do not hard-code the window.
 - `timestamp` is the response time. Date-range and filter parameters are ignored; unknown parameters
   return 400.
-- Conflict to resolve: worker.md §9/§10 defines "live now" as 5 minutes. The Worker Engineer must align
-  to 10 or ask the API owner to change this (§9 Q6).
+- Resolved 2026-11-03: worker.md now uses the same 10-minute window (PR #7), so `windowMinutes` is the
+  single source of truth for both docs.
 
 #### 2.7.5 Realtime map — `GET /api/v1/analytics/realtime/map`
 
@@ -677,8 +711,9 @@ plus `pagination` and `meta` (resolved timezone, UTC bounds, total).
    2026-11-02 with Dashboard Engineer:** the SPA uses the `dg_session` cookie (§2.5); `dgt_` tokens remain for
    CLI, MCP, and external/CI use only.
 5. Confirm the MCP `confirm`/dry-run pattern is acceptable vs always-execute for write tools.
-6. Realtime window: §2.7.4 pins 10 minutes, but worker.md §9/§10 defines "live now" as 5 minutes. The
-   Worker Engineer must confirm one number before implementing `/analytics/realtime[/map]`.
+6. ~~Realtime window: §2.7.4 pins 10 minutes, but worker.md §9/§10 defines "live now" as 5 minutes. The
+   Worker Engineer must confirm one number before implementing `/analytics/realtime[/map]`.~~ **Resolved
+   2026-11-03:** worker.md was updated to the 10-minute window (PR #7), matching §2.7.4.
 
 ## 10. Sources (read 2026-11-02)
 
