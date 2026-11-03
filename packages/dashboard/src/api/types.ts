@@ -123,6 +123,53 @@ export interface FunnelResult {
   lastUpdated: string;
 }
 
+// `api.md` §2.8 pins the funnel definition and flattened step params.
+export type FunnelStepType =
+  | 'page'
+  | 'pageContains'
+  | 'goal'
+  | 'country'
+  | 'referrer'
+  | 'device'
+  | 'host'
+  | 'utm'
+  | 'isCustomer'
+  | 'scrollDepth';
+
+export interface FunnelStep {
+  type: FunnelStepType;
+  name?: string | null;
+  path?: string;
+  pathContains?: string;
+  goal?: string;
+  country?: string;
+  referrer?: string;
+  referrerContains?: string;
+  device?: 'desktop' | 'mobile' | 'tablet';
+  host?: string;
+  utmSource?: string;
+  utmCampaign?: string;
+  isCustomer?: boolean;
+  scrollPercent?: number;
+}
+
+export interface FunnelDefinition {
+  id: string;
+  name: string;
+  isActive: boolean;
+  maxGapSeconds: number | null;
+  steps: FunnelStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FunnelDefinitionInput {
+  name: string;
+  isActive?: boolean;
+  maxGapSeconds?: number | null;
+  steps: FunnelStep[];
+}
+
 // `api.md` §2.7.4 pins this shape. `online` is the active-visitor count.
 export interface Realtime {
   online: number;

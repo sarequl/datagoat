@@ -33,3 +33,9 @@ export function formatDelta(change: number): string {
   const sign = change > 0 ? '+' : '';
   return `${sign}${change.toFixed(1)}%`;
 }
+
+export function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
