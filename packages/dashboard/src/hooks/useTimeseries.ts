@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getTimeseries, type Interval } from '../api/analytics';
 
 interface UseTimeseriesOptions {
+  siteId?: string;
   startAt: string;
   endAt: string;
   timezone: string;
@@ -10,6 +11,7 @@ interface UseTimeseriesOptions {
 }
 
 export function useTimeseries({
+  siteId,
   startAt,
   endAt,
   timezone,
@@ -17,8 +19,8 @@ export function useTimeseries({
   fields,
 }: UseTimeseriesOptions) {
   return useQuery({
-    queryKey: ['timeseries', startAt, endAt, timezone, interval, fields],
-    queryFn: () => getTimeseries({ startAt, endAt, timezone, interval, fields }),
+    queryKey: ['timeseries', siteId, startAt, endAt, timezone, interval, fields],
+    queryFn: () => getTimeseries({ siteId, startAt, endAt, timezone, interval, fields }),
     staleTime: 60_000,
   });
 }

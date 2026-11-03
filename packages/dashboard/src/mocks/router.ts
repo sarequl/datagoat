@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { sendJson } from './http.ts';
 import { handleAnalytics } from './routes/analytics.ts';
+import { handleBreakdown, handleSites, isBreakdownPath } from './routes/breakdown.ts';
 import { handleSession } from './routes/session.ts';
 
 export async function handleMockRequest(
@@ -21,18 +22,17 @@ export async function handleMockRequest(
     return;
   }
 
-  if (path === '/api/v1/analytics/metadata') {
-    handleAnalytics(method, path, url, request, response);
+  if (path === '/api/v1/admin/sites') {
+    handleSites(method, path, url, response);
     return;
   }
 
-  if (path === '/api/v1/analytics/overview') {
-    handleAnalytics(method, path, url, request, response);
-    return;
-  }
-
-  if (path === '/api/v1/analytics/timeseries') {
-    handleAnalytics(method, path, url, request, response);
+  if (path.startsWith('/api/v1/analytics/')) {
+    if (isBreakdownPath(path)) {
+      handleBreakdown(method, path, url, response);
+    } else {
+      handleAnalytics(method, path, url, request, response);
+    }
     return;
   }
 

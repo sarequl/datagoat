@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { AccountMenu } from './AccountMenu';
 import { Logo } from './Logo';
 import { ThemeToggle } from './ThemeToggle';
+import { WebsiteSwitcher } from './WebsiteSwitcher';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Overview', end: true },
@@ -36,6 +37,7 @@ export function AppShell() {
         <header className="topbar">
           <span className="topbar__title">Dashboard</span>
           <div className="topbar__actions">
+            <WebsiteSwitcher />
             <ThemeToggle />
             <AccountMenu />
           </div>

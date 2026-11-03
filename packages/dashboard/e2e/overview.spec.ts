@@ -42,6 +42,6 @@ test('the compare toggle shows delta chips', async ({ page }) => {
 test('renders the timeseries chart with a data-table fallback', async ({ page }) => {
   await signIn(page);
 
-  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('.chart-container canvas')).toBeVisible();
   await expect(page.getByRole('table', { name: 'Timeseries values' })).toBeAttached();
 });
