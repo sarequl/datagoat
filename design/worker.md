@@ -256,21 +256,27 @@ CREATE UNIQUE INDEX idx_goals_site_slug ON goals (website_id, slug);
 
 ```sql
 CREATE TABLE funnels (
-  id          TEXT PRIMARY KEY,
-  website_id  TEXT NOT NULL,
-  name        TEXT NOT NULL,
-  created_at  INTEGER NOT NULL
+  id               TEXT PRIMARY KEY,
+  website_id       TEXT NOT NULL,
+  name             TEXT NOT NULL,
+  max_gap_seconds  INTEGER,                      -- NULL = no cap (api.md §2.8.1)
+  created_at       INTEGER NOT NULL
 );
 CREATE TABLE funnel_steps (
   id           TEXT PRIMARY KEY,
   funnel_id    TEXT NOT NULL,
   position     INTEGER NOT NULL,
-  goal_slug    TEXT NOT NULL,                   -- events.name to match
-  window_hours INTEGER NOT NULL DEFAULT 168,    -- 7 days default
+  type         TEXT NOT NULL,                   -- §2.8.1 predicate discriminator
+  params       TEXT NOT NULL,                   -- JSON of the flattened predicate params
   created_at   INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX idx_funnel_steps ON funnel_steps (funnel_id, position);
 ```
+
+Step predicates follow `api.md` §2.8.1: `type` is the discriminator and `params` holds the flattened
+predicate keys as JSON (e.g. `{"path":"/pricing"}`, `{"goal":"payment"}`). `funnels.max_gap_seconds`
+is the funnel-level cap between consecutive steps; `NULL` means no cap. The old per-step
+`goal_slug` + `window_hours` pair cannot represent the §2.6 predicate set and is removed.
 
 ### 3.9 `payments` (server-side revenue; never from the browser beacon)
 
