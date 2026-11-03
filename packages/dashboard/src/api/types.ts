@@ -23,7 +23,7 @@ export interface SessionWhoami {
 
 export interface Site {
   id: string;
-  name: string;
+  name: string | null;
   domain: string;
   timezone: string;
   currency: string;
@@ -36,7 +36,8 @@ export interface SiteMetadata {
   name: string;
   timezone: string;
   currency: string;
-  kpis: string[];
+  /** The site's #1 KPI; `null` when unset. */
+  kpi: string | null;
 }
 
 export interface OverviewMetrics {
@@ -45,6 +46,7 @@ export interface OverviewMetrics {
   pageviews: number;
   bounceRate: number;
   avgSessionDuration: number;
+  currency: string;
   revenue: number;
   payments: number;
   revenuePerVisitor: number;
@@ -52,8 +54,7 @@ export interface OverviewMetrics {
 }
 
 export interface Overview extends OverviewMetrics {
-  // Mirrors the same fields for the immediately preceding equal-length range
-  // in the site timezone (api.md §2.1). Optional until the Worker ships it.
+  /** Present when the request used `compare=previous` (api.md §2.7.1). */
   previous?: OverviewMetrics;
 }
 
@@ -67,15 +68,23 @@ export interface BreakdownRow {
   conversionRate?: number;
 }
 
-export type GoalRow = BreakdownRow;
+// `api.md` §2.7.7: goals carry `completions` and no `conversionRate`.
+export interface GoalRow extends Omit<BreakdownRow, 'conversionRate'> {
+  completions: number;
+}
 
-// `api.md` specifies the timeseries query params but not the response shape.
-// This is the mock's assumed shape and is flagged for API Engineer review.
+export interface ExitClickRow extends BreakdownRow {
+  clicks: number;
+}
+
+// `api.md` §2.7.2 pins this shape. Each point carries only the requested
+// metrics; requesting `revenue` also returns `payments`. `sessions` is omitted
+// unless it was requested.
 export interface TimeseriesPoint {
   timestamp: string;
   visitors: number;
   pageviews: number;
-  sessions: number;
+  sessions?: number;
   revenue: number;
   payments: number;
 }
@@ -83,6 +92,8 @@ export interface TimeseriesPoint {
 export interface Timeseries {
   interval: 'hour' | 'day' | 'week' | 'month';
   fields: string[];
+  timezone: string;
+  currency: string;
   points: TimeseriesPoint[];
 }
 
@@ -96,41 +107,62 @@ export interface FunnelStepResult {
   payments: number;
 }
 
-// `api.md` §2.1/§2.6 describe funnel semantics but not the JSON shape; this is
-// the mock's assumed shape and is flagged for API Engineer review.
+// `api.md` §2.7.3 pins this shape.
 export interface FunnelResult {
   id: string;
   name: string;
   steps: FunnelStepResult[];
+  totalVisitors: number;
   totalConversionRate: number;
   revenue: number;
   payments: number;
+  revenuePerVisitor: number;
+  timezone: string;
+  startAt: string | null;
+  endAt: string | null;
+  lastUpdated: string;
 }
 
+// `api.md` §2.7.4 pins this shape. `online` is the active-visitor count.
 export interface Realtime {
-  visitors: number;
+  online: number;
+  windowMinutes: number;
   timestamp: string;
 }
 
+// `api.md` §2.7.5 pins this shape.
 export interface RealtimePayment {
+  visitorId: string;
   amount: number;
   currency: string;
   at: string;
+  isRenewal: boolean;
 }
 
 export interface RealtimeVisitor {
   visitorId: string;
-  page: string;
+  page: string | null;
   referrer: string | null;
-  country: string | null;
+  countryCode: string | null;
+  region: string | null;
+  city: string | null;
+  latitude: number | null;
+  longitude: number | null;
   device: 'desktop' | 'mobile' | 'tablet';
+  browser: string;
+  os: string;
+  sessionStartTime: string;
   lastSeenAt: string;
-  payments: RealtimePayment[];
+  visitCount: number;
+  isCustomer: boolean;
 }
 
 export interface RealtimeMap {
-  visitors: RealtimeVisitor[];
+  count: number;
+  windowMinutes: number;
   timestamp: string;
+  visitors: RealtimeVisitor[];
+  recentPayments: RealtimePayment[];
 }
 
 export type BreakdownDimension =

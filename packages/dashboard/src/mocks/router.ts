@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { sendJson } from './http.ts';
+import { handleAnalytics } from './routes/analytics.ts';
 import { handleSession } from './routes/session.ts';
 
 export async function handleMockRequest(
@@ -10,14 +12,27 @@ export async function handleMockRequest(
   const method = (request.method ?? 'GET').toUpperCase();
 
   if (path === '/api/v1/health') {
-    response.statusCode = 200;
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
-    response.end(JSON.stringify({ data: { status: 'ok' } }));
+    sendJson(response, 200, { data: { status: 'ok' } });
     return;
   }
 
   if (path === '/api/v1/session' || path === '/api/v1/session/logout') {
     await handleSession(method, path, request, response);
+    return;
+  }
+
+  if (path === '/api/v1/analytics/metadata') {
+    handleAnalytics(method, path, url, request, response);
+    return;
+  }
+
+  if (path === '/api/v1/analytics/overview') {
+    handleAnalytics(method, path, url, request, response);
+    return;
+  }
+
+  if (path === '/api/v1/analytics/timeseries') {
+    handleAnalytics(method, path, url, request, response);
     return;
   }
 
