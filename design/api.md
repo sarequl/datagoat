@@ -79,20 +79,20 @@ All endpoints return the §0 envelopes. Every list endpoint supports `limit` (de
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/v1/analytics/overview` | Totals: visitors, sessions, pageviews, bounce rate, avg session duration, revenue, payments, revenue/visitor, conversion rate. Optional `previous` block mirrors the same fields for the immediately preceding equal-length range (site tz) |
-| GET | `/api/v1/analytics/timeseries` | Metrics bucketed by `interval` (`hour|day|week|month`); `fields` selects metrics |
-| GET | `/api/v1/analytics/realtime` | Current active visitor count |
-| GET | `/api/v1/analytics/realtime/map` | Active visitors last ~10 min, current page, recent payments |
-| GET | `/api/v1/analytics/metadata` | Site domain, timezone, currency, name, KPI |
+| GET | `/api/v1/analytics/overview` | Totals for a range; exact shape in §2.7.1. `compare=previous` adds a `previous` block mirroring the same fields for the preceding equal-length range (site tz) |
+| GET | `/api/v1/analytics/timeseries` | Metrics bucketed by `interval` (`hour|day|week|month`); `fields` selects metrics. Shape in §2.7.2 |
+| GET | `/api/v1/analytics/realtime` | Active visitor count for the last 10 min. Shape in §2.7.4 |
+| GET | `/api/v1/analytics/realtime/map` | Active visitors last 10 min with geo/device fields, plus recent payments. Shape in §2.7.5 |
+| GET | `/api/v1/analytics/metadata` | Site domain, timezone, currency, name, #1 KPI. Shape in §2.7.6 |
 | GET | `/api/v1/analytics/pages` | Top pages by visitors, with revenue |
 | GET | `/api/v1/analytics/referrers` | Traffic sources |
 | GET | `/api/v1/analytics/countries` / `regions` / `cities` | Geography |
 | GET | `/api/v1/analytics/browsers` / `devices` / `operating-systems` | Device |
 | GET | `/api/v1/analytics/campaigns` | UTM campaign breakdown |
-| GET | `/api/v1/analytics/goals` | Completions and visitors per goal |
+| GET | `/api/v1/analytics/goals` | Goal name, completions, visitors and revenue per goal. Shape in §2.7.9 |
 | GET | `/api/v1/analytics/hostnames` | Multi-domain breakdown |
 | GET | `/api/v1/analytics/exit-clicks` | External destinations by unique visitors and clicks |
-| GET | `/api/v1/analytics/funnel/{funnelId}` | Step-by-step drop-off and conversion. Steps are ordered predicates evaluated within one session; see §2.5 for the supported predicate set |
+| GET | `/api/v1/analytics/funnel/{funnelId}` | Step-by-step drop-off and conversion. Steps are ordered predicates evaluated within one session; predicate set in §2.6, result shape in §2.7.3 |
 | GET | `/api/v1/visitors` | Search by page, goal, country, device, browser, `utm_campaign`, `isCustomer` |
 | GET | `/api/v1/visitors/{visitorId}` | Identity, profile, activity, goals, payments, prediction |
 | GET | `/api/v1/mentions` | X/Reddit mentions (see §6) |
@@ -121,9 +121,12 @@ table shape for all dimensions:
 - `revenue` is **attributed** revenue (Attribution Engineer's model), not booked revenue; label it as an
   estimate in the UI.
 - `revenuePerVisitor = revenue / visitors`; when `visitors = 0` return `0`, never `null`/`NaN`.
-- `payments` is a count. `conversionRate` is optional per endpoint.
+- `payments` is a count. `conversionRate` is returned only when the request includes a `goal=<name>` filter;
+  it is goal-completing unique visitors in the row ÷ row visitors, `0` when `visitors = 0`. Without a goal
+  filter the key is absent.
 - Applies to `pages`, `referrers`, `campaigns`, `countries`, `regions`, `cities`, `browsers`, `devices`,
-  `operating-systems`, `hostnames`, `exit-clicks`, and `goals`.
+  `operating-systems`, and `hostnames`. `goals` adds `completions` and omits `conversionRate`;
+  `exit-clicks` adds `clicks`. See §2.7.7 for the exact per-endpoint rows.
 
 ### 2.2 Ingest endpoints (`dg_ingest_`, or `dgt_` with `events:write`)
 
@@ -158,6 +161,8 @@ not invent field names. The ingestion Worker (Worker Engineer) owns the actual e
 | GET/POST/PATCH/DELETE | `/api/v1/admin/sites/{siteId}/notes[...]` | `notes:read|write` |
 | GET/POST/DELETE | `/api/v1/admin/sites/{siteId}/team[...]` | `team:read|write` |
 | GET | `/api/v1/admin/account` | any `dgt_` |
+
+Read shape for the site list: §2.7.8.
 
 Notes are always path-scoped by site. Mention reads infer site from a `dg_*` key; `dgt_` must pass `siteId`.
 
@@ -218,6 +223,269 @@ matches any event in their session. Steps are evaluated **in order within one se
   amount from the payment event, so `FunnelChart` can show revenue per step.
 - `POST /api/v1/admin/sites/{siteId}/funnels` validates the predicate set and rejects unknown predicates
   with 400.
+
+### 2.7 Pinned response shapes
+
+This section is normative for `/api/v1`: it fixes the JSON the dashboard, CLI, and MCP tools code against.
+The names are camelCase and deliberately differ from the reference product's snake_case; this is original
+design, not copied shape.
+
+Conventions used below:
+
+- Envelopes are §0. Success is `{"data": ...}` plus `pagination` where stated; errors are
+  `{"error": {"code", "message", "details"}}`.
+- Counts are integers. Timestamps are ISO 8601 UTC strings ending in `Z`. Date bounds are `YYYY-MM-DD`.
+- Money is a decimal number in the site currency's **major unit** (e.g. `5310.5` = $5,310.50), rounded to
+  2 dp. Storage is minor units; the API converts.
+- Rates are fractions in `[0, 1]` rounded to 4 dp, never percentages. (`revenuePerVisitor` is money, not a
+  rate.)
+- A field marked *nullable* is always present as `null`, never omitted.
+
+#### 2.7.1 Overview — `GET /api/v1/analytics/overview`
+
+```json
+{
+  "data": {
+    "visitors": 12840,
+    "sessions": 15320,
+    "pageviews": 41280,
+    "bounceRate": 0.421,
+    "avgSessionDuration": 184,
+    "currency": "USD",
+    "revenue": 5310.5,
+    "payments": 42,
+    "revenuePerVisitor": 0.4134,
+    "conversionRate": 0.0333
+  }
+}
+```
+
+`data` is an object, not an array.
+
+| Field | Type | Definition |
+| --- | --- | --- |
+| `visitors` | int | Unique visitors in range |
+| `sessions` | int | Sessions in range |
+| `pageviews` | int | Pageviews in range |
+| `bounceRate` | fraction | Single-pageview sessions ÷ sessions; `0` when `sessions = 0` |
+| `avgSessionDuration` | int | Mean session length in seconds, rounded to nearest second |
+| `currency` | string | ISO 4217 code for money fields (added in this revision) |
+| `revenue` | money | Attributed revenue (estimate), not booked revenue |
+| `payments` | int | Payment events attributed in range |
+| `revenuePerVisitor` | money | `revenue ÷ visitors`; `0` when `visitors = 0` |
+| `conversionRate` | fraction | Paying unique visitors ÷ visitors (revenue-based conversion); `0` when `visitors = 0` |
+
+`compare=previous` adds `data.previous` with exactly the same fields (including `currency`) for the
+immediately preceding equal-length range in the site timezone. Without the parameter the key is absent.
+
+#### 2.7.2 Timeseries — `GET /api/v1/analytics/timeseries`
+
+`interval` is required. `fields` is optional and selects a subset of
+`visitors,pageviews,sessions,revenue,payments` (default all five). Requesting `revenue` also returns
+`payments`. An unknown metric is a 400.
+
+```json
+{
+  "data": {
+    "interval": "day",
+    "fields": ["visitors", "pageviews", "sessions", "revenue", "payments"],
+    "timezone": "UTC",
+    "currency": "USD",
+    "points": [
+      {"timestamp": "2026-11-01T00:00:00Z", "visitors": 320, "pageviews": 704, "sessions": 272, "revenue": 0, "payments": 0}
+    ]
+  }
+}
+```
+
+- Rows are under `points` (not `data[]`), matching the dashboard's typed mock.
+- `fields` echoes the effective metrics in canonical order `visitors,pageviews,sessions,revenue,payments`;
+  each point carries only those metrics (plus `payments` when `revenue` was requested).
+- `point.timestamp` is the bucket start as a UTC instant. `hour` buckets start at the top of the hour;
+  `day`/`week`/`month` buckets start at local midnight in `timezone` (weeks Monday, months day 1), converted
+  to UTC.
+- Every bucket in the inclusive range is returned and zero-filled when empty.
+- No `pagination`: one response covers the whole range. Ranges wider than 1000 buckets are rejected with
+  400 (`narrow the range or use a larger interval`).
+- Same-day ranges do not change the requested interval.
+
+#### 2.7.3 Funnel results — `GET /api/v1/analytics/funnel/{funnelId}`
+
+```json
+{
+  "data": {
+    "id": "fun_1",
+    "name": "Checkout",
+    "steps": [
+      {"step": 1, "name": "View pricing", "visitors": 1204, "conversionRate": 1, "dropoffRate": 0, "revenue": 0, "payments": 0},
+      {"step": 2, "name": "Start checkout", "visitors": 310, "conversionRate": 0.2574, "dropoffRate": 0.7426, "revenue": 0, "payments": 0},
+      {"step": 3, "name": "Payment", "visitors": 42, "conversionRate": 0.0349, "dropoffRate": 0.8645, "revenue": 5310.5, "payments": 42}
+    ],
+    "totalVisitors": 1204,
+    "totalConversionRate": 0.0349,
+    "revenue": 5310.5,
+    "payments": 42,
+    "revenuePerVisitor": 4.4111,
+    "timezone": "UTC",
+    "startAt": "2026-11-01",
+    "endAt": "2026-11-03",
+    "lastUpdated": "2026-11-03T08:00:00Z"
+  }
+}
+```
+
+- `steps` preserve funnel order; `step` is 1-based.
+- Step `visitors` = unique visitors who reached that step in order, within one session, honouring the
+  funnel's `maxGapSeconds`.
+- Step `conversionRate = step.visitors ÷ steps[0].visitors` (first step `1`).
+- Step `dropoffRate = 1 − step.visitors ÷ previousStep.visitors` (first step `0`).
+- Step `revenue`/`payments` = attributed revenue/payment count from visitors who reached that step.
+- `totalVisitors` = first-step visitors; `totalConversionRate` = last ÷ first; `revenue`/`payments` =
+  final-step totals; `revenuePerVisitor = revenue ÷ totalVisitors` (`0` when `0`).
+- `startAt`/`endAt` echo the resolved bounds (`null` for all-time); `lastUpdated` is generation time.
+- Inactive or unknown funnels return 404.
+
+#### 2.7.4 Realtime — `GET /api/v1/analytics/realtime`
+
+```json
+{ "data": { "online": 128, "windowMinutes": 10, "timestamp": "2026-11-03T08:00:00Z" } }
+```
+
+- `online` = unique visitors with any event in the last `windowMinutes` minutes. The field is named
+  `online` (not `visitors`) so it cannot be confused with the map endpoint's `visitors` array.
+- `windowMinutes` is `10` in v0 and is echoed so clients do not hard-code the window.
+- `timestamp` is the response time. Date-range and filter parameters are ignored; unknown parameters
+  return 400.
+- Conflict to resolve: worker.md §9/§10 defines "live now" as 5 minutes. The Worker Engineer must align
+  to 10 or ask the API owner to change this (§9 Q6).
+
+#### 2.7.5 Realtime map — `GET /api/v1/analytics/realtime/map`
+
+```json
+{
+  "data": {
+    "count": 2,
+    "windowMinutes": 10,
+    "timestamp": "2026-11-03T08:00:00Z",
+    "visitors": [
+      {
+        "visitorId": "9f2c1e0ab74d4f3c8e5a6b7c8d9e0f11",
+        "page": "/pricing",
+        "referrer": "Google",
+        "countryCode": "FR",
+        "region": "Île-de-France",
+        "city": "Paris",
+        "latitude": 48.8566,
+        "longitude": 2.3522,
+        "device": "desktop",
+        "browser": "Chrome",
+        "os": "Mac OS",
+        "sessionStartTime": "2026-11-03T07:55:00Z",
+        "lastSeenAt": "2026-11-03T08:00:00Z",
+        "visitCount": 2,
+        "isCustomer": false
+      }
+    ],
+    "recentPayments": [
+      {"visitorId": "9f2c1e0ab74d4f3c8e5a6b7c8d9e0f11", "amount": 49.0, "currency": "USD", "at": "2026-11-03T07:58:00Z", "isRenewal": false}
+    ]
+  }
+}
+```
+
+- `count` = `visitors.length`, same window as §2.7.4.
+- `visitors` are active in the window, newest `lastSeenAt` first. Nullable: `page`, `referrer`,
+  `countryCode`, `region`, `city`, `latitude`, `longitude`. `page` is the current path, not a full URL.
+  Coordinates are coarse city-level values from `request.cf`, never precise locations.
+- `device` ∈ `desktop|mobile|tablet`; `browser`/`os` are display names; `visitCount` is the all-time
+  session count; `isCustomer` reports whether payment data exists for the visitor.
+- `recentPayments` lists payments in the window, newest first, maximum 20:
+  `{visitorId, amount, currency, at, isRenewal}`. Payments are not repeated inside visitor rows.
+- No `pagination`. No customer names or emails: use `/visitors/{visitorId}` for identity.
+
+#### 2.7.6 Metadata — `GET /api/v1/analytics/metadata`
+
+```json
+{
+  "data": {
+    "siteId": "site_1",
+    "domain": "example.com",
+    "name": "Example",
+    "timezone": "UTC",
+    "currency": "USD",
+    "kpi": "revenue"
+  }
+}
+```
+
+- `kpi` is the site's #1 KPI as a scalar (nullable), not an array. Allowed values: `visitors`,
+  `sessions`, `pageviews`, `bounceRate`, `avgSessionDuration`, `revenue`, `payments`,
+  `revenuePerVisitor`, `conversionRate`; `null` when unset.
+- This corrects the dashboard mock's `kpis: string[]` to scalar `kpi`.
+
+#### 2.7.7 Breakdown rows
+
+Base row (confirmed from §2.1.1):
+
+```json
+{"value": "/pricing", "visitors": 1204, "pageviews": 2680, "revenue": 5310.0, "payments": 42, "revenuePerVisitor": 4.41, "conversionRate": 0.0349}
+```
+
+| Endpoint | Row shape |
+| --- | --- |
+| `pages`, `referrers`, `campaigns`, `countries`, `regions`, `cities`, `browsers`, `devices`, `operating-systems`, `hostnames` | base |
+| `goals` | base + `completions` (int, event count), no `conversionRate` |
+| `exit-clicks` | base + `clicks` (int) |
+
+- `value` is the dimension value: path, referrer host, country code, device type, goal name, or external
+  destination URL.
+- `completions` counts goal events, so one visitor can contribute more than once.
+
+#### 2.7.8 Sites list — `GET /api/v1/admin/sites`
+
+```json
+{
+  "data": [
+    {"id": "site_1", "name": "Example", "domain": "example.com", "timezone": "UTC", "currency": "USD", "createdAt": "2026-01-01T00:00:00Z"}
+  ],
+  "pagination": {"limit": 100, "offset": 0, "total": 1, "hasMore": false}
+}
+```
+
+- `name` is nullable. `id` is the `siteId` used by `dgt_` calls and admin paths.
+- No `role` in v0 (single account, owner-only session).
+
+#### 2.7.9 Goals list — `GET /api/v1/analytics/goals`
+
+```json
+{
+  "data": [
+    {"value": "signup", "completions": 482, "visitors": 391, "pageviews": 0, "revenue": 0, "payments": 0, "revenuePerVisitor": 0}
+  ],
+  "pagination": {"limit": 100, "offset": 0, "total": 1, "hasMore": false}
+}
+```
+
+- Base row + `completions`. `value` is the goal name; `visitors` is unique visitors who completed it.
+- Sorted by `visitors` descending by default; `order=asc` reverses.
+- Payment-related goals can appear here too.
+
+#### 2.7.10 Session endpoints
+
+Confirms §2.5 with exact bodies:
+
+| Method | Path | Request | Success body |
+| --- | --- | --- | --- |
+| POST | `/api/v1/session` | `{"password": "<admin password>"}` | `{"data": {"authenticated": true, "scope": "owner"}}` |
+| POST | `/api/v1/session/logout` | — | `{"data": {"authenticated": false}}` |
+| GET | `/api/v1/session` | — | `{"data": {"authenticated": true, "scope": "owner"}}`; 401 error envelope when unauthenticated |
+
+- Cookie `dg_session`: `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=43200`, HS256 JWT `{sub, exp, iat}`,
+  12 h, signed with `SESSION_SECRET`.
+- Wrong password → 401 `{"error": {"code": 401, "message": "Incorrect password"}}`; malformed JSON body
+  → 400.
+- Owner scope. `dg_*` keys are never accepted as the SPA session; the middleware accepts the cookie or
+  `Authorization: Bearer`.
 
 ## 3. CLI
 
@@ -396,7 +664,7 @@ plus `pagination` and `meta` (resolved timezone, UTC bounds, total).
 | Event schema (goal/payment/identify fields) | Script & SDK Engineer | validate + store; document field contract |
 | D1 tables, token hashing, encryption | Worker Engineer | §1.3 token table + §5.2 `gsc_daily` |
 | Revenue-by-page attribution model | Attribution Engineer | §5.3 `estimatedRevenue` join |
-| Dashboard field needs | Dashboard Engineer | §2.1 analytics/breakdown fields |
+| Dashboard field needs | Dashboard Engineer | §2.1 + §2.7 pinned response shapes |
 | Ingestion Worker + cron | Worker Engineer | endpoints above |
 | SPA session auth | Dashboard Engineer | §2.5 endpoints; admin password hash table |
 
@@ -409,6 +677,8 @@ plus `pagination` and `meta` (resolved timezone, UTC bounds, total).
    2026-11-02 with Dashboard Engineer:** the SPA uses the `dg_session` cookie (§2.5); `dgt_` tokens remain for
    CLI, MCP, and external/CI use only.
 5. Confirm the MCP `confirm`/dry-run pattern is acceptable vs always-execute for write tools.
+6. Realtime window: §2.7.4 pins 10 minutes, but worker.md §9/§10 defines "live now" as 5 minutes. The
+   Worker Engineer must confirm one number before implementing `/analytics/realtime[/map]`.
 
 ## 10. Sources (read 2026-11-02)
 
