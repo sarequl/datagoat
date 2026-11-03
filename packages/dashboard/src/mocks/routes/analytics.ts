@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Timeseries } from '../../api/types.ts';
-import { metadata, overviewBase, overviewPrevious, timeseriesPoint } from '../fixtures.ts';
+import { metadata, overviewBase, overviewPrevious, sites, timeseriesPoint } from '../fixtures.ts';
 import { sendJson } from '../http.ts';
 
 const INTERVALS = ['hour', 'day', 'week', 'month'] as const;
@@ -88,7 +88,19 @@ export function handleAnalytics(
   }
 
   if (path === '/api/v1/analytics/metadata') {
-    sendJson(response, 200, { data: metadata });
+    const siteId = url.searchParams.get('siteId');
+    const site = sites.find((item) => item.id === siteId);
+    const data = site
+      ? {
+          ...metadata,
+          siteId: site.id,
+          name: site.name ?? site.domain,
+          domain: site.domain,
+          timezone: site.timezone,
+          currency: site.currency,
+        }
+      : metadata;
+    sendJson(response, 200, { data });
     return;
   }
 

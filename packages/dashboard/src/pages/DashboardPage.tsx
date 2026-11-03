@@ -3,9 +3,11 @@ import { ErrorState } from '../components/ErrorState';
 import { KpiGrid } from '../components/KpiGrid';
 import { PeriodSelector } from '../components/PeriodSelector';
 import { Skeleton } from '../components/Skeleton';
+import { SourceSection } from '../components/SourceSection';
 import { useMetadata } from '../hooks/useMetadata';
 import { useOverview } from '../hooks/useOverview';
 import { usePeriod } from '../hooks/usePeriod';
+import { useSelectedSite } from '../hooks/useSelectedSite';
 import { useTimeseries } from '../hooks/useTimeseries';
 import { presetToInterval } from '../utils/period';
 
@@ -20,15 +22,18 @@ const TimeseriesChart = lazy(() =>
 const TIMESERIES_FIELDS = ['visitors', 'pageviews', 'revenue'] as const;
 
 export function DashboardPage() {
-  const metadataQuery = useMetadata();
-  const timezone = metadataQuery.data?.timezone ?? 'UTC';
-  const currency = metadataQuery.data?.currency ?? 'USD';
+  const { selectedSite } = useSelectedSite();
+  const siteId = selectedSite?.id;
+  const metadataQuery = useMetadata(siteId);
+  const timezone = selectedSite?.timezone ?? metadataQuery.data?.timezone ?? 'UTC';
+  const currency = selectedSite?.currency ?? metadataQuery.data?.currency ?? 'USD';
 
   const { startAt, endAt, preset, compare } = usePeriod(timezone);
   const interval = presetToInterval(preset, startAt, endAt);
 
-  const overviewQuery = useOverview({ startAt, endAt, timezone, compare });
+  const overviewQuery = useOverview({ siteId, startAt, endAt, timezone, compare });
   const timeseriesQuery = useTimeseries({
+    siteId,
     startAt,
     endAt,
     timezone,
@@ -92,6 +97,8 @@ export function DashboardPage() {
           <Skeleton className="chart-skeleton" />
         )}
       </div>
+
+      <SourceSection />
     </section>
   );
 }

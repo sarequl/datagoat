@@ -1,9 +1,11 @@
 import { apiFetch } from './client';
+import { buildQuery } from './query';
 import type { Overview, SiteMetadata, Timeseries } from './types';
 
 export type Interval = 'hour' | 'day' | 'week' | 'month';
 
 export interface RangeParams {
+  siteId?: string;
   startAt?: string;
   endAt?: string;
   timezone?: string;
@@ -15,24 +17,15 @@ export interface TimeseriesParams extends RangeParams {
   fields?: string[];
 }
 
-function buildQuery(params: Record<string, string | undefined>): string {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== '') {
-      query.set(key, value);
-    }
-  }
-  const encoded = query.toString();
-  return encoded ? `?${encoded}` : '';
-}
-
-export async function getMetadata(): Promise<SiteMetadata> {
-  const response = await apiFetch<SiteMetadata>('/analytics/metadata');
+export async function getMetadata(params: RangeParams = {}): Promise<SiteMetadata> {
+  const query = buildQuery({ siteId: params.siteId });
+  const response = await apiFetch<SiteMetadata>(`/analytics/metadata${query}`);
   return response.data;
 }
 
 export async function getOverview(params: RangeParams = {}): Promise<Overview> {
   const query = buildQuery({
+    siteId: params.siteId,
     startAt: params.startAt,
     endAt: params.endAt,
     timezone: params.timezone,
@@ -44,6 +37,7 @@ export async function getOverview(params: RangeParams = {}): Promise<Overview> {
 
 export async function getTimeseries(params: TimeseriesParams = {}): Promise<Timeseries> {
   const query = buildQuery({
+    siteId: params.siteId,
     startAt: params.startAt,
     endAt: params.endAt,
     timezone: params.timezone,
