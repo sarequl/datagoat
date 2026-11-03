@@ -2,6 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { sendJson } from './http.ts';
 import { handleAnalytics } from './routes/analytics.ts';
 import { handleBreakdown, handleSites, isBreakdownPath } from './routes/breakdown.ts';
+import { FUNNEL_PREFIX, handleFunnel } from './routes/funnel.ts';
+import { handleGoals } from './routes/goals.ts';
 import { handleSession } from './routes/session.ts';
 
 export async function handleMockRequest(
@@ -24,6 +26,16 @@ export async function handleMockRequest(
 
   if (path === '/api/v1/admin/sites') {
     handleSites(method, path, url, response);
+    return;
+  }
+
+  if (path === '/api/v1/analytics/goals') {
+    handleGoals(method, path, url, response);
+    return;
+  }
+
+  if (path.startsWith(FUNNEL_PREFIX)) {
+    handleFunnel(method, path, url, response);
     return;
   }
 
