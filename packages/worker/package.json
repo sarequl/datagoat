@@ -8,10 +8,11 @@
   "scripts": {
     "build:data": "node scripts/build-data.mjs && biome format --write src/data/lists.ts",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "npm run build:web --prefix ../.. && wrangler deploy",
     "lint": "biome check src test scripts",
     "format": "biome format --write src test scripts",
     "typecheck": "tsc --noEmit",
+    "pretest": "mkdir -p ../dashboard/dist && printf '%s' '<!doctype html><html><head><title>DataGoat</title></head><body><div id=\"root\"></div></body></html>' > ../dashboard/dist/index.html",
     "test": "vitest run",
     "migrate:local": "wrangler d1 migrations apply datagoat-local --local --config wrangler.example.toml",
     "migrate:remote": "wrangler d1 migrations apply datagoat-prod --remote"

@@ -1,16 +1,18 @@
+import { handleApi } from './api';
 import { BOT_PATTERNS } from './data/lists';
 import type { Env } from './env';
 import { handleIngest } from './ingest';
 import { isProvider, type Provider } from './payments/types';
 import { rollup } from './rollup';
+import { serveAssets } from './static';
 import { TRACKER_JS } from './tracker';
 import { sha256Hex } from './util/crypto';
 import { handlePaymentWebhook } from './webhooks';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -45,19 +47,6 @@ function serveHealth(): Response {
   return json({ status: 'ok', schema_version: 1, time: Math.floor(Date.now() / 1000) });
 }
 
-const ROOT_BODY = [
-  'DataGoat ingestion endpoint',
-  '',
-  'Routes: POST /t (beacon), GET /p.gif (pixel), GET /t.js (script).',
-].join('\n');
-
-function serveRoot(): Response {
-  return new Response(ROOT_BODY, {
-    status: 200,
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-  });
-}
-
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -86,11 +75,13 @@ export default {
     if (path === '/api/v1/health') {
       return serveHealth();
     }
-    if (path === '/' && request.method === 'GET') {
-      return serveRoot();
+    // Everything under `/api/*` is the read/admin API (design/api.md). The
+    // ingestion endpoints above stay ahead of it.
+    if (path.startsWith('/api/')) {
+      return handleApi(request, env, url);
     }
-
-    return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+    // Static dashboard (SPA). `GET /` serves the built index.html.
+    return serveAssets(request, env);
   },
 
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {

@@ -10,6 +10,9 @@
 #   INSTALL_SECRET   per-install secret used to derive cookieless visitor ids.
 #                    Rotating it resets every cookieless visitor id.
 #   SECRET_VERSION   integer stored alongside derived ids so rotation is visible.
+#   SESSION_SECRET   HMAC key for the `dg_session` JWT. Set it with
+#                    `wrangler secret put SESSION_SECRET` in production; the
+#                    placeholder below is only for local development.
 
 name = "datagoat"
 main = "src/index.ts"
@@ -21,6 +24,14 @@ compatibility_flags = ["nodejs_compat"]
 
 # Do not send metrics to Cloudflare from self-hosted installs.
 send_metrics = false
+
+# Built dashboard. `npm run deploy` runs `npm run build:web` first; the build
+# output is git-ignored. The single-page-application fallback serves
+# `index.html` for client-side routes and `GET /`.
+[assets]
+directory = "../dashboard/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
 
 [[d1_databases]]
 binding = "DB"
@@ -38,3 +49,4 @@ crons = ["*/5 * * * *"]
 [vars]
 INSTALL_SECRET = "dev-only-insecure-install-secret"
 SECRET_VERSION = "1"
+SESSION_SECRET = "dev-only-insecure-session-secret-change-me"

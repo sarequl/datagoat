@@ -3,6 +3,10 @@ export interface Env {
   KV: KVNamespace;
   INSTALL_SECRET: string;
   SECRET_VERSION: string;
+  /** Signs the `dg_session` JWT (api.md §2.5). */
+  SESSION_SECRET: string;
+  /** Static dashboard assets (packages/dashboard/dist). */
+  ASSETS: Fetcher;
   ENV?: string;
   /** Attribution window in days (§4). Defaults to 30. */
   ATTRIBUTION_WINDOW_DAYS?: string;

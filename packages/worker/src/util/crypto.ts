@@ -1,12 +1,21 @@
 const encoder = new TextEncoder();
 
-function toHex(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
+export function toHex(buffer: ArrayBuffer | Uint8Array): string {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   let out = '';
   for (let i = 0; i < bytes.length; i++) {
     out += bytes[i].toString(16).padStart(2, '0');
   }
   return out;
+}
+
+export function fromHex(hex: string): Uint8Array | null {
+  if (!/^[0-9a-f]*$/i.test(hex) || hex.length % 2 !== 0) return null;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }
 
 export async function sha256Hex(input: string): Promise<string> {

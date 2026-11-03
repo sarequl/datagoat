@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import initSql from '../migrations/0001_init.sql?raw';
 import initSql0002 from '../migrations/0002_payments_attribution.sql?raw';
+import initSql0003 from '../migrations/0003_funnel_steps.sql?raw';
 
 /** Request type accepted by `worker.fetch()`. */
 export type WorkerRequest = Request<unknown, IncomingRequestCfProperties>;
@@ -57,6 +58,9 @@ export async function applySchema(): Promise<void> {
     await env.DB.prepare(statement).run();
   }
   for (const statement of splitStatements(initSql0002)) {
+    await env.DB.prepare(statement).run();
+  }
+  for (const statement of splitStatements(initSql0003)) {
     await env.DB.prepare(statement).run();
   }
 }
@@ -130,8 +134,14 @@ export async function resetData(overrides: Partial<SeedSite> = {}): Promise<Seed
   await env.DB.exec(
     'DELETE FROM daily_aggregates; DELETE FROM sessions; DELETE FROM visitors; DELETE FROM events;' +
       ' DELETE FROM payments; DELETE FROM webhook_events; DELETE FROM customers;' +
-      ' DELETE FROM customer_links; DELETE FROM fx_rates; DELETE FROM payment_integrations;',
+      ' DELETE FROM customer_links; DELETE FROM fx_rates; DELETE FROM payment_integrations;' +
+      ' DELETE FROM funnels; DELETE FROM funnel_steps; DELETE FROM users; DELETE FROM goals;',
   );
+
+  // Login rate-limit counters are keyed by IP + 15-minute window and would
+  // otherwise leak between tests that share the loopback address.
+  const rateLimitKeys = await env.KV.list({ prefix: 'login_rl:' });
+  await Promise.all(rateLimitKeys.keys.map((key) => env.KV.delete(key.name)));
 
   await env.DB.prepare(
     `INSERT OR REPLACE INTO websites (
@@ -304,6 +314,15 @@ export interface SeedEvent {
   utm_campaign?: string | null;
   path?: string | null;
   referrer?: string | null;
+  query?: string | null;
+  country?: string | null;
+  region?: string | null;
+  city?: string | null;
+  device_type?: string | null;
+  os?: string | null;
+  browser?: string | null;
+  hostname?: string | null;
+  props?: Record<string, unknown> | null;
   is_bot?: number;
   consent?: number | null;
 }
@@ -311,9 +330,11 @@ export interface SeedEvent {
 export async function insertEvent(event: SeedEvent): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO events (
-       id, website_id, event_id, session_id, visitor_id, name, ts, path, referrer,
-       channel, channel_name, utm_source, utm_medium, utm_campaign, is_bot, consent, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       id, website_id, event_id, session_id, visitor_id, name, ts, path, hostname, query,
+       referrer, channel, channel_name, utm_source, utm_medium, utm_campaign,
+       country, region, city, device_type, os, browser,
+       is_bot, consent, props, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       nextId('ev'),
@@ -324,15 +345,75 @@ export async function insertEvent(event: SeedEvent): Promise<void> {
       event.name ?? 'pageview',
       event.ts,
       event.path ?? '/',
+      event.hostname ?? null,
+      event.query ?? null,
       event.referrer ?? null,
       event.channel ?? null,
       event.channel_name ?? null,
       event.utm_source ?? null,
       event.utm_medium ?? null,
       event.utm_campaign ?? null,
+      event.country ?? null,
+      event.region ?? null,
+      event.city ?? null,
+      event.device_type ?? null,
+      event.os ?? null,
+      event.browser ?? null,
       event.is_bot ?? 0,
       event.consent ?? 1,
+      event.props ? JSON.stringify(event.props) : null,
       Math.floor(Date.now() / 1000),
+    )
+    .run();
+}
+
+/** Inserts a visitor row (used by funnel `isCustomer` steps). */
+export async function insertVisitor(
+  websiteId: string,
+  visitorId: string,
+  options: { isBuyer?: number } = {},
+): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await env.DB.prepare(
+    `INSERT INTO visitors (website_id, visitor_id, first_seen, last_seen, is_buyer, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(websiteId, visitorId, now, now, options.isBuyer ?? 0, now)
+    .run();
+}
+
+/** Inserts an attributed payment row for revenue assertions. */
+export async function insertPayment(options: {
+  websiteId: string;
+  visitorId?: string | null;
+  amountCents?: number;
+  currency?: string;
+  occurredAt?: number;
+  attributed?: number;
+  refundedCents?: number;
+  disputedCents?: number;
+}): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await env.DB.prepare(
+    `INSERT INTO payments (
+       id, website_id, provider, provider_payment_id, visitor_id, amount_cents, currency,
+       status, attribution_model, amount_minor, refunded_minor, disputed_minor, attributed,
+       occurred_at, created_at
+     ) VALUES (?, ?, 'stripe', ?, ?, ?, ?, 'succeeded', 'last_non_direct', ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      nextId('pay'),
+      options.websiteId,
+      nextId('ppi'),
+      options.visitorId ?? null,
+      options.amountCents ?? 1000,
+      options.currency ?? 'USD',
+      options.amountCents ?? 1000,
+      options.refundedCents ?? 0,
+      options.disputedCents ?? 0,
+      options.attributed ?? 1,
+      options.occurredAt ?? now,
+      now,
     )
     .run();
 }
@@ -400,6 +481,34 @@ export function webhookRequest(
     body,
   };
   return new Request(url, init) as unknown as WorkerRequest;
+}
+
+export interface ApiRequestOptions {
+  method?: string;
+  body?: unknown;
+  cookie?: string;
+  token?: string;
+  headers?: Record<string, string>;
+}
+
+/** Builds a request against the `/api/v1` surface. */
+export function apiRequest(path: string, options: ApiRequestOptions = {}): WorkerRequest {
+  const method = options.method ?? 'GET';
+  const headers: Record<string, string> = { ...(options.headers ?? {}) };
+  if (options.body !== undefined) headers['content-type'] = 'application/json';
+  if (options.cookie) headers.cookie = options.cookie;
+  if (options.token) headers.authorization = `Bearer ${options.token}`;
+
+  const init: RequestInit = { method, headers };
+  if (options.body !== undefined) init.body = JSON.stringify(options.body);
+  return new Request(`https://example.com${path}`, init) as unknown as WorkerRequest;
+}
+
+/** Extracts the `dg_session=...` cookie from a login response for reuse. */
+export function sessionCookieFrom(response: Response): string {
+  const setCookie = response.headers.get('set-cookie') ?? '';
+  const match = /dg_session=([^;]+)/.exec(setCookie);
+  return match ? `dg_session=${match[1]}` : '';
 }
 
 export async function stripeSignature(

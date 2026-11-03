@@ -222,20 +222,20 @@ describe('POST /t ingestion', () => {
 });
 
 describe('GET /', () => {
-  it('returns 200 with a plain-text service hint', async () => {
+  it('returns the dashboard SPA shell', async () => {
     const response = await call(new Request('https://example.com/'));
     expect(response.status).toBe(200);
-    expect(response.headers.get('content-type')).toBe('text/plain; charset=utf-8');
+    expect(response.headers.get('content-type')).toContain('text/html');
 
     const body = await response.text();
-    expect(body).toContain('DataGoat ingestion endpoint');
-    expect(body).toContain('/t');
-    expect(body).toContain('/p.gif');
-    expect(body).toContain('/t.js');
+    expect(body).toContain('DataGoat');
+    expect(body).toContain('id="root"');
   });
 
-  it('keeps the 404 fallback for unknown paths', async () => {
-    const response = await call(new Request('https://example.com/not-a-route'));
-    expect(response.status).toBe(404);
+  it('falls back to the SPA shell for client-side routes', async () => {
+    const response = await call(new Request('https://example.com/funnels'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/html');
+    expect(await response.text()).toContain('id="root"');
   });
 });

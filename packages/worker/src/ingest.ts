@@ -378,14 +378,14 @@ export async function handleIngest(request: Request, env: Env, url: URL): Promis
 
   const result = await env.DB.prepare(
     `INSERT INTO events (
-       id, website_id, event_id, session_id, visitor_id, name, ts, path, query, referrer,
+       id, website_id, event_id, session_id, visitor_id, name, ts, path, hostname, query, referrer,
        channel, channel_name, direct_type,
        utm_source, utm_medium, utm_campaign, utm_term, utm_content,
        country, region, city, colo,
        device_type, os, browser,
        viewport_w, viewport_h, screen_width, screen_height, dpr,
        language, tz, is_bot, bot_score, bot_reason, group_id, consent, props, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (website_id, event_id) DO NOTHING`,
   )
     .bind(
@@ -397,6 +397,7 @@ export async function handleIngest(request: Request, env: Env, url: URL): Promis
       name,
       ts,
       path,
+      host,
       query || null,
       referrer,
       attribution.channel,
