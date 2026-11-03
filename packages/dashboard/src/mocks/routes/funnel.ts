@@ -1,5 +1,5 @@
 import type { ServerResponse } from 'node:http';
-import { funnelResults } from '../fixtures.ts';
+import { getFunnelResult } from '../funnelStore.ts';
 import { sendJson } from '../http.ts';
 import { resolveSiteScope } from './siteScope.ts';
 
@@ -19,7 +19,7 @@ export function handleFunnel(
   if (!resolveSiteScope(url, response)) return;
 
   const funnelId = decodeURIComponent(path.slice(FUNNEL_PREFIX.length));
-  const data = funnelResults[funnelId];
+  const data = getFunnelResult(funnelId);
   if (!data) {
     sendJson(response, 404, { error: { code: 404, message: `Unknown funnel: ${funnelId}` } });
     return;

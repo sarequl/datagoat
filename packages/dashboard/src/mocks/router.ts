@@ -3,6 +3,7 @@ import { sendJson } from './http.ts';
 import { handleAnalytics } from './routes/analytics.ts';
 import { handleBreakdown, handleSites, isBreakdownPath } from './routes/breakdown.ts';
 import { FUNNEL_PREFIX, handleFunnel } from './routes/funnel.ts';
+import { handleAdminFunnels } from './routes/funnels.ts';
 import { handleGoals } from './routes/goals.ts';
 import { handleSession } from './routes/session.ts';
 
@@ -26,6 +27,11 @@ export async function handleMockRequest(
 
   if (path === '/api/v1/admin/sites') {
     handleSites(method, path, url, response);
+    return;
+  }
+
+  if (path.startsWith('/api/v1/admin/sites/')) {
+    await handleAdminFunnels(method, path, url, request, response);
     return;
   }
 

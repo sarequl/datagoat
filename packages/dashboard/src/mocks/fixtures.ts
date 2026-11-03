@@ -4,6 +4,7 @@
 import type { BreakdownDimension } from '../api/breakdown.ts';
 import type {
   BreakdownRow,
+  FunnelDefinition,
   FunnelResult,
   GoalRow,
   Overview,
@@ -242,6 +243,35 @@ export const goalRows: GoalRow[] = [
       revenuePerVisitor: 0,
     };
   }),
+];
+
+/** Saved funnel definitions (api.md §2.8.1) matching `funnelResults`. */
+export const funnelDefinitions: FunnelDefinition[] = [
+  {
+    id: 'fun_1',
+    name: 'Checkout',
+    isActive: true,
+    maxGapSeconds: 86400,
+    steps: [
+      { type: 'page', path: '/pricing', name: 'View pricing' },
+      { type: 'page', path: '/checkout', name: 'Start checkout' },
+      { type: 'goal', goal: 'payment', name: 'Payment' },
+    ],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-02T00:00:00Z',
+  },
+  {
+    id: 'fun_2',
+    name: 'Signup',
+    isActive: true,
+    maxGapSeconds: null,
+    steps: [
+      { type: 'page', path: '/', name: 'Landing' },
+      { type: 'goal', goal: 'signup', name: 'Signup' },
+    ],
+    createdAt: '2026-02-01T00:00:00Z',
+    updatedAt: '2026-02-02T00:00:00Z',
+  },
 ];
 
 /** The Checkout funnel ends on the `payment` goal (api.md §2.6). */
