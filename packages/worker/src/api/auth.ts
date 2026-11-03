@@ -8,6 +8,11 @@ const encoder = new TextEncoder();
 export const SESSION_COOKIE = 'dg_session';
 export const SESSION_TTL_S = 12 * 3600;
 const PBKDF2_ITERATIONS = 210_000;
+// Cloudflare Workers' WebCrypto rejects PBKDF2 iteration counts above 100,000
+// per deriveBits call. Chain rounds below that cap; the total work factor is
+// still PBKDF2_ITERATIONS (the stored count).
+const PBKDF2_ROUNDS = 3;
+const PBKDF2_ROUND_ITERATIONS = PBKDF2_ITERATIONS / PBKDF2_ROUNDS;
 const LOGIN_MAX_ATTEMPTS = 10;
 const LOGIN_WINDOW_S = 15 * 60;
 const OWNER_EMAIL = 'owner@localhost';
@@ -16,16 +21,23 @@ const OWNER_EMAIL = 'owner@localhost';
 // Password hashing (PBKDF2-SHA256; Workers have no Argon2/bcrypt)
 // ---------------------------------------------------------------------------
 
+async function pbkdf2(password: Uint8Array, salt: Uint8Array): Promise<Uint8Array> {
+  let material = password;
+  for (let round = 0; round < PBKDF2_ROUNDS; round += 1) {
+    const key = await crypto.subtle.importKey('raw', material, 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt, iterations: PBKDF2_ROUND_ITERATIONS, hash: 'SHA-256' },
+      key,
+      256,
+    );
+    material = new Uint8Array(bits);
+  }
+  return material;
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
-    'deriveBits',
-  ]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
-    key,
-    256,
-  );
+  const bits = await pbkdf2(encoder.encode(password), salt);
   return `pbkdf2-sha256$${PBKDF2_ITERATIONS}$${toHex(salt)}$${toHex(bits)}`;
 }
 
@@ -36,19 +48,12 @@ export async function verifyPassword(password: string, stored: string): Promise<
   const salt = fromHex(parts[2]);
   const expected = fromHex(parts[3]);
   if (!Number.isInteger(iterations) || iterations < 1 || !salt || !expected) return false;
+  if (iterations !== PBKDF2_ITERATIONS) return false;
 
-  const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
-    'deriveBits',
-  ]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
-    key,
-    256,
-  );
-  const actual = new Uint8Array(bits);
-  if (actual.length !== expected.length) return false;
+  const bits = await pbkdf2(encoder.encode(password), salt);
+  if (bits.length !== expected.length) return false;
   let diff = 0;
-  for (let i = 0; i < actual.length; i++) diff |= actual[i] ^ expected[i];
+  for (let i = 0; i < bits.length; i++) diff |= bits[i] ^ expected[i];
   return diff === 0;
 }
 
