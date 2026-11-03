@@ -1,14 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { clearSessionCookie, hasSession, setSessionCookie } from '../cookies.ts';
 import { MOCK_PASSWORD, MOCK_SESSION_TOKEN } from '../fixtures.ts';
+import { sendJson } from '../http.ts';
 
 type JsonBody = Record<string, unknown>;
-
-export function sendJson(response: ServerResponse, status: number, body: unknown): void {
-  response.statusCode = status;
-  response.setHeader('Content-Type', 'application/json; charset=utf-8');
-  response.end(JSON.stringify(body));
-}
 
 function readBody(request: IncomingMessage): Promise<JsonBody> {
   return new Promise((resolve, reject) => {
