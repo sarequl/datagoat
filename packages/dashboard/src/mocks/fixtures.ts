@@ -2,7 +2,15 @@
 // real analytics. Fixtures are added per dashboard milestone; the mock router
 // returns 404 for endpoints that have no fixture yet.
 import type { BreakdownDimension } from '../api/breakdown.ts';
-import type { BreakdownRow, Overview, Site, SiteMetadata, TimeseriesPoint } from '../api/types.ts';
+import type {
+  BreakdownRow,
+  FunnelResult,
+  GoalRow,
+  Overview,
+  Site,
+  SiteMetadata,
+  TimeseriesPoint,
+} from '../api/types.ts';
 
 export const MOCK_PASSWORD = process.env.VITE_MOCK_PASSWORD ?? 'password';
 
@@ -174,3 +182,143 @@ export function timeseriesPoint(timestamp: string, seed: number): TimeseriesPoin
     payments,
   };
 }
+
+/** Thirty deterministic goals so the paginated table is testable. */
+export const goalRows: GoalRow[] = [
+  {
+    value: 'signup',
+    completions: 482,
+    visitors: 391,
+    pageviews: 0,
+    revenue: 0,
+    payments: 0,
+    revenuePerVisitor: 0,
+  },
+  {
+    value: 'newsletter',
+    completions: 210,
+    visitors: 188,
+    pageviews: 0,
+    revenue: 0,
+    payments: 0,
+    revenuePerVisitor: 0,
+  },
+  {
+    value: 'demo',
+    completions: 96,
+    visitors: 84,
+    pageviews: 0,
+    revenue: 0,
+    payments: 0,
+    revenuePerVisitor: 0,
+  },
+  {
+    value: 'payment',
+    completions: 42,
+    visitors: 42,
+    pageviews: 0,
+    revenue: 5310.5,
+    payments: 42,
+    revenuePerVisitor: 126.44,
+  },
+  {
+    value: 'purchase',
+    completions: 38,
+    visitors: 36,
+    pageviews: 0,
+    revenue: 4800,
+    payments: 38,
+    revenuePerVisitor: 133.33,
+  },
+  ...Array.from({ length: 25 }, (_, index) => {
+    const visitors = 30 - index;
+    return {
+      value: `goal_${String(index + 1).padStart(2, '0')}`,
+      completions: visitors + (index % 3),
+      visitors,
+      pageviews: 0,
+      revenue: 0,
+      payments: 0,
+      revenuePerVisitor: 0,
+    };
+  }),
+];
+
+/** The Checkout funnel ends on the `payment` goal (api.md §2.6). */
+export const funnelResults: Record<string, FunnelResult> = {
+  fun_1: {
+    id: 'fun_1',
+    name: 'Checkout',
+    steps: [
+      {
+        step: 1,
+        name: 'View pricing',
+        visitors: 1204,
+        conversionRate: 1,
+        dropoffRate: 0,
+        revenue: 0,
+        payments: 0,
+      },
+      {
+        step: 2,
+        name: 'Start checkout',
+        visitors: 310,
+        conversionRate: 0.2574,
+        dropoffRate: 0.7426,
+        revenue: 0,
+        payments: 0,
+      },
+      {
+        step: 3,
+        name: 'Payment',
+        visitors: 42,
+        conversionRate: 0.0349,
+        dropoffRate: 0.8645,
+        revenue: 5310.5,
+        payments: 42,
+      },
+    ],
+    totalVisitors: 1204,
+    totalConversionRate: 0.0349,
+    revenue: 5310.5,
+    payments: 42,
+    revenuePerVisitor: 4.4111,
+    timezone: 'UTC',
+    startAt: '2026-11-01',
+    endAt: '2026-11-03',
+    lastUpdated: '2026-11-03T08:00:00Z',
+  },
+  fun_2: {
+    id: 'fun_2',
+    name: 'Signup',
+    steps: [
+      {
+        step: 1,
+        name: 'Landing',
+        visitors: 5000,
+        conversionRate: 1,
+        dropoffRate: 0,
+        revenue: 0,
+        payments: 0,
+      },
+      {
+        step: 2,
+        name: 'Signup',
+        visitors: 391,
+        conversionRate: 0.0782,
+        dropoffRate: 0.9218,
+        revenue: 0,
+        payments: 0,
+      },
+    ],
+    totalVisitors: 5000,
+    totalConversionRate: 0.0782,
+    revenue: 0,
+    payments: 0,
+    revenuePerVisitor: 0,
+    timezone: 'UTC',
+    startAt: '2026-11-01',
+    endAt: '2026-11-03',
+    lastUpdated: '2026-11-03T08:00:00Z',
+  },
+};
