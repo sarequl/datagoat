@@ -1,0 +1,76 @@
+/*
+ * Design tokens. Light values are the defaults; [data-theme='dark'] overrides
+ * them, and the no-JS default follows prefers-color-scheme via color-scheme.
+ */
+:root {
+  color-scheme: light;
+
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef1f5;
+  --color-border: #dfe3e8;
+  --color-text: #1a1d21;
+  --color-text-muted: #5c6570;
+  --color-primary: #2f6fed;
+  --color-primary-hover: #245cd0;
+  --color-primary-contrast: #ffffff;
+  --color-danger: #c62828;
+  --color-success: #1b7f4b;
+  --color-focus: #2f6fed;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius-1: 6px;
+  --radius-2: 10px;
+  --radius-pill: 999px;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --shadow-2: 0 4px 12px rgba(16, 24, 40, 0.12);
+
+  --chart-1: #0072b2;
+  --chart-2: #e69f00;
+  --chart-3: #009e73;
+  --chart-4: #cc79a7;
+  --chart-5: #56b4e9;
+  --chart-6: #d55e00;
+  --chart-7: #f0e442;
+  --chart-8: #332288;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #0f1216;
+  --color-surface: #171b21;
+  --color-surface-2: #1f242c;
+  --color-border: #2a313a;
+  --color-text: #e6e9ed;
+  --color-text-muted: #9aa4b0;
+  --color-primary: #5b8cff;
+  --color-primary-hover: #7ba2ff;
+  --color-primary-contrast: #0b1220;
+  --color-danger: #ff6b6b;
+  --color-success: #4cc38a;
+  --color-focus: #5b8cff;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.5);
+
+  --chart-1: #56b4e9;
+  --chart-2: #e69f00;
+  --chart-3: #009e73;
+  --chart-4: #cc79a7;
+  --chart-5: #0072b2;
+  --chart-6: #d55e00;
+  --chart-7: #f0e442;
+  --chart-8: #88ccee;
+}

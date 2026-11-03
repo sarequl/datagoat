@@ -11,7 +11,14 @@
     "lint": "npm run lint -w packages/worker",
     "typecheck": "npm run typecheck -w packages/worker",
     "test": "npm run test -w packages/worker",
-    "migrate:local": "npm run migrate:local -w packages/worker"
+    "migrate:local": "npm run migrate:local -w packages/worker",
+    "dev:web": "npm run dev -w packages/dashboard",
+    "preview:web": "npm run preview -w packages/dashboard",
+    "build:web": "npm run build -w packages/dashboard",
+    "lint:web": "npm run lint -w packages/dashboard",
+    "typecheck:web": "npm run typecheck -w packages/dashboard",
+    "test:web": "npm run test -w packages/dashboard",
+    "e2e:web": "npm run e2e -w packages/dashboard"
   },
   "engines": {
     "node": ">=20"
