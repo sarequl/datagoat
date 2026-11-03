@@ -18,7 +18,7 @@ export function useSelectedSite() {
   const urlSiteId = searchParams.get('site') ?? undefined;
   const [storedSiteId, setStoredSiteId] = useState(readStoredSiteId);
 
-  const sites = sitesQuery.data ?? [];
+  const sites = Array.isArray(sitesQuery.data) ? sitesQuery.data : [];
   const selectedSite =
     sites.find((site) => site.id === urlSiteId) ??
     sites.find((site) => site.id === storedSiteId) ??
@@ -47,5 +47,6 @@ export function useSelectedSite() {
     selectSite,
     isLoading: sitesQuery.isLoading,
     isError: sitesQuery.isError,
+    refetch: sitesQuery.refetch,
   };
 }

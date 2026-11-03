@@ -1,6 +1,7 @@
 import type { ServerResponse } from 'node:http';
 import { goalRows } from '../fixtures.ts';
 import { sendJson } from '../http.ts';
+import { resolveSiteScope } from './siteScope.ts';
 
 function parseLimit(raw: string | null): number {
   const value = Number.parseInt(raw ?? '100', 10);
@@ -24,6 +25,8 @@ export function handleGoals(
     sendJson(response, 405, { error: { code: 405, message: 'Method not allowed' } });
     return;
   }
+
+  if (!resolveSiteScope(url, response)) return;
 
   const order = url.searchParams.get('order') === 'asc' ? 'asc' : 'desc';
   const rows = [...goalRows].sort((a, b) =>

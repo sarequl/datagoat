@@ -21,6 +21,7 @@ export function useTimeseries({
   return useQuery({
     queryKey: ['timeseries', siteId, startAt, endAt, timezone, interval, fields],
     queryFn: () => getTimeseries({ siteId, startAt, endAt, timezone, interval, fields }),
+    enabled: Boolean(siteId),
     staleTime: 60_000,
   });
 }

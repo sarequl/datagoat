@@ -48,6 +48,7 @@ export function useBreakdown({
         offset,
         order,
       }),
+    enabled: Boolean(siteId),
     staleTime: 60_000,
   });
 }

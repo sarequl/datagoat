@@ -23,6 +23,7 @@ export function useGoals({
   return useQuery({
     queryKey: ['goals', siteId, startAt, endAt, timezone, limit, offset, order],
     queryFn: () => getGoals({ siteId, startAt, endAt, timezone, limit, offset, order }),
+    enabled: Boolean(siteId),
     // dashboard.md §6: goals are fresh for five minutes.
     staleTime: 5 * 60_000,
   });

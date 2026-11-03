@@ -13,6 +13,7 @@ export function useFunnel({ funnelId, siteId, startAt, endAt, timezone }: UseFun
   return useQuery({
     queryKey: ['funnel', funnelId, siteId, startAt, endAt, timezone],
     queryFn: () => getFunnel(funnelId, { siteId, startAt, endAt, timezone }),
+    enabled: Boolean(siteId),
     // dashboard.md §6: funnels are fresh for five minutes.
     staleTime: 5 * 60_000,
   });

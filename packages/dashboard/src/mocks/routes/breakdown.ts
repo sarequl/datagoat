@@ -3,6 +3,7 @@ import type { BreakdownDimension } from '../../api/breakdown.ts';
 import type { BreakdownRow } from '../../api/types.ts';
 import { breakdownRows, sites } from '../fixtures.ts';
 import { sendJson } from '../http.ts';
+import { resolveSiteScope } from './siteScope.ts';
 
 export const BREAKDOWN_DIMENSIONS: BreakdownDimension[] = [
   'pages',
@@ -73,6 +74,8 @@ export function handleBreakdown(
     });
     return;
   }
+
+  if (!resolveSiteScope(url, response)) return;
 
   const pathFilter = url.searchParams.get('path');
   let rows: BreakdownRow[] = breakdownRows(dimension);

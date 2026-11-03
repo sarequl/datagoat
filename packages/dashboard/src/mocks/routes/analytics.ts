@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Timeseries } from '../../api/types.ts';
-import { metadata, overviewBase, overviewPrevious, sites, timeseriesPoint } from '../fixtures.ts';
+import { metadata, overviewBase, overviewPrevious, timeseriesPoint } from '../fixtures.ts';
 import { sendJson } from '../http.ts';
+import { resolveSiteScope } from './siteScope.ts';
 
 const INTERVALS = ['hour', 'day', 'week', 'month'] as const;
 type Interval = (typeof INTERVALS)[number];
@@ -88,23 +89,22 @@ export function handleAnalytics(
   }
 
   if (path === '/api/v1/analytics/metadata') {
-    const siteId = url.searchParams.get('siteId');
-    const site = sites.find((item) => item.id === siteId);
-    const data = site
-      ? {
-          ...metadata,
-          siteId: site.id,
-          name: site.name ?? site.domain,
-          domain: site.domain,
-          timezone: site.timezone,
-          currency: site.currency,
-        }
-      : metadata;
+    const site = resolveSiteScope(url, response);
+    if (!site) return;
+    const data = {
+      ...metadata,
+      siteId: site.id,
+      name: site.name ?? site.domain,
+      domain: site.domain,
+      timezone: site.timezone,
+      currency: site.currency,
+    };
     sendJson(response, 200, { data });
     return;
   }
 
   if (path === '/api/v1/analytics/overview') {
+    if (!resolveSiteScope(url, response)) return;
     const includePrevious = url.searchParams.get('compare') === 'previous';
     const data = includePrevious ? { ...overviewBase, previous: overviewPrevious } : overviewBase;
     sendJson(response, 200, { data });
@@ -112,6 +112,7 @@ export function handleAnalytics(
   }
 
   if (path === '/api/v1/analytics/timeseries') {
+    if (!resolveSiteScope(url, response)) return;
     const rawInterval = url.searchParams.get('interval') ?? 'day';
     if (!INTERVALS.includes(rawInterval as Interval)) {
       sendJson(response, 400, {

@@ -38,6 +38,7 @@ export function useOverview({ siteId, startAt, endAt, timezone, compare }: UseOv
   return useQuery({
     queryKey: ['overview', siteId, startAt, endAt, timezone, compare],
     queryFn: () => fetchOverview({ siteId, startAt, endAt, timezone, compare }),
+    enabled: Boolean(siteId),
     staleTime: 60_000,
   });
 }
