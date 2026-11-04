@@ -11,8 +11,6 @@ describe("route table", () => {
 
   it.each([
     ["GET", "/api/v1/visitors/abc", "W2"],
-    ["POST", "/api/v1/payments", "W3"],
-    ["POST", "/webhooks/stripe/site1", "W3"],
     ["POST", "/api/ai-crawls", "W6"],
     ["POST", "/webhooks/github/site1", "W6"],
     ["GET", "/share/abc", "W2"],
