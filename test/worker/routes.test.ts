@@ -11,7 +11,7 @@ describe("route table", () => {
 
   it.each([
     ["POST", "/api/events", "W1"],
-    ["GET", "/api/v1/visitors/abc", "W2"],
+    ["GET", "/api/v1/mentions", "W6"],
     ["POST", "/api/v1/payments", "W3"],
     ["POST", "/webhooks/stripe/site1", "W3"],
     ["POST", "/api/ai-crawls", "W6"],
@@ -19,7 +19,6 @@ describe("route table", () => {
     ["POST", "/mcp", "W7"],
     ["POST", "/oauth/token", "W7"],
     ["GET", "/.well-known/oauth-authorization-server", "W7"],
-    ["GET", "/share/abc", "W2"],
     ["POST", "/api/v1/mobile/session", "W8"],
   ])("%s %s answers 501 naming %s", async (method, path, owner) => {
     const res = await api(path, { method, origin: null });
@@ -30,10 +29,10 @@ describe("route table", () => {
   });
 
   it("requires authentication before reaching unbuilt /api/v1 routes", async () => {
-    const res = await api("/api/v1/analytics/overview");
+    const res = await api("/api/v1/analytics/bot-traffic");
     // Unauthenticated callers still hit the stub: auth is the handler's job (requireSiteAccess).
     expect(res.status).toBe(501);
-    const bad = await api("/api/v1/analytics/overview", { token: "df_nope" });
+    const bad = await api("/api/v1/analytics/bot-traffic", { token: "df_nope" });
     expect(bad.status).toBe(401);
   });
 
