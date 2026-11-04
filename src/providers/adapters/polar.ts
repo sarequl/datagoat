@@ -256,11 +256,17 @@ export const polarAdapter: ProviderAdapter = {
       newestOrder = Math.max(newestOrder, t);
       merge(batch, normalizeOrder(o, ctx.now));
     }
-    const subs = await getJson<Page<Obj>>(
-      ctx,
-      `${base(conn)}/subscriptions/${query({ organization_id: orgId, limit: PAGE, page: 1, sorting: "-started_at" })}`,
-      headers(token),
-    );
+    // Subscriptions are best effort: a token without subscription read access still syncs orders.
+    let subs: Page<Obj> = { items: [] };
+    try {
+      subs = await getJson<Page<Obj>>(
+        ctx,
+        `${base(conn)}/subscriptions/${query({ organization_id: orgId, limit: PAGE, page: 1, sorting: "-started_at" })}`,
+        headers(token),
+      );
+    } catch (err) {
+      if (!(err instanceof ProviderHttpError)) throw err;
+    }
     let newestSub = cursor.subscriptions;
     for (const s of subs.items) {
       const t = Math.max(timeOf(s.modified_at, 0), timeOf(s.started_at, 0));

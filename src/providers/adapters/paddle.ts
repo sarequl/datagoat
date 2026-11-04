@@ -253,13 +253,14 @@ export const paddleAdapter: ProviderAdapter = {
   async backfill(conn, page, ctx) {
     const key = conn.credentials.apiKey ?? "";
     const cur = page
-      ? (JSON.parse(page) as { stream: Stream; after: string | null })
-      : { stream: STREAMS[0], after: null };
-    const list = await getJson<PaddleList>(
-      ctx,
-      `${base(conn)}/${cur.stream}${query({ ...STREAM_QUERY[cur.stream], per_page: PAGE, after: cur.after ?? undefined })}`,
-      headers(key),
-    );
+      ? (JSON.parse(page) as { stream: Stream; next: string | null })
+      : { stream: STREAMS[0], next: null };
+    // Follow Paddle's own `meta.pagination.next` URL (only on the connection's API host).
+    const url =
+      cur.next?.startsWith(`${base(conn)}/`) === true
+        ? cur.next
+        : `${base(conn)}/${cur.stream}${query({ ...STREAM_QUERY[cur.stream], per_page: PAGE })}`;
+    const list = await getJson<PaddleList>(ctx, url, headers(key));
     const batch = emptyBatch();
     for (const o of list.data) {
       merge(
@@ -271,12 +272,13 @@ export const paddleAdapter: ProviderAdapter = {
             : normalizeAdjustment(o, ctx.now),
       );
     }
-    const last = str(list.data[list.data.length - 1]?.id);
+    const nextUrl = list.meta?.pagination?.next;
     let next: string | null = null;
-    if (list.meta?.pagination?.has_more && last) next = JSON.stringify({ ...cur, after: last });
+    if (list.meta?.pagination?.has_more && nextUrl && list.data.length)
+      next = JSON.stringify({ stream: cur.stream, next: nextUrl });
     else {
       const following = STREAMS[STREAMS.indexOf(cur.stream) + 1];
-      if (following) next = JSON.stringify({ stream: following, after: null });
+      if (following) next = JSON.stringify({ stream: following, next: null });
     }
     return { batch, next };
   },

@@ -530,6 +530,39 @@ describe("Paddle Billing", () => {
     expect(new URL(mock.calls[0]?.url ?? "").searchParams.get("order_by")).toBe("id[ASC]");
   });
 
+  it("backfills by following Paddle's pagination URLs, one page per run", async () => {
+    const { site } = await ownerWithSite();
+    await connect(site.id, "paddle", { credentials: { apiKey: "pdl_live_k" }, backfill: true });
+    const txn = (id: string) => ({
+      id,
+      status: "completed",
+      origin: "web",
+      currency_code: "USD",
+      details: { totals: { grand_total: "1000" } },
+      billed_at: iso(T0 - DAY),
+    });
+    const next = `${PADDLE_API}/transactions?after=txn_a&per_page=50`;
+    mock = mockProviders({
+      [`GET ${PADDLE_API}/transactions`]: (c) =>
+        c.url === next
+          ? json({ data: [txn("txn_b")], meta: { pagination: { has_more: false } } })
+          : json({ data: [txn("txn_a")], meta: { pagination: { has_more: true, next } } }),
+      [`GET ${PADDLE_API}/subscriptions`]: () => json({ data: [], meta: { pagination: {} } }),
+      [`GET ${PADDLE_API}/adjustments`]: () => json({ data: [], meta: { pagination: {} } }),
+      [`GET ${PADDLE_API}/events`]: () => json({ data: [], meta: { pagination: {} } }),
+    });
+    for (let i = 0; i < 5; i++) await runJobs(sync, T0 + i * MIN);
+    const pages = mock.calls.filter((c) => !c.url.includes("/events"));
+    expect(pages.map((c) => new URL(c.url).pathname)).toEqual([
+      "/transactions",
+      "/transactions",
+      "/subscriptions",
+      "/adjustments",
+    ]);
+    expect(pages[1]?.url).toBe(next);
+    expect((await paymentRows(site.id)).map((r) => r.provider_txn_id)).toEqual(["txn_a", "txn_b"]);
+  });
+
   it("verifies Paddle-Signature webhooks", async () => {
     const { site } = await ownerWithSite();
     await connect(site.id, "paddle", {
