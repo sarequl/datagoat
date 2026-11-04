@@ -107,7 +107,7 @@ export function FilterBuilder({
               const k = e.target.value;
               setKey(k);
               const d = filterDef(k);
-              if (d && !d.ops.includes(op)) setOp(d.ops[0] ?? "is");
+              if (d) setOp(d.ops[0] ?? "is");
               setValue("");
               setError(null);
             }}

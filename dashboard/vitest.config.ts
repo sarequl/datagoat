@@ -10,5 +10,7 @@ export default defineConfig({
     environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
+    // Full pages (overview: ~20 requests, lazy map chunk) render slowly in happy-dom.
+    testTimeout: 20_000,
   },
 });

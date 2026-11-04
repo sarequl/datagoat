@@ -493,6 +493,7 @@ function Goals({
         ) : (
           <div className="relative overflow-x-auto">
             <table className="w-full min-w-[36rem] text-sm">
+              <caption className="sr-only">All goals</caption>
               <thead className="text-left text-xs text-muted">
                 <tr>
                   <th scope="col" className="px-4 py-2 font-medium">
