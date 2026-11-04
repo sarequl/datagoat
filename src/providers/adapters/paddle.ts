@@ -32,7 +32,7 @@ type Obj = Record<string, unknown>;
 export const PADDLE_API = "https://api.paddle.com";
 export const PADDLE_SANDBOX_API = "https://sandbox-api.paddle.com";
 const PAGE = 50;
-const MAX_EVENT_PAGES = 3;
+const MAX_EVENT_PAGES = 2;
 
 export const PADDLE_EVENTS = [
   "transaction.completed",

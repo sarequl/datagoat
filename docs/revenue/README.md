@@ -87,7 +87,7 @@ currency re-converts existing payments within the hour.
 
 | Job                       | When          | What                                                        |
 | ------------------------- | ------------- | ----------------------------------------------------------- |
-| `providers.sync`          | every minute  | Stripe and Paddle events every minute; Polar, Lemon Squeezy, Dodo, Creem every 5 minutes; one backfill page per connection (2 per run); ≤ 20 provider requests per run |
+| `providers.sync`          | every minute  | Stripe and Paddle events every minute (up to 100 per run); Polar, Lemon Squeezy, Dodo, Creem every 5 minutes; one backfill page per connection (2 per run); ≤ 20 provider requests per run |
 | `providers.resolve-hints` | every minute  | up to 8 success-page references, retried 1 min → 1 day      |
 | `providers.fx`            | hourly :23    | ECB rates once a day, re-conversion                         |
 | `providers.match-emails`  | hourly :37    | email matches for recent unattributed payments              |

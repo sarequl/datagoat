@@ -1,7 +1,11 @@
 import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { providerJobs } from "../../../src/providers";
-import { STRIPE_API } from "../../../src/providers/adapters/stripe";
+import {
+  EVENTS_PER_PAGE,
+  MAX_EVENT_PAGES,
+  STRIPE_API,
+} from "../../../src/providers/adapters/stripe";
 import { sign } from "../../../src/providers/signatures";
 import { meterEnv, resetDb } from "../../helpers/db";
 import { api } from "../../helpers/http";
@@ -272,10 +276,11 @@ describe("Events API polling", () => {
     }
     mock = mockProviders({ [`GET ${STRIPE_API}/events`]: eventsApi(events) });
     await runJobs(sync, T0 + MIN);
-    expect(mock.calls).toHaveLength(3); // MAX_EVENT_PAGES
-    expect(await paymentRows(site.id)).toHaveLength(300);
-    await runJobs(sync, T0 + 2 * MIN);
+    expect(mock.calls).toHaveLength(MAX_EVENT_PAGES);
+    expect(await paymentRows(site.id)).toHaveLength(MAX_EVENT_PAGES * EVENTS_PER_PAGE);
+    for (let i = 2; i <= 4; i++) await runJobs(sync, T0 + i * MIN);
     expect(await paymentRows(site.id)).toHaveLength(350);
+    expect(mock.calls.length).toBeLessThanOrEqual(4 * MAX_EVENT_PAGES);
   });
 
   it("recovers from a cursor that aged out of Stripe's 30-day window", async () => {

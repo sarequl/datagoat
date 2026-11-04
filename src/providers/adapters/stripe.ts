@@ -51,7 +51,12 @@ export const STRIPE_API = "https://api.stripe.com/v1";
 /** Pinned for objects we fetch; events keep the version they were created with. */
 export const STRIPE_VERSION = "2024-06-20";
 const PAGE = 50;
-export const MAX_EVENT_PAGES = 3;
+/**
+ * Events per page and pages per cron run. At most 100 events are parsed and ingested per run to
+ * bound CPU (the Free plan allows 10 ms per cron invocation); a backlog drains on later runs.
+ */
+export const EVENTS_PER_PAGE = 50;
+export const MAX_EVENT_PAGES = 2;
 
 export const STRIPE_EVENT_TYPES = [
   "checkout.session.completed",
@@ -572,7 +577,7 @@ export const stripeAdapter: ProviderAdapter = {
     let more = false;
     for (let page = 0; page < MAX_EVENT_PAGES; page++) {
       const params: Record<string, string | number | string[] | undefined> = {
-        limit: 100,
+        limit: EVENTS_PER_PAGE,
         "types[]": [...STRIPE_EVENT_TYPES],
         ending_before: newest ?? undefined,
       };
