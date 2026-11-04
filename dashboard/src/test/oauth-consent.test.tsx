@@ -2,11 +2,11 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MOCK_PASSWORD } from "../../mocks/fixtures/core";
-import { MOCK_CONSENT_REQUEST } from "../../mocks/fixtures/oauth";
-import { server } from "../../mocks/node";
-import { resetMockState } from "../../mocks/state";
-import { renderApp } from "../../test/render";
+import { MOCK_PASSWORD } from "../mocks/fixtures/core";
+import { MOCK_CONSENT_REQUEST } from "../mocks/fixtures/oauth";
+import { server } from "../mocks/node";
+import { resetMockState } from "../mocks/state";
+import { renderApp } from "./render";
 
 const PATH = `/oauth/consent?request=${MOCK_CONSENT_REQUEST}`;
 
