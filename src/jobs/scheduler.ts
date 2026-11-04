@@ -16,7 +16,7 @@
  * - Error isolation: a throwing job is recorded in job_state and backs off exponentially
  *   (2^failures minutes, max 60) after 3 consecutive failures; other jobs still run.
  */
-import { createD1Meter, QueryBudgetExceeded } from "../lib/d1";
+import { createD1Meter, instrumentD1, QueryBudgetExceeded } from "../lib/d1";
 import { errorFields, log } from "../lib/log";
 import { currentSlot, isFrequent, type JobContext, type JobDefinition } from "./registry";
 
@@ -119,6 +119,16 @@ export async function runScheduled(
     });
   }
 
+  // Jobs get a view of the metered binding that stops RESERVED_QUERIES short of the budget, so
+  // the scheduler can always record results and release claims.
+  const jobDb = instrumentD1(
+    db,
+    () => {},
+    () => {
+      if (meter.usage.queries >= budget - RESERVED_QUERIES)
+        throw new QueryBudgetExceeded(budget - RESERVED_QUERIES);
+    },
+  );
   let fetchesUsed = 0;
   const writes: D1PreparedStatement[] = [];
   let budgetExhausted = false;
@@ -147,8 +157,8 @@ export async function runScheduled(
     let nextState: string | null = previousState;
     const slot = currentSlot(job.schedule, now);
     const jobCtx: JobContext = {
-      env: { ...env, DB: db },
-      db,
+      env: { ...env, DB: jobDb },
+      db: jobDb,
       now,
       slot,
       lastRunAt: row?.last_run_at ?? null,

@@ -9,6 +9,7 @@
  *   Site-scoped tables are discovered from the schema (every table with a `site_id` column), so
  *   tables added by feature teams are purged without registration.
  */
+import { chunk } from "../lib/d1";
 import { log } from "../lib/log";
 import type { JobContext, JobDefinition } from "./registry";
 
@@ -103,19 +104,25 @@ export async function purgeDeletedSites(ctx: JobContext): Promise<void> {
     .first<{ id: string }>();
   if (!site) return;
   const tables = await siteScopedTables(db);
-  // One query: which tables still hold rows for this site.
-  const probe = await db
-    .prepare(
-      tables
-        .map(
-          (t) =>
-            `SELECT '${t.name}' AS t WHERE EXISTS (SELECT 1 FROM "${t.name}" WHERE site_id = ?1)`,
+  // One batch: which tables still hold rows for this site. One row of EXISTS() columns per
+  // statement (D1 limits compound SELECTs and result columns, so groups of 40 tables).
+  const groups = chunk(tables, 40);
+  const probes = await db.batch<Record<string, number>>(
+    groups.map((group) =>
+      db
+        .prepare(
+          `SELECT ${group.map((t, i) => `EXISTS (SELECT 1 FROM "${t.name}" WHERE site_id = ?1) AS c${i}`).join(", ")}`,
         )
-        .join(" UNION ALL "),
-    )
-    .bind(site.id)
-    .all<{ t: string }>();
-  const nonEmpty = new Set((probe.results ?? []).map((r) => r.t));
+        .bind(site.id),
+    ),
+  );
+  const nonEmpty = new Set<string>();
+  groups.forEach((group, g) => {
+    const row = probes[g]?.results?.[0] ?? {};
+    group.forEach((t, i) => {
+      if (row[`c${i}`]) nonEmpty.add(t.name);
+    });
+  });
   let remaining =
     Number.parseInt((ctx.env as unknown as Record<string, string>).PURGE_ROWS_PER_RUN ?? "", 10) ||
     DEFAULT_PURGE_ROWS_PER_RUN;
@@ -124,7 +131,6 @@ export async function purgeDeletedSites(ctx: JobContext): Promise<void> {
     if (remaining <= 0 || ctx.remainingQueries() < 3) return;
     const res = await deleteChunk(db, table, site.id, remaining).run();
     remaining -= res.meta.changes ?? 0;
-    if ((res.meta.changes ?? 0) >= remaining + (res.meta.changes ?? 0)) return;
   }
   if (remaining > 0 && [...nonEmpty].every((t) => t === "memberships")) {
     await db.batch([
