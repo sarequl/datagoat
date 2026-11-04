@@ -27,6 +27,7 @@ import { visitorsRoutes } from "./api/v1/visitors";
 import { authenticate, sameOriginGuard } from "./auth/middleware";
 import { apiRateLimit } from "./auth/rate-limit";
 import { authRoutes } from "./auth/routes";
+import { MIGRATIONS } from "./db/migrations.generated";
 import { ecosystemRoutes } from "./ecosystem";
 import { growthRoutes } from "./growth";
 import { ingestRoutes } from "./ingest";
@@ -42,7 +43,12 @@ export function mountRoutes(app: Hono<AppEnv>): void {
   app.use("/api/setup", sameOriginGuard);
 
   // F0 — foundation
-  app.get("/api/health", (c) => c.json({ status: "success", data: { ok: true } }));
+  app.get("/api/health", (c) =>
+    c.json({
+      status: "success",
+      data: { ok: true, schema: "current", migrations: MIGRATIONS.length },
+    }),
+  );
   app.route("/api/setup", setupRoutes);
   app.route("/api/auth", authRoutes);
   app.route("/", accountAdminRoutes);

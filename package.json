@@ -14,7 +14,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "node scripts/clean-public.mjs && npm run build:dashboard && npm run build:tracker",
+    "build": "node scripts/gen-migrations.mjs && node scripts/clean-public.mjs && npm run build:dashboard && npm run build:tracker",
     "build:dashboard": "vite build --config dashboard/vite.config.ts",
     "build:tracker": "node tracker/build.mjs",
     "dev": "npm run build && npm run db:migrate:local && wrangler dev",
@@ -28,14 +28,15 @@
     "test:tracker": "vitest run --config tracker/vitest.config.ts",
     "test:dashboard": "vitest run --config dashboard/vitest.config.ts",
     "e2e": "playwright test",
-    "lint": "biome check .",
+    "lint": "biome check . && node scripts/gen-migrations.mjs --check",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "tsc -p tsconfig.json && tsc -p dashboard/tsconfig.json && tsc -p tracker/tsconfig.json && tsc -p tsconfig.node.json",
     "size": "node scripts/check-size.mjs",
     "cf-typegen": "wrangler types --strict-vars=false src/worker-configuration.d.ts",
     "reset-password": "node scripts/reset-password.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run test:tracker && npm run test:dashboard && npm run build && npm run size && npm run e2e"
+    "check": "npm run lint && npm run typecheck && npm run test && npm run test:tracker && npm run test:dashboard && npm run build && npm run size && npm run e2e",
+    "gen:migrations": "node scripts/gen-migrations.mjs"
   },
   "cloudflare": {
     "bindings": {

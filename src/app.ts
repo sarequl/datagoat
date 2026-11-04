@@ -2,6 +2,7 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
+import { ensureSchema, SchemaNotReadyError } from "./db/migrate";
 import { ApiError } from "./lib/errors";
 import { errorFields, log } from "./lib/log";
 import { errorResponse } from "./lib/response";
@@ -24,7 +25,18 @@ export function createApp(): Hono<AppEnv> {
     }
   });
 
+  // Bring the D1 schema up to date on the first request of each isolate (see src/db/migrate.ts).
+  app.use("*", async (c, next) => {
+    await ensureSchema(c.env.DB);
+    return next();
+  });
+
   app.onError((err, c) => {
+    if (err instanceof SchemaNotReadyError) {
+      return errorResponse(503, `Database is not initialised: ${err.message}`, {
+        "Retry-After": "5",
+      });
+    }
     if (err instanceof ApiError)
       return errorResponse(err.status, err.message, err.headers, err.extra);
     if (err instanceof ZodError) return errorResponse(400, formatZodError(err));

@@ -116,7 +116,8 @@ setupRoutes.post("/", async (c) => {
     if (String(err).includes("UNIQUE") || String(err).includes("PRIMARY KEY")) {
       throw new ApiError(409, "Setup has already been completed");
     }
-    throw err;
+    // Setup runs before anyone can read logs in a dashboard: say what failed.
+    throw new ApiError(500, `Setup failed: ${err instanceof Error ? err.message : String(err)}`);
   }
   await startSession(c, userId, now);
   const me = await meDto(db, {

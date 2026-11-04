@@ -206,5 +206,7 @@ export const authHandlers = [
   http.delete("/api/v1/admin/websites/:websiteId/team/invites/:id", () =>
     ok([{ message: "Invitation revoked" }]),
   ),
-  http.get("/api/health", () => HttpResponse.json({ status: "success", data: { ok: true } })),
+  http.get("/api/health", () =>
+    HttpResponse.json({ status: "success", data: { ok: true, schema: "current", migrations: 1 } }),
+  ),
 ];

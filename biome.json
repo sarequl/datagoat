@@ -12,7 +12,8 @@
       "!public",
       "!dashboard/mock-public",
       "!package-lock.json",
-      "!**/*.md"
+      "!**/*.md",
+      "!src/db/migrations.generated.ts"
     ]
   },
   "formatter": {

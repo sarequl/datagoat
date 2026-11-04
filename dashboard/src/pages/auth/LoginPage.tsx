@@ -23,6 +23,7 @@ export default function LoginPage() {
   return (
     <AuthLayout title="Sign in to DataGoat">
       <form className="space-y-4" onSubmit={submit}>
+        {setup.error ? <Notice tone="error">{setup.error.message}</Notice> : null}
         {login.error ? <Notice tone="error">{login.error.message}</Notice> : null}
         <Field label="Email">
           <Input

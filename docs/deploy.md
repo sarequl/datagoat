@@ -20,7 +20,10 @@ The button copies the repository into your GitHub account and builds it with Wor
 3. **Build command:** `npm run build` (dashboard + tracker into `public/`).
 4. **Deploy command:** `npm run deploy` = build, `wrangler d1 migrations apply DB --remote`, then
    `wrangler deploy`. Migrations reference the **binding** name, so a renamed database still works,
-   and they run non-interactively in CI.
+   and they run non-interactively in CI. The Worker also bundles every migration and applies any
+   pending ones itself on its first request (same `d1_migrations` bookkeeping as wrangler), so a
+   deploy whose command skipped the migration step still works. If the schema cannot be brought up,
+   every API call answers 503 `Database is not initialised: <reason>` and the setup page shows it.
 5. Open `https://<your-worker>/setup?token=<SETUP_TOKEN>` to create the first owner and website, then
    copy the tracking snippet.
 

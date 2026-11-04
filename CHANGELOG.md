@@ -13,4 +13,5 @@ All notable changes to DataGoat are recorded here. The format follows
 - Cron job multiplexer with per-job state, slot claims, query/subrequest budgets, error isolation and backoff; website purge and auth cleanup jobs.
 - Dashboard shell: setup, login, invite, reset and add-website screens, site switcher, navigation for every planned page, light/dark theme, typed API client and an MSW mock API.
 - Tracker build pipeline producing `script.js`, `script.cookieless.js` and `script.hash.js` (placeholder tracker), with size budgets.
+- The Worker bundles its D1 migrations and applies pending ones on first use, so setup works even when the deploy command skipped `wrangler d1 migrations apply`; schema failures answer 503 with the reason.
 - Test harness (workerd + local D1, write-budget meter, factories), Playwright e2e and CI.

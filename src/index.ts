@@ -4,14 +4,22 @@
  * code runs, except for the routes in wrangler.jsonc `assets.run_worker_first`.
  */
 import { createApp } from "./app";
+import { ensureSchema } from "./db/migrate";
 import { JOBS } from "./jobs";
 import { runScheduled } from "./jobs/scheduler";
+import { errorFields, log } from "./lib/log";
 
 const app = createApp();
 
 export default {
   fetch: app.fetch,
   async scheduled(controller, env, ctx) {
+    try {
+      await ensureSchema(env.DB);
+    } catch (err) {
+      log.error("cron.schema_not_ready", errorFields(err));
+      return;
+    }
     await runScheduled(JOBS, env, ctx, controller.scheduledTime);
   },
 } satisfies ExportedHandler<Cloudflare.Env>;

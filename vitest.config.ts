@@ -13,6 +13,8 @@ export default defineConfig(async () => {
       cloudflareTest({
         wrangler: { configPath: "./wrangler.jsonc" },
         miniflare: {
+          // An extra, never-migrated database for the self-migration tests.
+          d1Databases: { EMPTY_DB: "datagoat-empty-test" },
           bindings: {
             TEST_MIGRATIONS: migrations,
             SETUP_TOKEN: "test-setup-token-0123456789abcdef",

@@ -26,6 +26,16 @@ export default function SetupPage() {
   const [domain, setDomain] = useState("");
 
   if (status.isPending) return <Spinner />;
+  if (status.error) {
+    return (
+      <AuthLayout title="DataGoat is not ready">
+        <Notice tone="error">{status.error.message}</Notice>
+        <Button className="mt-4 w-full" variant="secondary" onClick={() => void status.refetch()}>
+          Try again
+        </Button>
+      </AuthLayout>
+    );
+  }
   if (status.data && !status.data.needsSetup) {
     return (
       <AuthLayout title="Setup complete">

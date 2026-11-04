@@ -4,7 +4,7 @@ import { api } from "../helpers/http";
 describe("route table", () => {
   it("serves the health check", async () => {
     const res = await api("/api/health");
-    expect(res.body).toEqual({ status: "success", data: { ok: true } });
+    expect(res.body).toMatchObject({ status: "success", data: { ok: true, schema: "current" } });
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(res.headers.get("x-request-id")).toBeTruthy();
   });
