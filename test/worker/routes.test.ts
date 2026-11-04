@@ -10,7 +10,6 @@ describe("route table", () => {
   });
 
   it.each([
-    ["POST", "/api/events", "W1"],
     ["GET", "/api/v1/visitors/abc", "W2"],
     ["POST", "/api/v1/payments", "W3"],
     ["POST", "/webhooks/stripe/site1", "W3"],

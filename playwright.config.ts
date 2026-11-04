@@ -1,11 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Two projects:
+ * Projects:
  * - `dashboard-mock`: the dashboard on Vite in mock mode (MSW). Dashboard teams test UI here
  *   before the backend exists.
  * - `worker`: the built app on `wrangler dev` with a fresh local D1 (scripts/e2e-worker.sh): the
  *   real first-run setup, sign-in and API behaviour end to end.
+ * - `tracker`: each tracker build in Chromium against that Worker, checking the stored rows
+ *   (runs after `worker`, which performs first-run setup).
  */
 const MOCK_PORT = Number(process.env.E2E_MOCK_PORT ?? 5174);
 const WORKER_PORT = Number(process.env.E2E_WORKER_PORT ?? 8788);
@@ -26,6 +28,13 @@ export default defineConfig({
     {
       name: "worker",
       testMatch: /worker\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], baseURL: `http://localhost:${WORKER_PORT}` },
+    },
+    {
+      // W1: the three tracker builds against the same Worker, after first-run setup.
+      name: "tracker",
+      testMatch: /tracker\.spec\.ts/,
+      dependencies: ["worker"],
       use: { ...devices["Desktop Chrome"], baseURL: `http://localhost:${WORKER_PORT}` },
     },
   ],

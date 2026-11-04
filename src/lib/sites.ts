@@ -35,6 +35,8 @@ export interface Site {
   excludedPaths: string[];
   excludedCountries: string[];
   excludedHostnames: string[];
+  /** W1 (migration 0100): case-insensitive User-Agent substrings dropped at ingest. */
+  excludedUserAgents: string[];
   kpi: string | null;
   kpiColorScheme: string | null;
   revenueMetric: string;
@@ -76,6 +78,7 @@ export function rowToSite(row: SiteRow): Site {
     excludedPaths: parseJsonColumn<string[]>(row.excluded_paths, []),
     excludedCountries: parseJsonColumn<string[]>(row.excluded_countries, []),
     excludedHostnames: parseJsonColumn<string[]>(row.excluded_hostnames, []),
+    excludedUserAgents: parseJsonColumn<string[]>(row.excluded_user_agents, []),
     kpi: str(row.kpi),
     kpiColorScheme: str(row.kpi_color_scheme),
     revenueMetric: String(row.revenue_metric ?? "revenue"),

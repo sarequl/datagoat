@@ -1,9 +1,9 @@
 {
-  "//": "Gzip size budgets in bytes. scripts/check-size.mjs fails the build above these.",
+  "//": "Gzip size budgets in bytes. scripts/check-size.mjs fails the build above these. The tracker budget covers full DataFast parity (goals, scroll goals, outbound and cross-domain links, SPA, payments, consent, engagement); measured ~5.0 KB for script.js and script.hash.js, ~4.5 KB for script.cookieless.js.",
   "tracker": {
-    "script.js": 4096,
-    "script.cookieless.js": 4096,
-    "script.hash.js": 4096
+    "script.js": 5376,
+    "script.cookieless.js": 5376,
+    "script.hash.js": 5376
   },
   "dashboardInitialJsGzip": 153600
 }
