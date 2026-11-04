@@ -10,8 +10,9 @@ export default defineConfig({
     environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
-    // Above Testing Library's 5 s async timeout (src/test/setup.ts), so a slow wait fails as
-    // a clear assertion rather than a test timeout.
-    testTimeout: 15_000,
+    // Above Testing Library's 5 s async timeout (src/test/setup.ts), so a slow wait fails as a
+    // clear assertion, and full pages (overview: ~20 requests, lazy map chunk) render slowly in
+    // happy-dom.
+    testTimeout: 20_000,
   },
 });

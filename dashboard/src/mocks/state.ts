@@ -1,6 +1,8 @@
 /**
  * Mutable mock state (signed-in user, websites, and the settings resources the settings pages
- * edit: team, invites, keys, tokens, integrations). `resetMockState()` restores the defaults.
+ * edit: team, invites, keys, tokens, integrations) and the analytics resources the analytics
+ * pages edit (notes, segments, funnels, goal customizations). `resetMockState()` restores the
+ * defaults.
  */
 import type {
   AccessToken,
@@ -20,6 +22,7 @@ import {
   team,
   websiteKeys,
 } from "./fixtures/core";
+import type { AnalyticsMockState } from "./fixtures/dashboard";
 import { growthIntegration, integrations, oauthConnections } from "./fixtures/growth";
 
 export interface MockState {
@@ -37,6 +40,8 @@ export interface MockState {
   oauthConnections: OAuthConnection[];
   /** Realtime polls answered per website created during the session (install verification). */
   installPolls: Record<string, number>;
+  /** Notes, segments, funnels and goal customizations created in the mock (W4). */
+  analytics: AnalyticsMockState;
 }
 
 function initial(): MockState {
@@ -53,6 +58,7 @@ function initial(): MockState {
     growth: {},
     oauthConnections: oauthConnections.map((c) => ({ ...c })),
     installPolls: {},
+    analytics: { notes: {}, segments: {}, funnels: {}, goalCustomizations: {} },
   };
 }
 

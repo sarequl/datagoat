@@ -1,7 +1,9 @@
 /** W3 (revenue), W6 (growth) and W7 (OAuth connections) endpoints. */
 import { http } from "msw";
 import { websites } from "../fixtures/core";
+import { commitsFor, paymentsFor } from "../fixtures/dashboard";
 import * as g from "../fixtures/growth";
+import { revenueFor } from "../fixtures/model";
 import { list, ok } from "./util";
 
 const W = "/api/v1/admin/websites/:websiteId";
@@ -23,7 +25,10 @@ export const growthHandlers = [
   }),
 
   // Revenue (W3)
-  http.get("/api/v1/payments", ({ request }) => list(g.payments, new URL(request.url))),
+  http.get("/api/v1/payments", ({ request }) => {
+    const url = new URL(request.url);
+    return list(paymentsFor(url), url);
+  }),
   http.post("/api/v1/payments", async ({ request }) => {
     const body = (await request.json()) as { transaction_id: string };
     return new Response(
@@ -37,7 +42,7 @@ export const growthHandlers = [
     );
   }),
   http.delete("/api/v1/payments", () => ok([{ message: "Payment deleted successfully" }])),
-  http.get("/api/v1/analytics/revenue", () => ok(g.revenueSummary)),
+  http.get("/api/v1/analytics/revenue", ({ request }) => ok(revenueFor(new URL(request.url)))),
   http.get(`${W}/integrations`, () => ok([g.integrations])),
   http.post(`${W}/integrations/:provider`, ({ params }) =>
     ok([{ message: `${String(params.provider)} connected successfully`, currency: "USD" }]),
@@ -170,7 +175,7 @@ export const growthHandlers = [
     );
   }),
   http.get("/api/v1/x/links", ({ request }) => list(g.xLinks, new URL(request.url))),
-  http.get("/api/v1/github/commits", ({ request }) => list(g.commits, new URL(request.url))),
+  http.get("/api/v1/github/commits", ({ request }) => list(commitsFor(), new URL(request.url))),
   http.get("/api/v1/search-console", ({ request }) => list(g.searchConsole, new URL(request.url))),
   http.get("/api/v1/ads/campaigns", ({ request }) => list(g.adCampaigns, new URL(request.url))),
   http.get("/api/v1/ads/summary", () =>
