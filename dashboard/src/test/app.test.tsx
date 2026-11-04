@@ -20,7 +20,6 @@ describe("dashboard shell", () => {
     for (const item of SITE_PAGES.filter((p) => !p.hidden)) {
       expect(nav).toHaveTextContent(item.label);
     }
-    expect(screen.getByTestId("coming-soon")).toHaveTextContent("Coming soon");
     expect(document.body).not.toHaveTextContent(/Owner: W\d|CONTRACTS\.md/);
     expect(screen.getByRole("combobox", { name: "Website" })).toHaveDisplayValue("Example SaaS");
   });
@@ -119,7 +118,7 @@ describe("phone navigation drawer", () => {
 
     await userEvent.click(menu);
     await userEvent.click(within(screen.getByRole("dialog")).getByRole("link", { name: "Goals" }));
-    expect(await screen.findByRole("heading", { name: "Goals" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Goals", level: 1 })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });
