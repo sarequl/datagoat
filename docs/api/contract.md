@@ -200,7 +200,7 @@ mints a share token; `false` deletes it.
 
 | Method  | Path          | Notes                                                                                                                                                                                              |
 | ------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST    | `/api/events` | DataFast body (plan §3.4), any content type, ≤ 8 KB. 200 `{}`; cookieless adds `{visitorId}`. Malformed → 400. Write with one `db.batch()` in `waitUntil`. CORS: `Access-Control-Allow-Origin: *`. |
+| POST    | `/api/events` | DataFast body (plan §3.4), any content type, ≤ 8 KB; types `pageview, custom, identify, payment, external_link` and DG `engagement`. 200 `{}`; cookieless hits get `{visitorId, sessionId}` (DG adds `sessionId`). Malformed → 400, hostname not allowed → 403, unknown website → 404, > 8 KB → 413, rate limited → 429; bots and excluded hits → 200 `{}`. Write with one `db.batch()` in `waitUntil`. CORS: `Access-Control-Allow-Origin: *`. Details: `docs/tracking.md`. |
 | OPTIONS | `/api/events` | CORS preflight (DataFast's script sends `application/json`).                                                                                                                                       |
 
 ## 5. Server-side events (W2, DF)
