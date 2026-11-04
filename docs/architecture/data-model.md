@@ -108,27 +108,41 @@ days (ranges ending today read raw tables for today), so idle sites write nothin
 
 ### Alerts and delivery (W6)
 
-| Table           | Purpose                                                                                         | Key / indexes                                                          |
-| --------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `alerts`        | Goal / new-sale / traffic-spike / digest alerts; email or Telegram (secret encrypted); counters | `id`; index `site_id`                                                  |
-| `alert_history` | Delivery log                                                                                    | rowid; index `(site_id, triggered_at)`                                 |
-| `outbox`        | Outbound deliveries with retries (email, Telegram); any team may enqueue, W6 delivers           | rowid; unique `dedupe_key`; partial index pending by `next_attempt_at` |
+| Table | Purpose | Key / indexes |
+| --- | --- | --- |
+| `alerts` | Goal / new-sale / traffic-spike / daily and weekly digest rules; email, Telegram or webhook (bot token / signing secret AES-GCM encrypted with AAD `alert:<site>:<alert>`); trigger counters (daily/monthly reset lazily). Rebuilt by 0600 to widen its CHECKs | `id`; index `site_id` |
+| `alert_history` | Delivery log (sent/failed, error, visitor) + 0600 `channel`, `trigger_type`, `summary`; pruned after 180 days | rowid; index `(site_id, triggered_at)` |
+| `outbox` | Outbound deliveries with retries (email, Telegram, webhooks; alerts, digests, weekly reports, invites, password resets). Any team may enqueue with `enqueueStatement()` from `src/growth/delivery/outbox.ts`; W6 delivers. Settled rows pruned after 30 days | rowid; unique `dedupe_key`; partial index pending by `next_attempt_at` |
 
 ### Growth (W6)
 
-| Table                     | Purpose                                                                                                                       | Key / indexes                                                          |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `bot_traffic`             | Accepted crawler requests per UTC hour, crawler, page, status, verification (one upsert per request)                          | full composite primary key                                             |
-| `bot_settings`            | Bot traffic settings JSON                                                                                                     | `site_id`                                                              |
-| `bot_tokens`              | `dfbot_` request token (hashed)                                                                                               | `site_id`; unique `token_hash`                                         |
-| `integration_connections` | GitHub, Search Console, Meta Ads, X: encrypted credentials, settings (repo, property, ad accounts, keywords, handles), cursor | `(site_id, kind)`                                                      |
-| `mentions`                | X and Reddit mentions                                                                                                         | `id`; unique `(site_id, platform, external_id)`; index `(site_id, ts)` |
-| `x_links`                 | t.co link → tweet, for X link attribution                                                                                     | `(site_id, tco_url)`                                                   |
-| `github_commits`          | Commits for chart markers                                                                                                     | `(site_id, sha)`; index `(site_id, committed_at)`                      |
-| `gsc_daily`               | Search Console query/page metrics per day                                                                                     | `(site_id, day, query, page)`                                          |
-| `ad_spend_daily`          | Meta campaign spend per day                                                                                                   | `(site_id, platform, account_id, campaign_id, day)`                    |
-| `imports`                 | Plausible (and DataFast) import jobs                                                                                          | `id`; index `site_id`                                                  |
-| `imported_daily`          | Imported aggregates per day and dimension (`''` = totals)                                                                     | `(site_id, day, dimension, value, import_id)`                          |
+| Table | Purpose | Key / indexes |
+| --- | --- | --- |
+| `bot_traffic` | Accepted crawler requests per UTC hour, crawler, page, status, verification (one upsert per distinct key: 1 written row) | full composite primary key |
+| `bot_settings` | Bot traffic settings JSON | `site_id` |
+| `bot_tokens` | `dfbot_` request token (SHA-256 of `dfbot:<token>`) | `site_id`; unique `token_hash` |
+| `crawler_ip_ranges` (0600) | Published crawler IP ranges per source, refreshed daily, rewritten only on change | `source` |
+| `bot_usage` (0600) | Accepted/dropped bot requests per UTC month while `BOT_TRAFFIC_ALLOWANCE` is set (flushed ≤ once a minute per isolate) | `period` |
+| `attack_mode` (0600) | Auto attack-mode settings and the active automatic period (`active_until`, `previous_level`) | `site_id` |
+| `attack_mode_events` (0600) | Attack mode on/off log (auto or manual, reason, details) | `id`; index `(site_id, started_at)` |
+| `integration_connections` | GitHub, Search Console, Meta Ads, X: encrypted credentials (`integration:<kind>:<site>`), settings (repo, property, ad accounts and campaigns, keywords, handles), sync cursor, status | `(site_id, kind)` |
+| `mentions` | X and Reddit mentions (`INSERT OR IGNORE`) | `id`; unique `(site_id, platform, external_id)`; index `(site_id, ts)` |
+| `x_links` | `https://t.co/<code>` → post (or link-in-bio profile), for X link attribution; joined to `sessions.referrer` | `(site_id, tco_url)` |
+| `github_commits` | Commits for chart markers | `(site_id, sha)`; index `(site_id, committed_at)` |
+| `gsc_daily` | Search Console metrics per day: `query = '' AND page = ''` rows are daily totals, others the top query × page rows | `(site_id, day, query, page)` |
+| `ad_spend_daily` | Meta campaign spend, impressions, clicks, reach, purchase value per day | `(site_id, platform, account_id, campaign_id, day)` |
+| `imports` | Plausible (and DataFast) import jobs | `id`; index `site_id` |
+| `imported_daily` | Imported aggregates per day and dimension (`''` = totals) | `(site_id, day, dimension, value, import_id)` |
+
+W6 also updates `sites.bot_level` (to and from `strict`) for automatic and manual attack mode.
+
+**Imported data in analytics (contract for W2):** count only rows of `imports.status =
+'completed'` and only days before the first native session (`importCutoff()`), so periods are
+never double counted. `dimension = ''` rows are daily totals (`visits` = sessions,
+`duration_sum` in ms). Other dimensions use DataGoat's values: `referrer` (source display name,
+`Direct / None`), `channel`, `utm_source` … `utm_content`, `page`, `entry_page`, `exit_page`,
+`country` (ISO code), `region`, `city` (Plausible GeoNames id), `device`, `browser`, `os`. Summed
+visitors are sums of daily uniques. Helpers: `src/growth/imports/read.ts`.
 
 ### Operations (F0)
 

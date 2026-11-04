@@ -28,3 +28,19 @@ Behaviour:
 
 Foundation jobs: `auth.cleanup` (daily) and `sites.purge` (hourly, bounded deletes of soft-deleted
 websites).
+
+Growth jobs (W6, `src/growth/index.ts`; details in [docs/growth/](../growth/README.md)):
+
+| Job | Schedule | Does | Idle cost |
+| --- | --- | --- | --- |
+| `outbox.deliver` | minute (priority 5) | sends ≤ 10 pending emails/Telegram messages/webhooks, retries with backoff, writes alert history | 1 indexed read |
+| `alerts.evaluate` | minute (priority 4) | goal and new-sale alerts from the last 3 minutes, deduplicated by outbox key | 1 read of `alerts` |
+| `alerts.traffic-spike` | hourly :03 | traffic-spike rules and viral-traffic emails | 2 small reads |
+| `alerts.digest` | every 10 min | daily (07:00 UTC) and weekly (Mondays) digests and weekly email reports, 8 sites per run with a cursor | nothing before 07:00 |
+| `outbox.cleanup` | daily 03:41 | prunes settled outbox rows (30 d) and alert history (180 d) | 2 deletes |
+| `attack.detect` | every 5 min | automatic attack mode on/off | 1 read |
+| `bots.ip-ranges` | daily 04:11 | downloads published crawler IP ranges (13 subrequests) | rewrites only changed rows |
+| `mentions.sync` | every 30 min | X/Reddit mentions, t.co → post mapping, link-in-bio profiles (3 sites per run) | 1 read |
+| `github.sync` | hourly :37 | new commits and line stats (3 sites per run) | 1 read |
+| `gsc.sync` | hourly :17 | Search Console daily refresh and 2-day backfill per run | 1 read |
+| `meta.sync` | hourly :23 | Meta spend per selected campaign | 1 read |
