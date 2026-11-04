@@ -3,6 +3,7 @@
  *
  *   POST /api/auth/login                       {email, password} → session cookie
  *   POST /api/auth/logout
+ *   POST /api/auth/logout-all                  end every session of the user (sign out everywhere)
  *   GET  /api/auth/me                          current user + websites
  *   PUT  /api/auth/password                    {currentPassword, newPassword}
  *   GET  /api/auth/invites/:token              invite details
@@ -117,6 +118,13 @@ authRoutes.post("/logout", async (c) => {
   if (session) await endSession(c.env.DB, session.idHash);
   clearSessionCookie(c);
   return success(c, { message: "Logged out" });
+});
+
+authRoutes.post("/logout-all", authenticate, requireSession, async (c) => {
+  const auth = getAuth(c);
+  await revokeOtherSessionsStatement(c.env.DB, auth.user.id, null).run();
+  clearSessionCookie(c);
+  return success(c, { message: "Signed out of every session" });
 });
 
 authRoutes.get("/me", authenticate, async (c) => {

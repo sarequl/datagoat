@@ -1,0 +1,185 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it } from "vitest";
+import { server } from "../../mocks/node";
+import { state } from "../../mocks/state";
+import { openPage, recordRequests, SITE, writes } from "./helpers";
+
+afterEach(() => server.events.removeAllListeners());
+
+const provider = (id: string) =>
+  waitFor(() => {
+    const el = document.getElementById(`integration-${id}`);
+    if (!el) throw new Error(`no card for ${id}`);
+    return el;
+  });
+
+describe("payment providers", () => {
+  it("shows a connected provider's status, re-syncs and disconnects it", async () => {
+    openPage(`/app/${SITE}/integrations`);
+    const stripe = await provider("stripe");
+    expect(within(stripe).getByText("Connected")).toBeInTheDocument();
+    expect(within(stripe).getByText("Example Inc.")).toBeInTheDocument();
+    await userEvent.click(within(stripe).getByRole("button", { name: "Re-sync" }));
+    expect(await within(stripe).findByText("Stripe payment re-sync queued")).toBeInTheDocument();
+    await userEvent.click(within(stripe).getByRole("button", { name: "Disconnect" }));
+    const dialog = screen.getByRole("dialog", { name: "Disconnect Stripe?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disconnect" }));
+    expect(await within(stripe).findByText("Not connected")).toBeInTheDocument();
+    expect(state.integrations[SITE]?.stripe.connected).toBe(false);
+  });
+
+  it("connects Lemon Squeezy with setup steps, validation and the currency note", async () => {
+    const log = recordRequests();
+    openPage(`/app/${SITE}/integrations`);
+    const ls = await provider("lemonsqueezy");
+    await userEvent.click(within(ls).getByRole("button", { name: "Connect Lemon Squeezy" }));
+    expect(within(ls).getByText(/Settings > API and create an API key/)).toBeInTheDocument();
+    await userEvent.type(within(ls).getByLabelText("Store ID"), "abc");
+    await userEvent.click(within(ls).getByRole("button", { name: "Connect Lemon Squeezy" }));
+    expect(within(ls).getByText("The API key is required.")).toBeInTheDocument();
+    expect(within(ls).getByText("The store ID is a number.")).toBeInTheDocument();
+    expect(writes(log, "POST", "/integrations/")).toHaveLength(0);
+
+    await userEvent.type(within(ls).getByLabelText("API key"), "ls_key_123");
+    await userEvent.clear(within(ls).getByLabelText("Store ID"));
+    await userEvent.type(within(ls).getByLabelText("Store ID"), "4242");
+    await userEvent.click(within(ls).getByRole("button", { name: "Connect Lemon Squeezy" }));
+    expect(
+      await within(ls).findByText(
+        "Lemon Squeezy connected successfully. Payments in EUR are converted to USD.",
+      ),
+    ).toBeInTheDocument();
+    expect(writes(log, "POST", "/integrations/lemonsqueezy")[0]?.body).toEqual({
+      lemonsqueezyApiKey: "ls_key_123",
+      lemonsqueezyStoreId: "4242",
+    });
+    await waitFor(() => expect(within(ls).getByText("Connected")).toBeInTheDocument());
+    expect(within(ls).getByText("Importing past payments…")).toBeInTheDocument();
+  });
+
+  it("refuses Stripe secret keys before sending and shows provider errors", async () => {
+    openPage(`/app/${SITE}/integrations`);
+    const stripe = await provider("stripe");
+    await userEvent.click(within(stripe).getByRole("button", { name: "Disconnect" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Disconnect" }),
+    );
+    await userEvent.click(await within(stripe).findByRole("button", { name: "Connect Stripe" }));
+    const key = within(stripe).getByLabelText("Restricted API key");
+    expect(key).toHaveAttribute("type", "password");
+    await userEvent.type(key, "sk_live_123");
+    await userEvent.click(within(stripe).getByRole("button", { name: "Connect Stripe" }));
+    expect(within(stripe).getByRole("alert")).toHaveTextContent("Use a restricted key (rk_…)");
+    await userEvent.clear(key);
+    await userEvent.type(key, "rk_live_invalid");
+    await userEvent.click(within(stripe).getByRole("button", { name: "Connect Stripe" }));
+    expect(
+      await within(stripe).findByText("Stripe rejected the key: Invalid API Key provided"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows webhook URLs for Dodo and the install link flow for Shopify", async () => {
+    openPage(`/app/${SITE}/integrations`);
+    const dodo = await provider("dodo");
+    await userEvent.click(within(dodo).getByRole("button", { name: "Connect Dodo Payments" }));
+    expect(within(dodo).getByLabelText("Dodo Payments webhook URL")).toHaveValue(
+      `${window.location.origin}/webhooks/dodo/${SITE}`,
+    );
+    const shopify = await provider("shopify");
+    await userEvent.click(within(shopify).getByRole("button", { name: "Connect Shopify" }));
+    const install = within(shopify).getByRole("link", { name: "Install app" });
+    await userEvent.click(install);
+    expect(within(shopify).getByRole("alert")).toHaveTextContent("myshopify.com domain");
+    await userEvent.type(within(shopify).getByLabelText("Store domain"), "Acme.myshopify.com");
+    expect(install).toHaveAttribute(
+      "href",
+      `/api/apps/shopify/install?shop=acme.myshopify.com&websiteId=${SITE}`,
+    );
+  });
+
+  it("explains the WooCommerce plugin connection", async () => {
+    openPage(`/app/${SITE}/integrations`);
+    const woo = await provider("woocommerce");
+    await userEvent.click(within(woo).getByRole("button", { name: "Connect WooCommerce" }));
+    expect(within(woo).getByText(/Install and activate the DataGoat plugin/)).toBeInTheDocument();
+    expect(within(woo).getByLabelText("Website ID")).toHaveValue(SITE);
+    expect(within(woo).getByRole("link", { name: "Create an API key" })).toHaveAttribute(
+      "href",
+      `/app/${SITE}/keys`,
+    );
+  });
+
+  it("is read-only for viewers", async () => {
+    openPage(`/app/${SITE}/integrations`, { role: "viewer" });
+    const stripe = await provider("stripe");
+    expect(within(stripe).queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Connect/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Connect/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("growth integrations", () => {
+  it("saves the GitHub repository and disconnects", async () => {
+    openPage(`/app/${SITE}/integrations`);
+    const github = await screen.findByRole("heading", { name: /GitHub/ });
+    const card = github.closest("section") as HTMLElement;
+    const repo = await within(card).findByLabelText("Repository");
+    await userEvent.type(repo, "not a repo");
+    await userEvent.click(within(card).getByRole("button", { name: "Save" }));
+    expect(within(card).getByRole("alert")).toHaveTextContent("Use the owner/name form");
+    await userEvent.clear(repo);
+    await userEvent.type(repo, "acme/site");
+    await userEvent.click(within(card).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(state.growth[`${SITE}:github`]?.settings).toEqual({ repo: "acme/site" }),
+    );
+    await userEvent.click(within(card).getByRole("button", { name: "Disconnect" }));
+    await userEvent.click(
+      within(screen.getByRole("dialog", { name: "Disconnect GitHub?" })).getByRole("button", {
+        name: "Disconnect",
+      }),
+    );
+    expect(await within(card).findByRole("link", { name: "Connect GitHub" })).toHaveAttribute(
+      "href",
+      `/api/connect/github/start?websiteId=${SITE}`,
+    );
+  });
+
+  it("starts the Search Console and Meta Ads OAuth flows", async () => {
+    openPage(`/app/${SITE}/integrations`);
+    expect(
+      await screen.findByRole("link", { name: "Connect Google Search Console" }),
+    ).toHaveAttribute("href", `/api/connect/google-search-console/start?websiteId=${SITE}`);
+    expect(screen.getByRole("link", { name: "Connect Meta Ads" })).toHaveAttribute(
+      "href",
+      `/api/connect/meta-ads/start?websiteId=${SITE}`,
+    );
+    expect(screen.getByRole("figure", { name: "Meta URL parameters" })).toHaveTextContent(
+      "utm_campaign={{campaign.id}}",
+    );
+  });
+
+  it("edits X and Reddit keywords and link-in-bio handles", async () => {
+    const log = recordRequests();
+    openPage(`/app/${SITE}/integrations`);
+    const keywords = await screen.findByRole("textbox", { name: "Mention keywords" });
+    await userEvent.type(keywords, "abc{Enter}");
+    expect(screen.getByText("Keywords are 4 to 15 characters.")).toBeInTheDocument();
+    await userEvent.clear(keywords);
+    await userEvent.type(keywords, "DataGoat{Enter}");
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Link-in-bio handles" }),
+      "goatdev{Enter}",
+    );
+    const card = keywords.closest("section") as HTMLElement;
+    await userEvent.click(within(card).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(writes(log, "PUT", "/integrations/x")[0]?.body).toEqual({
+        keywords: ["DataGoat"],
+        handles: ["@goatdev"],
+      }),
+    );
+    expect(await within(card).findByText("Saved")).toBeInTheDocument();
+  });
+});

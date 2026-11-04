@@ -214,6 +214,11 @@ export interface Website {
   shareToken: string | null;
   updatedAt: string;
   role?: Role;
+  /**
+   * Proposed (W5 → F0/W1): substrings of User-Agent to drop at ingest. The dashboard shows the
+   * editor only when the server returns this field; see docs/api/contract.md §3.
+   */
+  excludedUserAgents?: string[];
 }
 
 export type WebsiteUpdate = Partial<
@@ -239,6 +244,7 @@ export type WebsiteUpdate = Partial<
     | "excludedPaths"
     | "excludedCountries"
     | "excludedHostnames"
+    | "excludedUserAgents"
     | "privacyMode"
     | "attributionModel"
     | "botLevel"

@@ -100,6 +100,14 @@ export const SITE_PAGES: readonly NavItem[] = [
     page: "settings/GeneralSettingsPage",
   },
   {
+    path: "settings/install",
+    label: "Installation",
+    group: "Website",
+    owner: "W5",
+    page: "settings/InstallPage",
+    hidden: true,
+  },
+  {
     path: "settings/tracking",
     label: "Tracking & privacy",
     group: "Website",
@@ -117,7 +125,7 @@ export const SITE_PAGES: readonly NavItem[] = [
   },
   {
     path: "settings/attribution",
-    label: "Attribution & KPI",
+    label: "Attribution & revenue",
     group: "Website",
     owner: "W5",
     page: "settings/AttributionSettingsPage",
