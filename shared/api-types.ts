@@ -277,6 +277,8 @@ export interface CreatedInvite {
   role: "member" | "viewer";
   inviteUrl: string;
   expiresAt: string;
+  /** DG (W6): true when the invite was also emailed (an email provider is configured). */
+  emailQueued?: boolean;
 }
 
 export interface PendingInvite {
@@ -812,16 +814,41 @@ export interface RevenueSummary {
 // Growth (W6): alerts, bot traffic, mentions, GitHub, GSC, ads, imports
 // ---------------------------------------------------------------------------
 
+export type AlertTriggerType =
+  | "goal"
+  | "new_sale"
+  | "traffic_spike"
+  | "daily_digest"
+  | "weekly_digest";
+export type AlertChannel = "email" | "telegram" | "webhook";
+
 export interface Alert {
   id: string;
   websiteId: string;
   name: string;
   trigger: {
-    type: "goal" | "new_sale" | "traffic_spike" | "weekly_digest";
+    type: AlertTriggerType;
     goalName?: string;
+    /** traffic_spike: alert at this multiple of the trailing hourly average (default 4). */
     multiplier?: number;
+    /** traffic_spike: minimum sessions in the hour (default 20). */
+    minSessions?: number;
+    /** new_sale: also alert on renewals (default true) and free trials (default false). */
+    includeRenewals?: boolean;
+    includeFreeTrials?: boolean;
   };
-  destination: { type: "email" | "telegram"; email?: string; chatId?: string };
+  destination: {
+    type: AlertChannel;
+    /** email: recipient; omitted = the website owners. */
+    email?: string;
+    /** telegram */
+    chatId?: string;
+    hasBotToken?: boolean;
+    /** webhook */
+    url?: string;
+    /** webhook: HMAC signing secret, returned once on create (and when rotated). */
+    signingSecret?: string;
+  };
   template: { subject?: string; message: string };
   isEnabled: boolean;
   triggerCount: number;
@@ -841,6 +868,34 @@ export interface Alert {
   updatedAt: string;
 }
 
+export interface AlertCreateRequest {
+  name: string;
+  trigger: Partial<Alert["trigger"]>;
+  template?: { subject?: string; message?: string };
+  destination?: {
+    type: AlertChannel;
+    email?: string;
+    chatId?: string;
+    botToken?: string;
+    url?: string;
+    rotateSecret?: boolean;
+  };
+  isEnabled?: boolean;
+}
+
+/** GET /api/v1/admin/websites/:id/alerts/channels (DG): which channels this install can use. */
+export interface AlertChannels {
+  email: {
+    configured: boolean;
+    provider: "resend" | "postmark" | null;
+    defaultRecipients: string[];
+  };
+  telegram: { configured: true; hasDefaultBotToken: boolean };
+  webhook: { configured: true };
+  dailyLimit: number;
+  variables: string[];
+}
+
 export interface AlertHistoryEntry {
   alertId: string;
   alertName: string;
@@ -849,6 +904,10 @@ export interface AlertHistoryEntry {
   error: string | null;
   visitorId: string | null;
   triggeredAt: string;
+  /** DG */
+  channel?: AlertChannel | null;
+  triggerType?: AlertTriggerType | null;
+  summary?: string | null;
 }
 
 export type BotCategory = "answer_fetch" | "search_index" | "training" | "ai_crawler";
@@ -971,6 +1030,8 @@ export interface AdCampaignRow {
   revenue: number;
   payments: number;
   roas: number | null;
+  /** DG: purchase value Meta itself reports for the campaign (site currency), when available. */
+  metaPurchaseValue?: number | null;
 }
 
 export interface XLinkRow {
@@ -1005,6 +1066,33 @@ export interface GrowthIntegrationStatus {
   settings: Record<string, unknown>;
   lastSyncedAt: string | null;
   lastError: string | null;
+  /** DG: the OAuth client for this provider is configured on the server. */
+  oauthConfigured?: boolean;
+  /** DG: `/api/connect/<provider>/start?websiteId=…` when OAuth is configured. */
+  connectUrl?: string | null;
+  /** DG: credentials (OAuth or a pasted token) are stored. */
+  hasCredentials?: boolean;
+}
+
+/** PUT /api/v1/admin/websites/:id/integrations/<growth> bodies (DG). */
+export interface GithubIntegrationSettings {
+  repo?: string;
+  branch?: string | null;
+  accessToken?: string;
+}
+export interface SearchConsoleIntegrationSettings {
+  property?: string;
+}
+export interface MetaAdsIntegrationSettings {
+  adAccountIds?: string[];
+  campaignIds?: string[];
+  accessToken?: string;
+}
+export interface XIntegrationSettings {
+  keywords?: string[];
+  handles?: string[];
+  redditEnabled?: boolean;
+  bearerToken?: string;
 }
 
 // ---------------------------------------------------------------------------

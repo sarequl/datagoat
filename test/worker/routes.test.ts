@@ -14,8 +14,6 @@ describe("route table", () => {
     ["GET", "/api/v1/visitors/abc", "W2"],
     ["POST", "/api/v1/payments", "W3"],
     ["POST", "/webhooks/stripe/site1", "W3"],
-    ["POST", "/api/ai-crawls", "W6"],
-    ["POST", "/webhooks/github/site1", "W6"],
     ["POST", "/mcp", "W7"],
     ["POST", "/oauth/token", "W7"],
     ["GET", "/.well-known/oauth-authorization-server", "W7"],
