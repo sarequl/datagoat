@@ -200,6 +200,8 @@ export interface Website {
   excludedPaths: string[];
   excludedCountries: string[];
   excludedHostnames: string[];
+  /** DG: User-Agent substrings or `*` globs (case-insensitive) dropped at ingest. */
+  excludedUserAgents: string[];
   sendWeeklyReports: boolean;
   sendViralTrafficAlerts: boolean;
   isPublicDashboardEnabled: boolean;
@@ -239,6 +241,7 @@ export type WebsiteUpdate = Partial<
     | "excludedPaths"
     | "excludedCountries"
     | "excludedHostnames"
+    | "excludedUserAgents"
     | "privacyMode"
     | "attributionModel"
     | "botLevel"

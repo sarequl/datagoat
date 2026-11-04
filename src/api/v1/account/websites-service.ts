@@ -45,6 +45,7 @@ export function websiteDto(site: Site, role?: Role) {
     excludedPaths: site.excludedPaths,
     excludedCountries: site.excludedCountries,
     excludedHostnames: site.excludedHostnames,
+    excludedUserAgents: site.excludedUserAgents,
     sendWeeklyReports: site.sendWeeklyReports,
     sendViralTrafficAlerts: site.sendViralTrafficAlerts,
     isPublicDashboardEnabled: site.shareToken !== null,
@@ -171,6 +172,11 @@ const pathList = z
     message: "every path must start with /",
   });
 
+const userAgentList = z
+  .array(z.string().trim().min(1).max(200))
+  .max(100)
+  .transform((list) => [...new Set(list)]);
+
 const ipList = z
   .array(z.string().trim())
   .max(200)
@@ -226,6 +232,7 @@ export const UpdateWebsiteBody = z
     excludedCountries: countryList,
     excludedHostnames: hostnameList,
     // DataGoat extensions
+    excludedUserAgents: userAgentList,
     privacyMode: z.enum(PRIVACY_MODES as [string, ...string[]]),
     attributionModel: z.enum(ATTRIBUTION_MODELS as [string, ...string[]]),
     botLevel: z.enum(BOT_LEVELS as [string, ...string[]]),
@@ -297,6 +304,8 @@ export function settingsAssignments(
     set.push(["excluded_countries", json(input.excludedCountries)]);
   if (input.excludedHostnames !== undefined)
     set.push(["excluded_hostnames", json(input.excludedHostnames)]);
+  if (input.excludedUserAgents !== undefined)
+    set.push(["excluded_user_agents", json(input.excludedUserAgents)]);
   if (input.attributionModel !== undefined) set.push(["attribution_model", input.attributionModel]);
   if (input.honorGpc !== undefined) set.push(["honor_gpc", flag(input.honorGpc)]);
   if (input.storeCustomerEmails !== undefined)

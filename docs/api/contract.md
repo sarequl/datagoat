@@ -190,7 +190,8 @@ allowedHostnames, isAllHostnamesAllowed, excludedIps, excludedPaths, excludedCou
 excludedHostnames, sendWeeklyReports, sendViralTrafficAlerts, isPublicDashboardEnabled,
 isPublicDataEnabled, createdAt`) plus DG `privacyMode (cookie|cookieless|consent), attributionModel,
 botLevel (off|standard|strict; strict = attack mode), honorGpc, storeCustomerEmails, retentionDays
-(30–36500|null), shareToken, updatedAt, role`. `isCookieless`/`isAttackModeEnabled` map onto
+(30–36500|null), excludedUserAgents (≤100 case-insensitive substrings or `*` globs, W1), shareToken,
+updatedAt, role`. `isCookieless`/`isAttackModeEnabled` map onto
 `privacyMode`/`botLevel` (the explicit DG field wins). `kpi: "revenue"` or `null` means revenue.
 `excludedCountries` accepts names or codes and stores ISO codes. `isPublicDashboardEnabled: true`
 mints a share token; `false` deletes it.
