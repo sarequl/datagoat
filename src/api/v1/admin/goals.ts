@@ -23,24 +23,26 @@ export const goalAdminRoutes = new Hono<AppEnv>();
 
 const W = "/api/v1/admin/websites/:websiteId";
 
-/** Allowed goal colours (DataGoat's own palette; one dark-mode-friendly tone per family). */
+/**
+ * Allowed goal colours: DataGoat's chart and status palette (dashboard/src/styles.css) plus a few
+ * extra families, so customized goals read well in both themes.
+ */
 export const GOAL_COLORS = [
-  { color: "#ef4444", label: "Red", family: "red" },
-  { color: "#f97316", label: "Orange", family: "orange" },
-  { color: "#f59e0b", label: "Amber", family: "amber" },
-  { color: "#eab308", label: "Yellow", family: "yellow" },
-  { color: "#84cc16", label: "Lime", family: "lime" },
-  { color: "#22c55e", label: "Green", family: "green" },
-  { color: "#10b981", label: "Emerald", family: "green" },
-  { color: "#14b8a6", label: "Teal", family: "teal" },
-  { color: "#06b6d4", label: "Cyan", family: "cyan" },
+  { color: "#ff5861", label: "Red", family: "red" },
+  { color: "#e16540", label: "Orange", family: "orange" },
+  { color: "#e78468", label: "Coral", family: "orange" },
+  { color: "#ffbe00", label: "Amber", family: "yellow" },
+  { color: "#84cc16", label: "Lime", family: "green" },
+  { color: "#00a96e", label: "Green", family: "green" },
+  { color: "#00cdb7", label: "Teal", family: "teal" },
+  { color: "#00d7c0", label: "Aqua", family: "teal" },
+  { color: "#00b5ff", label: "Blue", family: "blue" },
   { color: "#8dcdff", label: "Sky", family: "blue" },
-  { color: "#3b82f6", label: "Blue", family: "blue" },
   { color: "#6366f1", label: "Indigo", family: "indigo" },
   { color: "#8b5cf6", label: "Violet", family: "purple" },
   { color: "#d946ef", label: "Fuchsia", family: "pink" },
   { color: "#ec4899", label: "Pink", family: "pink" },
-  { color: "#94a3b8", label: "Slate", family: "gray" },
+  { color: "#a3a3a3", label: "Gray", family: "gray" },
 ] as const;
 
 const COLOR_SET = new Set<string>(GOAL_COLORS.map((c) => c.color));

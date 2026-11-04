@@ -278,7 +278,7 @@ export async function goalsBreakdown(
       qc.db,
       sql`WITH pay AS MATERIALIZED (${payByVisitorSql(qc)})
         SELECT c0, SUM(pay.rev) AS revenue_minor FROM (
-          SELECT DISTINCT e.name AS c0, e.visitor_id AS v FROM events e
+          SELECT DISTINCT e.name AS c0, e.visitor_id AS v FROM events e INDEXED BY events_visitor_activity
           WHERE e.site_id = ${qc.site.id} AND e.${raw(ACTIVITY)} AND e.visitor_id IN (SELECT v FROM pay)
             AND e.type = 'custom' AND ${rangeOn("e.ts", qc.range)}) x
         JOIN pay ON pay.v = x.v GROUP BY c0`,

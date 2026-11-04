@@ -3,7 +3,7 @@ declare namespace Cloudflare {
   interface Env {
     /**
      * Breakdowns switch from raw tables to the daily rollups when the range holds at least this
-     * many sessions (default 20000). Below it raw queries are cheap and exact.
+     * many sessions (default 5000). Below it raw queries are cheap and exact.
      */
     ROLLUP_MIN_SESSIONS?: string;
     /** Max events the retention job deletes per hourly run (default 2000). */

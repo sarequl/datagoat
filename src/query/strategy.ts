@@ -7,7 +7,7 @@
  * the website timezone the rollups were computed in, and the range is whole local days (or all
  * time). Then:
  * - breakdowns, pages, goals and timeseries use them when the covered days hold at least
- *   ROLLUP_MIN_SESSIONS sessions (default 20000), or when part of the range is older than the
+ *   ROLLUP_MIN_SESSIONS sessions (default 5000), or when part of the range is older than the
  *   website's retention window (raw events there are pruned; rollups survive pruning);
  * - the overview uses them only for pruned ranges, since its distinct-visitor count needs the
  *   sessions scan anyway.
@@ -46,7 +46,7 @@ export type Source =
       rawEndMs: number | null;
     };
 
-export const DEFAULT_ROLLUP_MIN_SESSIONS = 20_000;
+export const DEFAULT_ROLLUP_MIN_SESSIONS = 5_000;
 
 export function rollupThreshold(env: Cloudflare.Env): number {
   const v = Number.parseInt(env.ROLLUP_MIN_SESSIONS ?? "", 10);

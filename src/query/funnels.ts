@@ -113,15 +113,16 @@ export function stepTarget(step: FunnelStep): { path: string; hostname: string |
 }
 
 /** SQL predicate matching a pageview step against columns `x.p` (path) and `x.h` (hostname). */
-export function pageMatchSql(step: FunnelStep): SqlFragment {
+export function pageMatchSql(step: FunnelStep, pathCol = "x.p", hostCol = "x.h"): SqlFragment {
   const { path, hostname } = stepTarget(step);
   const type = step.urlMatchType ?? "equals";
-  const like = (pattern: string) => sql`x.p LIKE ${pattern} ESCAPE '\\'`;
+  const col = raw(pathCol);
+  const like = (pattern: string) => sql`${col} LIKE ${pattern} ESCAPE '\\'`;
   const equalsPart = (() => {
     const trimmed = path.length > 1 ? path.replace(/\/+$/, "") : path;
     const variants = [...new Set([trimmed, trimmed === "/" ? "/" : `${trimmed}/`])];
     return join(
-      variants.map((v) => sql`x.p = ${v}`),
+      variants.map((v) => sql`${col} = ${v}`),
       " OR ",
     );
   })();
@@ -149,7 +150,7 @@ export function pageMatchSql(step: FunnelStep): SqlFragment {
       match = like(escapeLike(path).replace(/\*/g, "%"));
       break;
   }
-  return hostname ? sql`(${match}) AND x.h = ${hostname} COLLATE NOCASE` : match;
+  return hostname ? sql`(${match}) AND ${raw(hostCol)} = ${hostname} COLLATE NOCASE` : match;
 }
 
 export interface FunnelStepResult {
@@ -170,10 +171,20 @@ export async function computeFunnel(
     ...new Set(steps.filter((s) => s.type === "goal").map((s) => s.goalName ?? "")),
   ];
   const ctes: SqlFragment[] = [];
-  if (steps.some((s) => s.type === "pageview" || s.goalCompletionType === "not_completed")) {
+  // Pageviews are read once; unless a leading not_completed step needs every pageview, only the
+  // rows matching some pageview step are kept, so later steps work on a small temp table.
+  const pageSteps = steps.filter((s) => s.type === "pageview");
+  const needAllPages = steps[0]?.goalCompletionType === "not_completed" && steps[0]?.type === "goal";
+  if (pageSteps.length || needAllPages) {
+    const anyStep = needAllPages
+      ? raw("1=1")
+      : join(
+          pageSteps.map((s) => pageMatchSql(s, "e.path", "e.hostname")),
+          " OR ",
+        );
     ctes.push(sql`pvs AS MATERIALIZED (SELECT e.visitor_id AS v, e.ts AS ts, e.hostname AS h, e.path AS p
       FROM events e WHERE e.site_id = ${qc.site.id} AND ${rangeOn("e.ts", qc.range)}
-        AND e.type = 'pageview' ${visitorFilter})`);
+        AND e.type = 'pageview' AND ${anyStep} ${visitorFilter})`);
   }
   if (goalNames.length) {
     ctes.push(sql`gs AS MATERIALIZED (SELECT e.visitor_id AS v, e.ts AS ts, e.name AS g
@@ -183,32 +194,35 @@ export async function computeFunnel(
   steps.forEach((step, i) => {
     const prev = i > 0 ? raw(`f${i - 1}`) : null;
     const name = raw(`f${i}`);
-    if (step.type === "pageview") {
-      ctes.push(
-        prev
-          ? sql`${name} AS MATERIALIZED (SELECT x.v AS v, MIN(x.ts) AS t FROM pvs x
-              JOIN ${prev} ON ${prev}.v = x.v AND x.ts >= ${prev}.t WHERE ${pageMatchSql(step)} GROUP BY x.v)`
-          : sql`${name} AS MATERIALIZED (SELECT x.v AS v, MIN(x.ts) AS t FROM pvs x
-              WHERE ${pageMatchSql(step)} GROUP BY x.v)`,
-      );
-      return;
-    }
     const goal = step.goalName ?? "";
-    if (step.goalCompletionType === "not_completed") {
+    if (step.type === "goal" && step.goalCompletionType === "not_completed") {
       const base = prev
         ? sql`SELECT v, t FROM ${prev}`
         : raw("SELECT v, MIN(ts) AS t FROM pvs GROUP BY v");
-      ctes.push(sql`${name} AS MATERIALIZED (SELECT b.v AS v, b.t AS t FROM (${base}) b
-        LEFT JOIN (SELECT v, MAX(ts) AS last FROM gs WHERE g = ${goal} GROUP BY v) c ON c.v = b.v
-        WHERE c.last IS NULL OR c.last < b.t)`);
+      // Keep visitors whose last completion (if any) is before they reached the previous step.
+      ctes.push(sql`${name} AS MATERIALIZED (SELECT v, MAX(CASE WHEN k = 0 THEN ts END) AS t FROM (
+          SELECT v, t AS ts, 0 AS k FROM (${base}) UNION ALL SELECT v, ts, 1 FROM gs WHERE g = ${goal})
+        GROUP BY v
+        HAVING t IS NOT NULL AND COALESCE(MAX(CASE WHEN k = 1 THEN ts END), -1) < t)`);
       return;
     }
+    // Candidate events of this step, then the first one at or after the previous step's time.
+    const candidates = raw(`m${i}`);
+    ctes.push(
+      step.type === "pageview"
+        ? sql`${candidates} AS MATERIALIZED (SELECT x.v AS v, x.ts AS ts FROM pvs x WHERE ${pageMatchSql(step)})`
+        : sql`${candidates} AS MATERIALIZED (SELECT x.v AS v, x.ts AS ts FROM gs x WHERE x.g = ${goal})`,
+    );
+    // No joins between temp tables (SQLite would nest-loop them): the previous step's time and
+    // the candidates are combined per visitor with a window, then the first candidate at or
+    // after that time is kept.
     ctes.push(
       prev
-        ? sql`${name} AS MATERIALIZED (SELECT x.v AS v, MIN(x.ts) AS t FROM gs x
-            JOIN ${prev} ON ${prev}.v = x.v AND x.ts >= ${prev}.t WHERE x.g = ${goal} GROUP BY x.v)`
-        : sql`${name} AS MATERIALIZED (SELECT x.v AS v, MIN(x.ts) AS t FROM gs x
-            WHERE x.g = ${goal} GROUP BY x.v)`,
+        ? sql`${name} AS MATERIALIZED (SELECT v, MIN(CASE WHEN k = 1 AND ts >= pt THEN ts END) AS t FROM (
+              SELECT v, ts, k, MAX(CASE WHEN k = 0 THEN ts END) OVER (PARTITION BY v) AS pt FROM (
+                SELECT v, t AS ts, 0 AS k FROM ${prev} UNION ALL SELECT v, ts, 1 FROM ${candidates}))
+            GROUP BY v HAVING t IS NOT NULL)`
+        : sql`${name} AS MATERIALIZED (SELECT v, MIN(ts) AS t FROM ${candidates} GROUP BY v)`,
     );
   });
   ctes.push(sql`pay AS MATERIALIZED (${payByVisitorSql(qc)})`);
@@ -216,7 +230,7 @@ export async function computeFunnel(
   const columns = steps
     .map(
       (_, i) =>
-        `(SELECT COUNT(*) FROM f${i}) AS n${i}, (SELECT COALESCE(SUM(pay.rev), 0) FROM f${i} f LEFT JOIN pay ON pay.v = f.v) AS r${i}`,
+        `(SELECT COUNT(*) FROM f${i}) AS n${i}, (SELECT COALESCE(SUM(rev), 0) FROM pay WHERE v IN (SELECT v FROM f${i})) AS r${i}`,
     )
     .join(", ");
   // join() wraps parts in parentheses; a CTE list must not be wrapped.

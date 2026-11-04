@@ -84,7 +84,7 @@ describe("tracked goals and goal customizations", () => {
     await api(url, {
       token: f.key,
       method: "PATCH",
-      body: { goalName: "other", color: "#ef4444" },
+      body: { goalName: "other", color: "#ff5861" },
     });
     const one = await api(`${url}?goalName=signup_started`, { token: f.key });
     expect(one.body.data).toHaveLength(1);
