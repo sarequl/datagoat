@@ -1,0 +1,43 @@
+import { expect, test } from "@playwright/test";
+
+test("first-run setup on the real Worker creates the owner and website", async ({
+  page,
+  request,
+}) => {
+  const status = await request.get("/api/setup");
+  expect(await status.json()).toEqual({
+    status: "success",
+    data: { needsSetup: true, configErrors: [] },
+  });
+
+  await page.goto("/setup?token=e2e-setup-token-0123456789");
+  await page.getByLabel("Email").fill("owner@example.com");
+  await page.getByLabel(/^Password/).fill("an-e2e-password");
+  await page.getByLabel(/First website/).fill("example.com");
+  await page.getByRole("button", { name: "Create owner account" }).click();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Website" }).locator("option:checked"),
+  ).toHaveText("example.com");
+
+  // The session cookie authenticates the dashboard API.
+  const sites = await page.request.get("/api/v1/admin/websites");
+  expect((await sites.json()).data[0]).toMatchObject({ domain: "example.com", role: "owner" });
+
+  // Sign out and back in.
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel("Email").fill("owner@example.com");
+  await page.getByLabel("Password").fill("an-e2e-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+});
+
+test("serves the tracker as a static asset and 501s for unbuilt routes", async ({ request }) => {
+  const script = await request.get("/js/script.js");
+  expect(script.status()).toBe(200);
+  expect(await script.text()).toContain("DataGoat tracker");
+  const ingest = await request.post("/api/events", { data: { type: "pageview" } });
+  expect(ingest.status()).toBe(501);
+  expect((await ingest.json()).error.message).toContain("owner: W1");
+});
