@@ -1,7 +1,7 @@
 /**
  * Database helpers for Worker tests.
  *
- * - `resetDb()` deletes every row of every application table (keeps the schema and the
+ * - `resetDb()` deletes every row of every application table and every LOGIN_THROTTLE key (keeps the schema and the
  *   d1_migrations bookkeeping), and clears isolate-level caches. Call it in `beforeEach`.
  * - `meterDb()` / `meterEnv()` wrap the D1 binding with the write-budget meter: every statement's
  *   `meta.rows_written` / `meta.rows_read` is summed (`first()` and `raw()` are routed through
@@ -28,6 +28,8 @@ export async function tableNames(db: D1Database = env.DB): Promise<string[]> {
 export async function resetDb(db: D1Database = env.DB): Promise<void> {
   const tables = await tableNames(db);
   await db.batch(tables.map((t) => db.prepare(`DELETE FROM "${t}"`)));
+  const keys = await env.LOGIN_THROTTLE.list();
+  await Promise.all(keys.keys.map((k) => env.LOGIN_THROTTLE.delete(k.name)));
   siteCache.clear();
   resetCredentialState();
   invalidateMembership();

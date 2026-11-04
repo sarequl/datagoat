@@ -1,0 +1,9 @@
+{
+  "//": "Gzip size budgets in bytes. scripts/check-size.mjs fails the build above these.",
+  "tracker": {
+    "script.js": 4096,
+    "script.cookieless.js": 4096,
+    "script.hash.js": 4096
+  },
+  "dashboardInitialJsGzip": 153600
+}
