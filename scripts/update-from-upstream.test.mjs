@@ -1,4 +1,4 @@
-// Run with: node --test scripts/
+// Run with: npm run test:scripts
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { accountValues, mergeWrangler } from "./update-from-upstream.mjs";
