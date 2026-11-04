@@ -61,7 +61,11 @@ export default function SetupPage() {
         onSuccess: (result) => {
           const first = result.website?.websiteId;
           if (first)
-            void navigate({ to: "/app/$siteId/settings/general", params: { siteId: first } });
+            void navigate({
+              to: "/app/$siteId/settings/install",
+              params: { siteId: first },
+              search: { welcome: 1 } as never,
+            });
           else void navigate({ to: "/app/new-site" });
         },
       },

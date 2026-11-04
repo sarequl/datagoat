@@ -1,74 +1,101 @@
 import { useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
-import type { CreatedWebsite } from "../../../../shared/api-types";
+import { type FormEvent, useMemo, useState } from "react";
 import { useCreateWebsite } from "../../api/hooks";
-import { Button, Card, Field, Input, Notice } from "../../components/ui";
+import { Button, Card, Input, Notice } from "../../components/ui";
+import {
+  browserTimezone,
+  currencyOptions,
+  isValidHostname,
+  normaliseHostname,
+  timezoneOptions,
+} from "../settings/lib/format";
+import { Field, Select } from "../settings/lib/ui";
 
-export function trackingSnippet(
-  site: Pick<CreatedWebsite, "domain" | "trackingId">,
-  origin = window.location.origin,
-): string {
-  return `<script defer data-website-id="${site.trackingId}" data-domain="${site.domain}" src="${origin}/js/script.js"></script>`;
-}
-
-/** Add a website and copy the tracking snippet (plan §12 step 1). */
+/**
+ * Add a website (plan §12 step 1): domain, name, timezone and currency, then the installation
+ * guide (settings/install) with the snippet, verification and revenue connection.
+ */
 export default function NewSitePage() {
   const navigate = useNavigate();
   const create = useCreateWebsite();
   const [domain, setDomain] = useState("");
   const [name, setName] = useState("");
-  const [created, setCreated] = useState<CreatedWebsite | null>(null);
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const [timezone, setTimezone] = useState(browserTimezone);
+  const [currency, setCurrency] = useState("USD");
+  const [error, setError] = useState<string | null>(null);
+  const timezones = useMemo(() => timezoneOptions(timezone), [timezone]);
+  const currencies = useMemo(() => currencyOptions(), []);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    create.mutate({ domain, name: name || null, timezone }, { onSuccess: setCreated });
+    const clean = normaliseHostname(domain);
+    if (!isValidHostname(clean)) {
+      setError("Enter a domain like example.com, without https:// or a path.");
+      return;
+    }
+    setError(null);
+    create.mutate(
+      { domain: clean, name: name.trim() || null, timezone, currency },
+      {
+        onSuccess: (created) =>
+          void navigate({
+            to: "/app/$siteId/settings/install",
+            params: { siteId: created.websiteId },
+            search: { welcome: 1 } as never,
+          }),
+      },
+    );
   };
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
       <h1 className="text-xl font-semibold">Add a website</h1>
-      {created ? (
-        <Card title="Install the tracking script">
-          <p className="mb-2 text-sm text-muted">
-            Paste this into the &lt;head&gt; of every page on {created.domain}:
-          </p>
-          <pre className="overflow-x-auto rounded-md bg-surface-2 p-3 text-xs">
-            <code>{trackingSnippet(created)}</code>
-          </pre>
-          <Button
-            className="mt-4"
-            onClick={() =>
-              void navigate({ to: "/app/$siteId/overview", params: { siteId: created.websiteId } })
-            }
+      <Card>
+        <form className="space-y-4" onSubmit={submit} noValidate>
+          {create.error ? <Notice tone="error">{create.error.message}</Notice> : null}
+          <Field
+            label="Domain"
+            error={error}
+            hint="Your root domain, e.g. example.com. Subdomains are tracked too."
           >
-            Go to dashboard
+            <Input
+              required
+              value={domain}
+              onChange={(e) => {
+                setDomain(e.target.value);
+                setError(null);
+              }}
+              placeholder="example.com"
+            />
+          </Field>
+          <Field label="Name (optional)">
+            <Input value={name} maxLength={100} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Timezone" hint="Days in reports start at midnight here.">
+              <Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+                {timezones.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Currency" hint="Revenue is reported in this currency.">
+              <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                {currencies.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Button type="submit" disabled={create.isPending}>
+            {create.isPending ? "Adding…" : "Add website"}
           </Button>
-        </Card>
-      ) : (
-        <Card>
-          <form className="space-y-4" onSubmit={submit}>
-            {create.error ? <Notice tone="error">{create.error.message}</Notice> : null}
-            <Field label="Domain" hint="Without https://, e.g. example.com">
-              <Input
-                required
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                placeholder="example.com"
-              />
-            </Field>
-            <Field label="Name (optional)">
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </Field>
-            <p className="text-xs text-muted">
-              Timezone: {timezone} (change it later in settings).
-            </p>
-            <Button type="submit" disabled={create.isPending}>
-              Add website
-            </Button>
-          </form>
-        </Card>
-      )}
+        </form>
+      </Card>
     </div>
   );
 }
