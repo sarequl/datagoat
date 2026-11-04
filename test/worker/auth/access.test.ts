@@ -204,7 +204,8 @@ describe("API rate limiting", () => {
     expect(first.headers.get("x-ratelimit-remaining")).toBe("59");
     expect(Number(first.headers.get("x-ratelimit-reset"))).toBeGreaterThan(Date.now() / 1000);
     let last = first;
-    for (let i = 0; i < 65 && last.status !== 429; i++)
+    // Up to two 60-second windows: the limiter resets if the test straddles a minute boundary.
+    for (let i = 0; i < 130 && last.status !== 429; i++)
       last = await api("/api/v1/admin/account", { token: token.secret });
     expect(last.status).toBe(429);
     expect(last.body).toMatchObject({ error: "Too many requests", limit: 60, remaining: 0 });
