@@ -15,6 +15,8 @@ declare namespace Cloudflare {
     RESEND_API_KEY?: string;
     /** Optional: sender address for outgoing email, e.g. "DataGoat <alerts@example.com>". */
     EMAIL_FROM?: string;
+    /** Optional: max rows the website purge job deletes per hourly run (default 1000). */
+    PURGE_ROWS_PER_RUN?: string;
     /** Optional: max D1 queries the cron multiplexer may use per run (default 40 on Free). */
     CRON_QUERY_BUDGET?: string;
   }

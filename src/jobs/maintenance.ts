@@ -124,8 +124,7 @@ export async function purgeDeletedSites(ctx: JobContext): Promise<void> {
     });
   });
   let remaining =
-    Number.parseInt((ctx.env as unknown as Record<string, string>).PURGE_ROWS_PER_RUN ?? "", 10) ||
-    DEFAULT_PURGE_ROWS_PER_RUN;
+    Number.parseInt(ctx.env.PURGE_ROWS_PER_RUN ?? "", 10) || DEFAULT_PURGE_ROWS_PER_RUN;
   for (const table of tables) {
     if (!nonEmpty.has(table.name)) continue;
     if (remaining <= 0 || ctx.remainingQueries() < 3) return;

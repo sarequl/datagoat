@@ -1,13 +1,18 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": [
       "**",
       "!src/worker-configuration.d.ts",
       "!public",
       "!dashboard/mock-public",
-      "!package-lock.json"
+      "!package-lock.json",
+      "!**/*.md"
     ]
   },
   "formatter": {
@@ -23,13 +28,28 @@
     }
   },
   "javascript": {
-    "formatter": { "quoteStyle": "double", "trailingCommas": "all", "semicolons": "always" }
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always"
+    }
   },
   "json": {
-    "parser": { "allowComments": true, "allowTrailingCommas": true }
+    "parser": {
+      "allowComments": true,
+      "allowTrailingCommas": true
+    }
   },
   "css": {
-    "parser": { "tailwindDirectives": true }
+    "parser": {
+      "tailwindDirectives": true
+    }
   },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
 }
