@@ -16,3 +16,4 @@ All notable changes to DataGoat are recorded here. The format follows
 - The Worker bundles its D1 migrations and applies pending ones on first use, so setup works even when the deploy command skipped `wrangler d1 migrations apply`; schema failures answer 503 with the reason.
 - `npm run smoke -- --url <deployment>` checks a deployed instance end to end over HTTP.
 - Test harness (workerd + local D1, write-budget meter, factories), Playwright e2e and CI.
+- Analytics dashboard: overview (KPIs with previous-period deltas and sparklines, #1 KPI, main chart with compare, metric trend charts, notes/commit/mention markers, breakdowns that filter on click, activity heatmap), period selector with Now and pinned periods, advanced filters and segments, realtime list with 2D map, 3D globe and 8-hour replay, visitor profiles with journeys, goals, funnels, revenue attribution and the public share dashboard ([docs/analytics-dashboard.md](docs/analytics-dashboard.md)).
