@@ -2,7 +2,9 @@
 import { http } from "msw";
 import { websites } from "../fixtures/core";
 import * as g from "../fixtures/growth";
-import { list, ok } from "./util";
+import { consentDetails, MOCK_CONSENT_REQUEST, MOCK_REDIRECT } from "../fixtures/oauth";
+import { state } from "../state";
+import { fail, list, ok } from "./util";
 
 const W = "/api/v1/admin/websites/:websiteId";
 const domainOf = (id: unknown) => websites.find((w) => w._id === id)?.domain ?? "example.com";
@@ -203,4 +205,18 @@ export const growthHandlers = [
   // MCP OAuth connected apps (W7)
   http.get("/api/v1/admin/oauth/connections", () => ok(g.oauthConnections)),
   http.delete("/api/v1/admin/oauth/connections/:id", () => ok([{ message: "Access revoked" }])),
+  http.get("/oauth/consent/details", ({ request }) =>
+    new URL(request.url).searchParams.get("request") === MOCK_CONSENT_REQUEST
+      ? ok(consentDetails(state.signedIn, state.websites))
+      : fail(410, "This authorization request expired. Start again from your app."),
+  ),
+  http.post("/oauth/authorize", async ({ request }) => {
+    if (!state.signedIn) return fail(401, "Sign in to approve this app");
+    const body = (await request.json()) as { approve: boolean; scopes?: string[] };
+    const url = new URL(MOCK_REDIRECT);
+    if (body.approve) url.searchParams.set("code", "dgac_mock");
+    else url.searchParams.set("error", "access_denied");
+    url.searchParams.set("state", "mock-state");
+    return ok({ redirectTo: url.toString() });
+  }),
 ];
