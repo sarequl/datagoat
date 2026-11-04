@@ -5,6 +5,7 @@ All notable changes to DataGoat are recorded here. The format follows
 
 ## Unreleased
 
+- Ecosystem: `@datagoat/sdk` (browser SDK with React, Next.js and server checkout helpers), `@datagoat/react-native` (screens, goals, identify, offline queue), the WordPress/WooCommerce plugin, the Shopify app (client-credentials or OAuth connect, storefront loader, custom pixel, lifecycle and GDPR webhooks), WooCommerce connect, the Expo mobile companion app with mobile sign-in, push devices and sale/alert pushes, and install and proxy guides for every platform in `docs/install/`.
 - Foundation: single-package Worker (Hono) with Static Assets, D1, KV login throttling, Rate Limiting bindings and one cron; Deploy-to-Cloudflare ready configuration.
 - Complete D1 schema (migration 0001) for every planned feature, within the plan's write budget (3/5/6 rows per pageview path).
 - First-run setup link, email + password sign-in with throttling, signed session cookies, password change and one-time reset links, owner/member/viewer roles and team invites.

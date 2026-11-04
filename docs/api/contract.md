@@ -383,3 +383,27 @@ the proxy's address in `CF-Connecting-IP` and the proxy's location in `request.c
 recommend the two setups that need no proxy code (same-zone Worker route, custom domain) because
 Cloudflare then sees the visitor directly; for self-hosted proxies they state that country and city
 reflect what the ingest can derive from those headers.
+
+### 13.3 Mobile app events (for W1 and W2)
+
+`@datagoat/react-native` posts the ordinary §4 body to `POST /api/events` (`text/plain`, one event
+per request) with DataFast's mobile conventions:
+
+- `href` = `datafast://<platform>/<Screen>` (e.g. `datafast://ios/HomeScreen`), `referrer` = null,
+  `domain` = the website's domain. The ingest must accept the `datafast:` scheme for a website's
+  own `domain` (no page hostname to check) and store the screen as the page, so the
+  `contains datafast://` page filter and funnel steps work as in DataFast.
+- `visitorId` (UUID v4), `sessionId` (`s` + UUID v4, 30-minute timeout), `visitorFirstSeenAt`,
+  `visitorSessionNumber` as the web tracker sends them; `type` is `pageview`, `custom` or
+  `identify`.
+- `User-Agent`: `Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15
+  (KHTML, like Gecko) Mobile/15E148 DataGoatReactNative/<version>` or
+  `Mozilla/5.0 (Linux; Android 15; <model>) AppleWebKit/537.36 (KHTML, like Gecko) Mobile
+  Safari/537.36 DataGoatReactNative/<version>`, so device/OS parsing and bot filtering treat it as a
+  phone.
+- Queued events are delivered late after offline periods; the body has no client timestamp.
+
+Web-to-app (DataFast's documented behaviour): a website visitor and an app visitor that `identify`
+with the same `user_id` are one person. Visitor profiles and journeys (W2) should show the sessions
+of every visitor of the website that shares the profile's `user_id`.
+
