@@ -1,0 +1,112 @@
+# Keeps a deployed copy of DataGoat up to date.
+#
+# The Deploy to Cloudflare button copies DataGoat into your GitHub account.
+# This workflow runs in that copy: it fetches the latest DataGoat release,
+# re-applies your copy's Worker name and resource ids, and either pushes the
+# update to your default branch or opens a pull request. Cloudflare Workers
+# Builds then rebuilds and redeploys, applying any new database migrations.
+#
+# Choose the mode in .datagoat-update.json at the root of your copy:
+#   { "mode": "push" }  update the default branch directly (redeploys at once)
+#   { "mode": "pr" }    open an "Update DataGoat" pull request (default)
+# Pull request mode needs Settings > Actions > General > "Allow GitHub Actions
+# to create and approve pull requests" turned on.
+#
+# It never runs in the upstream repository itself.
+
+name: Update DataGoat
+
+on:
+  schedule:
+    - cron: "37 5 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "push or pr (overrides .datagoat-update.json)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-datagoat
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.repository != 'sarequl/datagoat'
+    runs-on: ubuntu-latest
+    env:
+      UPSTREAM: ${{ vars.DATAGOAT_UPSTREAM || 'https://github.com/sarequl/datagoat.git' }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch the latest DataGoat
+        run: |
+          git fetch --depth 1 "$UPSTREAM" main
+          git worktree add --detach "$RUNNER_TEMP/upstream" FETCH_HEAD
+          echo "UPSTREAM_SHA=$(git -C "$RUNNER_TEMP/upstream" rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Check whether an update is needed
+        id: check
+        run: |
+          current=$(cat .datagoat-version 2>/dev/null || true)
+          if [ "$current" = "$UPSTREAM_SHA" ]; then
+            echo "Already on $UPSTREAM_SHA."
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Updating from ${current:-the original deploy} to $UPSTREAM_SHA."
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply the update
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          node "$RUNNER_TEMP/upstream/scripts/update-from-upstream.mjs" \
+            --from "$RUNNER_TEMP/upstream" --to . --version "$UPSTREAM_SHA"
+          git worktree remove --force "$RUNNER_TEMP/upstream"
+
+      - name: Commit and publish
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          mode="${{ inputs.mode }}"
+          if [ -z "$mode" ] && [ -f .datagoat-update.json ]; then
+            mode=$(node -e 'console.log(require("./.datagoat-update.json").mode || "")')
+          fi
+          mode="${mode:-pr}"
+          short="${UPSTREAM_SHA:0:7}"
+          base="${{ github.event.repository.default_branch }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No file changes."
+            exit 0
+          fi
+          git commit -q -m "Update DataGoat to $short" \
+            -m "Upstream: $UPSTREAM @ $UPSTREAM_SHA"
+
+          if [ "$mode" = "push" ]; then
+            git push origin "HEAD:$base"
+            echo "Pushed the update to $base."
+          else
+            branch="datagoat-update"
+            git push --force origin "HEAD:refs/heads/$branch"
+            if gh pr view "$branch" --json state -q .state 2>/dev/null | grep -q OPEN; then
+              gh pr edit "$branch" --title "Update DataGoat to $short"
+            else
+              gh pr create --base "$base" --head "$branch" \
+                --title "Update DataGoat to $short" \
+                --body "Updates this deployment to DataGoat \`$UPSTREAM_SHA\`. Your Worker name, resource ids and kept files are unchanged. Merging redeploys through Cloudflare Workers Builds."
+            fi
+          fi

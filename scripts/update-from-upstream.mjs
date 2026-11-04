@@ -50,7 +50,9 @@ function parseArgs(argv) {
     args[key] = argv[i + 1];
   }
   if (!args.from || !args.to) {
-    throw new Error("Usage: update-from-upstream.mjs --from <upstream> --to <copy> [--version <sha>]");
+    throw new Error(
+      "Usage: update-from-upstream.mjs --from <upstream> --to <copy> [--version <sha>]",
+    );
   }
   return args;
 }
