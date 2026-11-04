@@ -25,6 +25,7 @@ One Worker, one D1 database, one script tag. MIT licensed.
 ## Features
 
 **Traffic analytics**
+
 - Visitors (new and returning), sessions, pageviews, bounce rate, session duration, with previous-period comparison
 - Breakdowns by channel, referrer, UTM campaign, `ref` / `source` / `via` parameters, page, entry and exit page, outbound clicks, hostname, country, region, city, device, browser and OS
 - Automatic channel grouping: Organic Search, Paid Search, Organic Social, Paid Social, Email, Newsletter, Referral, Affiliate, AI assistants, Direct
@@ -33,6 +34,7 @@ One Worker, one D1 database, one script tag. MIT licensed.
 - Visitor profiles with full journeys across sessions
 
 **Revenue attribution**
+
 - Stripe, Polar, Lemon Squeezy, Paddle, Dodo Payments, Creem, Shopify and WooCommerce
 - Stripe connects with a read-only restricted key, with no webhook setup
 - No-code payment links: Stripe Payment Links, Polar Checkout Links, Lemon Squeezy links
@@ -43,11 +45,13 @@ One Worker, one D1 database, one script tag. MIT licensed.
 - Purchase-likelihood prediction for live visitors
 
 **Goals and funnels**
+
 - Custom goals from JavaScript, HTML attributes, scroll depth or the server-side API
 - Funnels of 2 to 8 pageview or goal steps, with revenue per step
 - Identify signed-in users and merge their web and mobile activity
 
 **Growth tools**
+
 - Alerts for goals, new sales and traffic spikes, by email, Telegram or webhook
 - Weekly email report
 - AI crawler and bot traffic tracking
@@ -58,17 +62,20 @@ One Worker, one D1 database, one script tag. MIT licensed.
 - Import from Plausible
 
 **For developers and AI agents**
+
 - REST API with scoped keys
 - CLI
 - MCP server for Claude, ChatGPT and other AI tools, with OAuth
 - npm SDK, React Native SDK, WordPress plugin, and guides for most frameworks and site builders
 
 **Teams and sharing**
+
 - Unlimited websites and team members, with owner, member and viewer roles
 - Public dashboard links
 - Mobile companion app
 
 **Privacy**
+
 - Three modes per site: first-party cookies, cookieless, or cookieless until consent
 - Global Privacy Control support
 - Server-side bot filtering
@@ -163,11 +170,11 @@ DataGoat is an independent project. It is not affiliated with or endorsed by Dat
 
 ## Privacy modes
 
-| Mode | How visitors are recognised | Best for |
-|---|---|---|
-| Cookies (default) | A first-party cookie on your domain, kept for one year | Full revenue attribution, including purchases weeks after the first visit |
-| Cookieless | A hash of IP, browser and site with a random salt that rotates daily and is deleted after 48 hours | Sites that do not want to store anything in the browser; attribution only works within a day |
-| Cookieless until consent | Cookieless until your consent banner calls `datagoat("consent", true)` | Sites with a consent banner |
+| Mode                     | How visitors are recognised                                                                        | Best for                                                                                     |
+| ------------------------ | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Cookies (default)        | A first-party cookie on your domain, kept for one year                                             | Full revenue attribution, including purchases weeks after the first visit                    |
+| Cookieless               | A hash of IP, browser and site with a random salt that rotates daily and is deleted after 48 hours | Sites that do not want to store anything in the browser; attribution only works within a day |
+| Cookieless until consent | Cookieless until your consent banner calls `datagoat("consent", true)`                             | Sites with a consent banner                                                                  |
 
 Whether a mode removes the need for a cookie banner depends on your jurisdiction and use. That is a legal decision for you, not a property of the software.
 
@@ -175,11 +182,11 @@ Whether a mode removes the need for a cookie banner depends on your jurisdiction
 
 DataGoat runs on your Cloudflare account, and Cloudflare bills you directly.
 
-| Traffic | Plan | Cost |
-|---|---|---|
-| Up to roughly 20,000 pageviews a day | Workers Free | $0 |
-| Up to roughly 10 million events a month | Workers Paid | $5/month |
-| Beyond that | Workers Paid usage | About $5 per extra million events |
+| Traffic                                 | Plan               | Cost                              |
+| --------------------------------------- | ------------------ | --------------------------------- |
+| Up to roughly 20,000 pageviews a day    | Workers Free       | $0                                |
+| Up to roughly 10 million events a month | Workers Paid       | $5/month                          |
+| Beyond that                             | Workers Paid usage | About $5 per extra million events |
 
 These figures are design targets based on Cloudflare's published limits. Check the usage page in your dashboard for real numbers.
 
@@ -193,28 +200,28 @@ npm ci
 npm run dev
 ```
 
-| Script | What it does |
-|---|---|
-| `npm run dev` | Builds, applies local migrations and starts `wrangler dev` |
-| `npm run dev:mock` | Runs the dashboard alone against a mock API |
-| `npm test` | Worker tests in the Workers runtime |
-| `npm run test:tracker` / `test:dashboard` | Tracker and dashboard unit tests |
-| `npm run e2e` | Playwright end-to-end tests |
-| `npm run lint` / `typecheck` | Biome and TypeScript |
-| `npm run check` | Everything above, plus build and size checks |
+| Script                                    | What it does                                               |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| `npm run dev`                             | Builds, applies local migrations and starts `wrangler dev` |
+| `npm run dev:mock`                        | Runs the dashboard alone against a mock API                |
+| `npm test`                                | Worker tests in the Workers runtime                        |
+| `npm run test:tracker` / `test:dashboard` | Tracker and dashboard unit tests                           |
+| `npm run e2e`                             | Playwright end-to-end tests                                |
+| `npm run lint` / `typecheck`              | Biome and TypeScript                                       |
+| `npm run check`                           | Everything above, plus build and size checks               |
 
 Project layout:
 
-| Path | Contents |
-|---|---|
-| `src/` | The Cloudflare Worker: ingest, API, payments, cron jobs, MCP |
-| `tracker/` | The tracking script |
-| `dashboard/` | The React dashboard |
-| `migrations/` | D1 schema migrations |
-| `cli/` | The `datagoat` CLI |
-| `packages/` | SDKs, the WordPress plugin, middleware |
-| `apps/mobile` | The mobile companion app |
-| `docs/` | User and developer documentation |
+| Path          | Contents                                                     |
+| ------------- | ------------------------------------------------------------ |
+| `src/`        | The Cloudflare Worker: ingest, API, payments, cron jobs, MCP |
+| `tracker/`    | The tracking script                                          |
+| `dashboard/`  | The React dashboard                                          |
+| `migrations/` | D1 schema migrations                                         |
+| `cli/`        | The `datagoat` CLI                                           |
+| `packages/`   | SDKs, the WordPress plugin, middleware                       |
+| `apps/mobile` | The mobile companion app                                     |
+| `docs/`       | User and developer documentation                             |
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
 
