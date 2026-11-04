@@ -47,13 +47,14 @@ beforeAll(async () => {
 }, 120_000);
 
 describe("read budget", () => {
-  it("a 30-day overview reads under 300,000 rows in one query", async () => {
+  it("a 30-day overview reads under 300,000 rows in two queries", async () => {
     const meter = createD1Meter(env.DB);
     const totals = await computeTotals(qcFor(site, range, { db: meter.db, now }));
     expect(totals.metrics.sessions).toBe(100_000);
     expect(totals.metrics.visitors).toBe(100_000);
     expect(totals.metrics.payments).toBe(300);
-    expect(meter.usage.queries).toBe(1);
+    // The sessions + payments batch, and the imported-history check (two index seeks).
+    expect(meter.usage.queries).toBe(2);
     // Measured: about two rows per session (index entry + row) plus the payments: ~200,300.
     expect(meter.usage.rowsRead).toBeLessThan(250_000);
     expect(meter.usage.rowsWritten).toBe(0);

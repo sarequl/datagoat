@@ -258,6 +258,14 @@ W2 implementation notes (all DataFast-compatible additions):
   watermark). Visitor counts are then sums of daily unique visitors and the response carries top-level
   `approximate: true`. Ranges older than the website's `retentionDays` always use rollups (raw events
   are pruned). The overview stays exact (one pass over the range's sessions).
+- Imported history (W6's Plausible import, `imported_daily`, completed imports only, days before the
+  first native session only) is added to the overview, timeseries (day/week/month), referrers,
+  channels, countries, devices, browsers, operating systems, pages, entry and exit pages when the
+  request has no filters, uses the website timezone and covers whole days (or all time); such
+  responses are `approximate`. Imports carry no revenue, goals or new/returning split. Not merged:
+  regions (Plausible exports ISO 3166-2 codes), cities (GeoNames ids), hostnames (not exported) and
+  campaigns (UTM fields are exported separately, not as combinations). Imported pages use the website
+  domain as hostname.
 - Revenue on breakdowns always comes from `payments` (exact), attributed by the website's model.
   Pages and goals attribute a visitor's payments in the range to every page viewed / goal completed.
 - Breakdowns drop rows whose dimension is unknown (NULL), except referrers (`Direct / None`).

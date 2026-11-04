@@ -9,6 +9,7 @@
 import { type DerivedMetrics, deriveMetrics, type RawTotals } from "../lib/metrics";
 import { prepare, raw, type SqlFragment, sql } from "../lib/sql";
 import { type QueryContext, rangeOn, sessionScope, sessionsFrom } from "./context";
+import { importedTotalsSql, resolveImportScope } from "./imports";
 import { paymentAggregates, paymentScope, type RevenueTotals, revenueFromRow } from "./revenue";
 import { chooseSource, rawRemainder } from "./strategy";
 
@@ -85,7 +86,26 @@ export function combineTotals(
   return { traffic, revenue, metrics, approximate };
 }
 
+/**
+ * Site totals, including imported history (src/query/imports.ts) for days before the first native
+ * session. Imported visitors are daily uniques, so a merged result is `approximate`; imports have
+ * no new/returning split and no revenue.
+ */
 export async function computeTotals(qc: QueryContext): Promise<Totals> {
+  const [native, imported] = await Promise.all([nativeTotals(qc), importedTraffic(qc)]);
+  if (!imported) return native;
+  return combineTotals(qc, addTraffic(native.traffic, imported), native.revenue, true);
+}
+
+async function importedTraffic(qc: QueryContext): Promise<TrafficTotals | null> {
+  const scope = await resolveImportScope(qc);
+  if (!scope) return null;
+  const row = await prepare(qc.db, importedTotalsSql(qc, scope)).first<Record<string, unknown>>();
+  const t = trafficFromRow(row);
+  return t.visitors > 0 || t.sessions > 0 || t.pageviews > 0 ? t : null;
+}
+
+async function nativeTotals(qc: QueryContext): Promise<Totals> {
   const source = await chooseSource(qc, "overview");
   const pay = paymentScope(qc);
   const revenueStmt = prepare(

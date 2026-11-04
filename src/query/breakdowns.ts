@@ -12,6 +12,7 @@
 import { prepare, raw, type SqlFragment, sql } from "../lib/sql";
 import { bucketKeySql } from "../lib/time";
 import { type QueryContext, rangeOn, sessionScope, sessionsFrom } from "./context";
+import { importedTermSql, resolveImportScope } from "./imports";
 import { paymentAggregates, paymentScope } from "./revenue";
 import { chooseSource, rawRemainder, type Source } from "./strategy";
 
@@ -31,6 +32,8 @@ export interface BreakdownSpec {
   /** Drop rows whose first column is NULL/empty (default true). */
   skipEmpty?: boolean;
   rollup?: RollupSpec;
+  /** `imported_daily` dimension merged for imported history (src/query/imports.ts). */
+  imported?: { dimension: string; shape: "value" | "page" };
 }
 
 export interface BreakdownRow {
@@ -65,8 +68,26 @@ function nonEmpty(spec: BreakdownSpec): string {
   return spec.skipEmpty === false ? "1=1" : "c0 IS NOT NULL AND c0 <> ''";
 }
 
-function rawStatement(qc: QueryContext, spec: BreakdownSpec, page: Page): SqlFragment {
+function rawStatement(
+  qc: QueryContext,
+  spec: BreakdownSpec,
+  page: Page,
+  imported: SqlFragment | null,
+): SqlFragment {
   const extra = spec.where ? raw(spec.where) : raw("1=1");
+  if (imported) {
+    return sql`SELECT ${raw(colNames(spec))}, SUM(visitors) AS visitors, COUNT(*) OVER () AS total_rows
+      FROM (
+        SELECT ${raw(colNames(spec))}, COUNT(DISTINCT v) AS visitors
+        FROM (SELECT ${raw(cols(spec))}, s.visitor_id AS v FROM ${sessionsFrom(qc.range)}
+          WHERE ${sessionScope(qc)} AND ${extra})
+        GROUP BY ${raw(colNames(spec))}
+        UNION ALL ${imported})
+      WHERE ${raw(nonEmpty(spec))}
+      GROUP BY ${raw(colNames(spec))}
+      ORDER BY visitors DESC, ${raw(colNames(spec))}
+      LIMIT ${page.limit} OFFSET ${page.offset}`;
+  }
   return sql`SELECT ${raw(colNames(spec))}, COUNT(DISTINCT v) AS visitors, COUNT(*) OVER () AS total_rows
     FROM (SELECT ${raw(cols(spec))}, s.visitor_id AS v FROM ${sessionsFrom(qc.range)}
       WHERE ${sessionScope(qc)} AND ${extra})
@@ -81,6 +102,7 @@ function rollupStatement(
   spec: BreakdownSpec,
   source: Extract<Source, { mode: "rollup" }>,
   page: Page,
+  imported: SqlFragment | null,
 ): SqlFragment {
   const rollup = spec.rollup;
   if (!rollup) throw new Error("rollupStatement without a rollup spec");
@@ -107,6 +129,7 @@ function rollupStatement(
         WHERE s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", remainder)})
       GROUP BY d, ${raw(colNames(spec))}`;
   }
+  if (imported) union = sql`${union} UNION ALL ${imported}`;
   return sql`SELECT ${raw(colNames(spec))}, SUM(visitors) AS visitors, COUNT(*) OVER () AS total_rows
     FROM (${union}) WHERE ${raw(nonEmpty(spec))}
     GROUP BY ${raw(colNames(spec))}
@@ -135,10 +158,15 @@ export async function runBreakdown(
   page: Page,
 ): Promise<BreakdownResult> {
   const source: Source = spec.rollup ? await chooseSource(qc, "breakdown") : { mode: "raw" };
+  const scope = spec.imported ? await resolveImportScope(qc) : null;
+  const imported =
+    scope && spec.imported
+      ? importedTermSql(qc, scope, spec.imported.dimension, spec.imported.shape)
+      : null;
   const main =
     source.mode === "rollup"
-      ? rollupStatement(qc, spec, source, page)
-      : rawStatement(qc, spec, page);
+      ? rollupStatement(qc, spec, source, page, imported)
+      : rawStatement(qc, spec, page, imported);
   const [rowsRes, revRes] = await qc.db.batch([
     prepare(qc.db, main),
     prepare(qc.db, revenueStatement(qc, spec)),
@@ -169,7 +197,7 @@ export async function runBreakdown(
       };
     }),
     total,
-    approximate: source.mode === "rollup",
+    approximate: source.mode === "rollup" || imported !== null,
   };
 }
 
@@ -187,23 +215,35 @@ export const DIMENSIONS = {
   referrers: {
     columns: [{ expr: REFERRER_EXPR }],
     rollup: { kind: "dimension", dimension: "referrer" },
+    imported: { dimension: "referrer", shape: "value" },
   },
   channels: {
     columns: [{ expr: "s.channel" }],
     rollup: { kind: "dimension", dimension: "channel" },
+    imported: { dimension: "channel", shape: "value" },
   },
   countries: {
     columns: [{ expr: "s.country" }],
     rollup: { kind: "dimension", dimension: "country" },
+    imported: { dimension: "country", shape: "value" },
   },
   regions: { columns: [{ expr: "s.region" }], rollup: { kind: "dimension", dimension: "region" } },
   cities: { columns: [{ expr: "s.city" }], rollup: { kind: "dimension", dimension: "city" } },
-  devices: { columns: [{ expr: "s.device" }], rollup: { kind: "dimension", dimension: "device" } },
+  devices: {
+    columns: [{ expr: "s.device" }],
+    rollup: { kind: "dimension", dimension: "device" },
+    imported: { dimension: "device", shape: "value" },
+  },
   browsers: {
     columns: [{ expr: BROWSER_EXPR }],
     rollup: { kind: "dimension", dimension: "browser" },
+    imported: { dimension: "browser", shape: "value" },
   },
-  os: { columns: [{ expr: "s.os" }], rollup: { kind: "dimension", dimension: "os" } },
+  os: {
+    columns: [{ expr: "s.os" }],
+    rollup: { kind: "dimension", dimension: "os" },
+    imported: { dimension: "os", shape: "value" },
+  },
   hostnames: {
     columns: [{ expr: "s.hostname" }],
     rollup: { kind: "dimension", dimension: "hostname" },
@@ -212,6 +252,7 @@ export const DIMENSIONS = {
     columns: [{ expr: "COALESCE(s.hostname, '')" }, { expr: "s.entry_path" }],
     skipEmpty: false,
     rollup: { kind: "pages", metric: "entries" },
+    imported: { dimension: "entry_page", shape: "page" },
   },
   exitPages: {
     columns: [
@@ -220,6 +261,7 @@ export const DIMENSIONS = {
     ],
     skipEmpty: false,
     rollup: { kind: "pages", metric: "exits" },
+    imported: { dimension: "exit_page", shape: "page" },
   },
   campaigns: {
     columns: [

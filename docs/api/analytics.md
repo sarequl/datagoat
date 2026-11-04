@@ -90,6 +90,16 @@ data. The overview's visitor count is always exact.
 Rollups are computed hourly for days that have ended in the website timezone. If you prune old
 events (**Settings → Data retention**), long-range reports keep working from the rollups.
 
+## Imported history
+
+After a Plausible import completes (**Settings → Import**), its days appear in the overview, the
+day/week/month chart and the referrer, channel, country, device, browser, operating system, page,
+entry page and exit page breakdowns. Only days before DataGoat's first tracked session are used, so
+nothing is counted twice. Imported numbers have no revenue, goals or new/returning split, are left out
+of filtered views, hourly charts and other timezones, and their visitor counts are daily uniques
+(`"approximate": true`). Regions, cities, hostnames and campaign combinations cannot be matched to
+Plausible's export and show tracked data only.
+
 ## Purchase-likelihood prediction
 
 Once a website has tracked 1,000 visitors and 10 attributed payments, a daily job learns how

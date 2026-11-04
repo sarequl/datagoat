@@ -35,6 +35,7 @@ import {
   sessionScope,
   sessionsFrom,
 } from "./context";
+import { importedDailySql, resolveImportScope } from "./imports";
 import { paymentAggregates, paymentScope, revenueBreakdown, revenueFromRow } from "./revenue";
 import { chooseSource, rawRemainder } from "./strategy";
 
@@ -192,6 +193,31 @@ function addGoal(target: Bucket | undefined, name: unknown, n: unknown) {
 
 /** Compute every bucket of `range` (required) at `interval`. */
 export async function computeTimeseries(
+  qc: QueryContext & { range: DateRange },
+  interval: SeriesInterval,
+  options: { goals?: boolean } = {},
+): Promise<TimeseriesResult> {
+  // Imported history (whole days, no hourly detail) joins day, week and month buckets.
+  const daily = interval !== "hour" && interval !== "minute";
+  const [result, scope] = await Promise.all([
+    nativeTimeseries(qc, interval, options),
+    daily ? resolveImportScope(qc) : Promise.resolve(null),
+  ]);
+  if (!scope) return result;
+  const rows =
+    (await prepare(qc.db, importedDailySql(qc, scope)).all<Record<string, unknown>>()).results ??
+    [];
+  if (!rows.length) return result;
+  const byStart = new Map(result.buckets.map((b) => [b.start, b]));
+  for (const row of rows) {
+    const start = startOf(startOfDate(String(row.day), qc.timezone), interval, qc.timezone);
+    addTraffic(byStart.get(start), row);
+    addTraffic(result.totals, row);
+  }
+  return { ...result, approximate: true };
+}
+
+async function nativeTimeseries(
   qc: QueryContext & { range: DateRange },
   interval: SeriesInterval,
   options: { goals?: boolean } = {},

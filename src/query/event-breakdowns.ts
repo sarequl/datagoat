@@ -19,6 +19,7 @@ import {
   rangeOn,
   sessionsFrom,
 } from "./context";
+import { importedTermSql, resolveImportScope } from "./imports";
 import { payingKindsSql, paymentScope, revenueKindsSql } from "./revenue";
 import { chooseSource, rawRemainder } from "./strategy";
 
@@ -86,14 +87,23 @@ export async function pagesBreakdown(
   qc: QueryContext,
   page: Page,
 ): Promise<{ rows: PageRowRaw[]; total: number; approximate: boolean }> {
-  const source = await chooseSource(qc, "breakdown");
+  const [source, scope] = await Promise.all([
+    chooseSource(qc, "breakdown"),
+    resolveImportScope(qc),
+  ]);
+  // Imported history (Plausible `pages`): visitors and pageviews per path, no revenue.
+  const imported = scope
+    ? importedTermSql(
+        qc,
+        scope,
+        "page",
+        "page",
+        ", SUM(pageviews) AS pageviews, 0 AS revenue_minor, 0 AS payments",
+      )
+    : null;
   if (source.mode === "raw") {
-    const res = await prepare(
-      qc.db,
-      sql`WITH pay AS MATERIALIZED (${payByVisitorSql(qc)})
-        SELECT c0, c1, COUNT(*) AS visitors, SUM(pv) AS pageviews,
-          COALESCE(SUM(rev), 0) AS revenue_minor, COALESCE(SUM(n), 0) AS payments,
-          COUNT(*) OVER () AS total_rows
+    const native = sql`SELECT c0, c1, COUNT(*) AS visitors, SUM(pv) AS pageviews,
+          COALESCE(SUM(rev), 0) AS revenue_minor, COALESCE(SUM(n), 0) AS payments
         FROM (${withVisitorRevenue(
           ["c0", "c1", "pv"],
           sql`SELECT COALESCE(e.hostname, '') AS c0, COALESCE(e.path, '/') AS c1, e.visitor_id AS v,
@@ -102,6 +112,14 @@ export async function pagesBreakdown(
             WHERE ${eventScope(qc)} AND e.type = 'pageview' AND ${sessionFilter(qc)}
             GROUP BY 1, 2, 3`,
         )})
+        GROUP BY c0, c1`;
+    const merged = imported ? sql`${native} UNION ALL ${imported}` : native;
+    const res = await prepare(
+      qc.db,
+      sql`WITH pay AS MATERIALIZED (${payByVisitorSql(qc)})
+        SELECT c0, c1, SUM(visitors) AS visitors, SUM(pageviews) AS pageviews,
+          SUM(revenue_minor) AS revenue_minor, SUM(payments) AS payments, COUNT(*) OVER () AS total_rows
+        FROM (${merged})
         GROUP BY c0, c1 ORDER BY visitors DESC, c0, c1
         LIMIT ${page.limit} OFFSET ${page.offset}`,
     ).all<Record<string, unknown>>();
@@ -116,7 +134,7 @@ export async function pagesBreakdown(
         ).first<number>("n")) ?? 0,
       );
     }
-    return { rows: rows.map(toPageRow), total, approximate: false };
+    return { rows: rows.map(toPageRow), total, approximate: imported !== null };
   }
   // Rollup mode: daily_pages for closed days, raw events per day after the watermark. Revenue
   // walks only the paying visitors' sessions (sessions_visitor) and their events by time range.
@@ -131,6 +149,9 @@ export async function pagesBreakdown(
         SELECT ${raw(day.sql)} AS d, COALESCE(e.hostname, '') AS c0, COALESCE(e.path, '/') AS c1, e.visitor_id AS v
         FROM events e WHERE e.site_id = ${qc.site.id} AND ${rangeOn("e.ts", remainder)} AND e.type = 'pageview')
       GROUP BY d, c0, c1`;
+  }
+  if (scope) {
+    union = sql`${union} UNION ALL ${importedTermSql(qc, scope, "page", "page", ", SUM(pageviews) AS pageviews")}`;
   }
   const [main, rev] = await qc.db.batch([
     prepare(
