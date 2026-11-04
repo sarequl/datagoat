@@ -69,3 +69,16 @@ npm run reset-password -- you@example.com http://localhost:8787 --local         
 ```
 
 It inserts a one-hour, single-use token with `wrangler d1 execute` and prints the link.
+
+## Smoke-testing a deployment
+
+```sh
+npm run smoke -- --url https://analytics.example.com
+```
+
+Read-only checks over HTTP with a pass/fail report: health and schema status, setup state and
+secret validation, the dashboard HTML and assets, the three tracker scripts, JSON 401/404 responses,
+and the 501 answers of features that are not built yet (or that they are implemented). Add
+`--email you@example.com --password …` to also sign in, read your account and websites and sign out.
+On a fresh install, `--setup-token <SETUP_TOKEN> --email … --password …` completes first-run setup
+(this creates the owner account with those credentials). Exit code 1 when any check fails.

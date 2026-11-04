@@ -1,4 +1,8 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { expect, test } from "@playwright/test";
+
+const run = promisify(execFile);
 
 test("first-run setup on the real Worker creates the owner and website", async ({
   page,
@@ -40,4 +44,19 @@ test("serves the tracker as a static asset and 501s for unbuilt routes", async (
   const ingest = await request.post("/api/events", { data: { type: "pageview" } });
   expect(ingest.status()).toBe(501);
   expect((await ingest.json()).error.message).toContain("owner: W1");
+});
+
+test("npm run smoke passes against the running Worker", async ({ baseURL }) => {
+  // Runs after the setup test above, so it signs in with that owner.
+  const { stdout } = await run("node", [
+    "scripts/smoke.mjs",
+    "--url",
+    baseURL ?? "",
+    "--email",
+    "owner@example.com",
+    "--password",
+    "an-e2e-password",
+  ]);
+  expect(stdout).toContain("OK: ");
+  expect(stdout).not.toContain("FAIL ");
 });
