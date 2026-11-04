@@ -9,7 +9,7 @@ import { countryName } from "../../../lib/countries";
 import { parseJsonColumn } from "../../../lib/d1";
 import { ApiError } from "../../../lib/errors";
 import { isObjectIdLike } from "../../../lib/ids";
-import { OVERVIEW_FIELDS, pickFields, type TimeseriesField } from "../../../lib/metrics";
+import { OVERVIEW_FIELDS, pickFields, TIMESERIES_FIELDS } from "../../../lib/metrics";
 import { toMajor } from "../../../lib/money";
 import { paginationOf, success } from "../../../lib/response";
 import type { Site } from "../../../lib/sites";
@@ -39,7 +39,7 @@ import {
 import { computeFunnel, renderFunnelResult } from "../../../query/funnels";
 import { pageviewHeatmap } from "../../../query/heatmap";
 import { computeTotals } from "../../../query/overview";
-import { realtimeMap, realtimeVisitors } from "../../../query/realtime";
+import { realtimeMap, realtimeReplay, realtimeVisitors } from "../../../query/realtime";
 import {
   computeTimeseries,
   defaultTimeseriesRange,
@@ -48,7 +48,8 @@ import {
   parseInterval,
   renderPoint,
   renderTotals,
-  TIMESERIES_FIELDS,
+  SERIES_FIELDS,
+  type SeriesField,
 } from "../../../query/timeseries";
 import type { AppEnv } from "../../../types";
 
@@ -115,9 +116,15 @@ export const overview: AnalyticsHandler = async (c, site, view) => {
 
 export const timeseries: AnalyticsHandler = async (c, site, view) => {
   const requested = parseInterval(c.req.query("interval"));
+  // Omitted `fields` returns DataFast's fields; DataGoat's extras are opt-in.
+  const rawFields = c.req.query("fields");
   const fields = normaliseFields(
-    visibleFields(parseFields(c.req.query("fields"), TIMESERIES_FIELDS), view) as TimeseriesField[],
+    visibleFields(
+      rawFields ? parseFields(rawFields, SERIES_FIELDS) : [...TIMESERIES_FIELDS],
+      view,
+    ) as SeriesField[],
   );
+  const goals = fields.includes("goals");
   const base = buildQueryContext(c, site, {
     publicView: view.publicView,
     defaultRange: defaultTimeseriesRange(requested),
@@ -129,8 +136,10 @@ export const timeseries: AnalyticsHandler = async (c, site, view) => {
   const qc = { ...base, range };
   return withCache(c, qc, async () => {
     const [result, prev] = await Promise.all([
-      computeTimeseries(qc, interval),
-      previous ? computeTimeseries({ ...qc, range: previous }, interval) : Promise.resolve(null),
+      computeTimeseries(qc, interval, { goals }),
+      previous
+        ? computeTimeseries({ ...qc, range: previous }, interval, { goals })
+        : Promise.resolve(null),
     ]);
     const page = result.buckets.slice(offset, offset + limit);
     const extra: Record<string, unknown> = {
@@ -198,6 +207,13 @@ export const realtimeMapHandler: AnalyticsHandler = async (c, site, view) => {
     if (!view.showRevenue) map.recentPayments = [];
   }
   return success(c, map);
+};
+
+export const realtimeReplayHandler: AnalyticsHandler = async (c, site, view) => {
+  const qc = buildQueryContext(c, site, { publicView: view.publicView });
+  const replay = await realtimeReplay({ ...qc, filters: [], range: null });
+  if (!view.showRevenue) for (const f of replay.frames) f.payments = 0;
+  return success(c, replay);
 };
 
 // ---------------------------------------------------------------------------
@@ -511,6 +527,7 @@ export const SHARED_ENDPOINTS: Record<string, AnalyticsHandler> = {
   timeseries,
   realtime,
   "realtime/map": realtimeMapHandler,
+  "realtime/replay": realtimeReplayHandler,
   pages,
   "entry-pages": entryPages,
   "exit-pages": exitPages,

@@ -19,6 +19,7 @@ const ROUTES: Array<[string, h.AnalyticsHandler]> = [
   ["/api/v1/analytics/metadata", h.metadata],
   ["/api/v1/analytics/realtime", h.realtime],
   ["/api/v1/analytics/realtime/map", h.realtimeMapHandler],
+  ["/api/v1/analytics/realtime/replay", h.realtimeReplayHandler],
   ["/api/v1/analytics/pages", h.pages],
   ["/api/v1/analytics/entry-pages", h.entryPages],
   ["/api/v1/analytics/exit-pages", h.exitPages],

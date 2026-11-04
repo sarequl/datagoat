@@ -1,15 +1,14 @@
 /**
  * Time-bucketed metrics (DataFast `GET /analytics/timeseries`). Buckets are local hours, days,
  * ISO weeks (Monday) or months in the request timezone, computed inside D1 with DST-safe offsets
- * (`bucketKeySql`). One pass over the sessions yields every bucket and the range totals.
+ * (`bucketKeySql`), plus DataGoat's one-minute buckets for ranges up to 6 hours (the dashboard's
+ * "Now" period). One pass over the sessions yields every bucket and the range totals.
+ *
+ * DataGoat fields on top of DataFast's: `bounce_rate` and `avg_session_duration` per bucket (same
+ * definitions as the overview) and `goals` (completions per goal name per bucket).
  */
 import { ApiError } from "../lib/errors";
-import {
-  percentage,
-  TIMESERIES_FIELDS,
-  type TimeseriesField,
-  visitorBreakdown,
-} from "../lib/metrics";
+import { percentage, TIMESERIES_FIELDS, visitorBreakdown } from "../lib/metrics";
 import { toMajor } from "../lib/money";
 import { prepare, raw, sql } from "../lib/sql";
 import {
@@ -22,17 +21,42 @@ import {
   lastNDays,
   localDate,
   localParts,
+  MINUTE_MS,
   startOfDate,
   zonedToUtc,
 } from "../lib/time";
-import { type QueryContext, rangeOn, sessionScope, sessionsFrom } from "./context";
+import {
+  ACTIVITY,
+  eventScope,
+  filterSql,
+  hasFilters,
+  type QueryContext,
+  rangeOn,
+  sessionScope,
+  sessionsFrom,
+} from "./context";
 import { paymentAggregates, paymentScope, revenueBreakdown, revenueFromRow } from "./revenue";
 import { chooseSource, rawRemainder } from "./strategy";
 
-export { TIMESERIES_FIELDS };
+export type SeriesInterval = Interval | "minute";
 
-export function defaultTimeseriesRange(interval: Interval) {
+export const SERIES_FIELDS = [
+  ...TIMESERIES_FIELDS,
+  "bounce_rate",
+  "avg_session_duration",
+  "goals",
+] as const;
+export type SeriesField = (typeof SERIES_FIELDS)[number];
+
+/** Longest range served with one-minute buckets. */
+export const MAX_MINUTE_RANGE_MS = 6 * HOUR_MS;
+
+export function defaultTimeseriesRange(interval: SeriesInterval) {
   return (timezone: string, nowMs: number): DateRange => {
+    if (interval === "minute") {
+      const end = Math.floor(nowMs / MINUTE_MS) * MINUTE_MS + MINUTE_MS;
+      return { startMs: end - 30 * MINUTE_MS, endMs: end, timezone };
+    }
     if (interval === "hour") {
       const end = bucketStart(nowMs, "hour", timezone) + HOUR_MS;
       return { startMs: end - 24 * HOUR_MS, endMs: end, timezone };
@@ -49,12 +73,40 @@ export function defaultTimeseriesRange(interval: Interval) {
   };
 }
 
-/** DataFast upgrades same-day ranges to hourly buckets. */
-export function effectiveInterval(interval: Interval, range: DateRange): Interval {
+/** DataFast upgrades same-day ranges to hourly buckets. Minute ranges are capped at 6 hours. */
+export function effectiveInterval(interval: SeriesInterval, range: DateRange): SeriesInterval {
+  if (interval === "minute") {
+    if (range.endMs - range.startMs > MAX_MINUTE_RANGE_MS) {
+      throw new ApiError(400, "interval=minute supports ranges up to 6 hours");
+    }
+    return interval;
+  }
   if (interval === "hour") return interval;
   return localDate(range.startMs, range.timezone) === localDate(range.endMs - 1, range.timezone)
     ? "hour"
     : interval;
+}
+
+// Minute buckets are timezone-independent (UTC offsets are whole minutes).
+function keySql(col: string, interval: SeriesInterval, tz: string, from: number, to: number) {
+  if (interval === "minute") {
+    return {
+      sql: `(${col} / ${MINUTE_MS})`,
+      keyToStart: (k: number | string) => Number(k) * MINUTE_MS,
+    };
+  }
+  return bucketKeySql(col, interval, tz, from, to);
+}
+function startOf(ms: number, interval: SeriesInterval, tz: string): number {
+  return interval === "minute"
+    ? Math.floor(ms / MINUTE_MS) * MINUTE_MS
+    : bucketStart(ms, interval, tz);
+}
+function enumerate(from: number, to: number, interval: SeriesInterval, tz: string): number[] {
+  if (interval !== "minute") return enumerateBuckets(from, to, interval, tz, 5000);
+  const out: number[] = [];
+  for (let t = startOf(from, "minute", tz); t < to; t += MINUTE_MS) out.push(t);
+  return out;
 }
 
 interface Bucket {
@@ -64,9 +116,12 @@ interface Bucket {
   returningVisitors: number;
   sessions: number;
   pageviews: number;
+  bounces: number;
+  durationSum: number;
   revenueMinor: number;
   payments: number;
   payingVisitors: number;
+  goals: Record<string, number>;
 }
 
 const emptyBucket = (start: number): Bucket => ({
@@ -76,49 +131,79 @@ const emptyBucket = (start: number): Bucket => ({
   returningVisitors: 0,
   sessions: 0,
   pageviews: 0,
+  bounces: 0,
+  durationSum: 0,
   revenueMinor: 0,
   payments: 0,
   payingVisitors: 0,
+  goals: {},
 });
 
 export interface TimeseriesResult {
-  interval: Interval;
+  interval: SeriesInterval;
   buckets: Bucket[];
   totals: Bucket;
   revenue: ReturnType<typeof revenueFromRow>;
   approximate: boolean;
 }
 
-const labelFormats: Record<Interval, Intl.DateTimeFormatOptions> = {
+const labelFormats: Record<SeriesInterval, Intl.DateTimeFormatOptions> = {
+  minute: { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" },
   hour: { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" },
   day: { month: "short", day: "numeric", year: "numeric" },
   week: { month: "short", day: "numeric", year: "numeric" },
   month: { month: "long", year: "numeric" },
 };
 
-export function bucketLabel(start: number, interval: Interval, timeZone: string): string {
+export function bucketLabel(start: number, interval: SeriesInterval, timeZone: string): string {
   const text = new Intl.DateTimeFormat("en-US", { ...labelFormats[interval], timeZone }).format(
     new Date(start),
   );
   return interval === "week" ? `Week of ${text}` : text;
 }
 
+function addTraffic(target: Bucket | undefined, row: Record<string, unknown>, assign = false) {
+  if (!target) return;
+  const v = (k: string) => Number(row[k] ?? 0);
+  if (assign) {
+    target.visitors = v("visitors");
+    target.newVisitors = v("new_visitors");
+    target.returningVisitors = v("returning_visitors");
+    target.sessions = v("sessions");
+    target.pageviews = v("pageviews");
+    target.bounces = v("bounces");
+    target.durationSum = v("duration_sum");
+    return;
+  }
+  target.visitors += v("visitors");
+  target.newVisitors += v("new_visitors");
+  target.returningVisitors += v("returning_visitors");
+  target.sessions += v("sessions");
+  target.pageviews += v("pageviews");
+  target.bounces += v("bounces");
+  target.durationSum += v("duration_sum");
+}
+
+function addGoal(target: Bucket | undefined, name: unknown, n: unknown) {
+  if (!target || name === null || name === undefined) return;
+  const key = String(name);
+  target.goals[key] = (target.goals[key] ?? 0) + Number(n ?? 0);
+}
+
 /** Compute every bucket of `range` (required) at `interval`. */
 export async function computeTimeseries(
   qc: QueryContext & { range: DateRange },
-  interval: Interval,
+  interval: SeriesInterval,
+  options: { goals?: boolean } = {},
 ): Promise<TimeseriesResult> {
   const tz = qc.timezone;
   const { startMs, endMs } = qc.range;
-  const starts = enumerateBuckets(startMs, endMs, interval, tz, 5000);
+  const starts = enumerate(startMs, endMs, interval, tz);
   const byStart = new Map<number, Bucket>(starts.map((s) => [s, emptyBucket(s)]));
-  const bucketOf = (ms: number): Bucket | undefined => {
-    const b = byStart.get(bucketStart(ms, interval, tz));
-    return b;
-  };
+  const bucketOf = (ms: number): Bucket | undefined => byStart.get(startOf(ms, interval, tz));
 
   const pay = paymentScope(qc);
-  const payKey = bucketKeySql("p.occurred_at", interval, tz, startMs, endMs);
+  const payKey = keySql("p.occurred_at", interval, tz, startMs, endMs);
   const revenueByBucket = prepare(
     qc.db,
     sql`SELECT ${raw(payKey.sql)} AS k, ${raw(paymentAggregates(qc))} FROM ${pay.from} WHERE ${pay.where} GROUP BY 1`,
@@ -129,121 +214,184 @@ export async function computeTimeseries(
   );
 
   const source =
-    interval === "hour" ? { mode: "raw" as const } : await chooseSource(qc, "breakdown");
-  let totals = emptyBucket(startMs);
+    interval === "hour" || interval === "minute"
+      ? { mode: "raw" as const }
+      : await chooseSource(qc, "breakdown");
+  const totals = emptyBucket(startMs);
   let approximate = false;
-  let revenueRows: Array<Record<string, unknown>>;
-  let revenueTotalRow: Record<string, unknown> | undefined;
+  let goalsKey: { keyToStart: (k: number | string) => number } | null = null;
+  const stmts: D1PreparedStatement[] = [revenueByBucket, revenueTotal];
+  let goalsIndex = -1;
 
   if (source.mode === "raw") {
-    const key = bucketKeySql("s.started_at", interval, tz, startMs, endMs);
-    const traffic = prepare(
-      qc.db,
-      sql`WITH sv AS MATERIALIZED (
-          SELECT ${raw(key.sql)} AS k, s.visitor_id AS v, COUNT(*) AS n, SUM(s.pageviews) AS pv,
-            MIN(s.session_number) AS fn
-          FROM ${sessionsFrom(qc.range)} WHERE ${sessionScope(qc)} GROUP BY 1, 2)
-        SELECT 0 AS t, k, COUNT(*) AS visitors, SUM(n) AS sessions, SUM(pv) AS pageviews,
-          SUM(CASE WHEN fn < 2 THEN 1 ELSE 0 END) AS new_visitors,
-          SUM(CASE WHEN fn >= 2 THEN 1 ELSE 0 END) AS returning_visitors
-        FROM sv GROUP BY k
-        UNION ALL
-        SELECT 1, NULL, COUNT(*), COALESCE(SUM(n), 0), COALESCE(SUM(pv), 0),
-          COALESCE(SUM(CASE WHEN fn < 2 THEN 1 ELSE 0 END), 0),
-          COALESCE(SUM(CASE WHEN fn >= 2 THEN 1 ELSE 0 END), 0)
-        FROM (SELECT v, SUM(n) AS n, SUM(pv) AS pv, MIN(fn) AS fn FROM sv GROUP BY v)`,
-    );
-    const [t, r, rt] = await qc.db.batch([traffic, revenueByBucket, revenueTotal]);
-    for (const row of (t?.results ?? []) as Array<Record<string, unknown>>) {
-      const target =
-        Number(row.t) === 1 ? totals : byStart.get(key.keyToStart(row.k as number | string));
-      if (!target) continue;
-      target.visitors = Number(row.visitors ?? 0);
-      target.sessions = Number(row.sessions ?? 0);
-      target.pageviews = Number(row.pageviews ?? 0);
-      target.newVisitors = Number(row.new_visitors ?? 0);
-      target.returningVisitors = Number(row.returning_visitors ?? 0);
-    }
-    revenueRows = (r?.results ?? []) as Array<Record<string, unknown>>;
-    revenueTotalRow = rt?.results?.[0] as Record<string, unknown> | undefined;
-    for (const row of revenueRows)
-      applyRevenue(byStart.get(payKey.keyToStart(row.k as number)), row);
-  } else {
-    approximate = true;
-    const stmts = [
-      revenueByBucket,
-      revenueTotal,
+    const key = keySql("s.started_at", interval, tz, startMs, endMs);
+    stmts.push(
       prepare(
         qc.db,
-        sql`SELECT day, visitors, new_visitors, returning_visitors, sessions, pageviews FROM daily_stats
-          WHERE site_id = ${qc.site.id} AND day >= ${source.fromDay ?? "0000-00-00"} AND day <= ${source.toDay}`,
+        sql`WITH sv AS MATERIALIZED (
+            SELECT ${raw(key.sql)} AS k, s.visitor_id AS v, COUNT(*) AS n, SUM(s.pageviews) AS pv,
+              SUM(CASE WHEN s.pageviews + s.interactions <= 1 THEN 1 ELSE 0 END) AS b,
+              SUM(s.last_seen_at - s.started_at) AS d, MIN(s.session_number) AS fn
+            FROM ${sessionsFrom(qc.range)} WHERE ${sessionScope(qc)} GROUP BY 1, 2)
+          SELECT 0 AS t, k, COUNT(*) AS visitors, SUM(n) AS sessions, SUM(pv) AS pageviews,
+            SUM(b) AS bounces, SUM(d) AS duration_sum,
+            SUM(CASE WHEN fn < 2 THEN 1 ELSE 0 END) AS new_visitors,
+            SUM(CASE WHEN fn >= 2 THEN 1 ELSE 0 END) AS returning_visitors
+          FROM sv GROUP BY k
+          UNION ALL
+          SELECT 1, NULL, COUNT(*), COALESCE(SUM(n), 0), COALESCE(SUM(pv), 0), COALESCE(SUM(b), 0),
+            COALESCE(SUM(d), 0), COALESCE(SUM(CASE WHEN fn < 2 THEN 1 ELSE 0 END), 0),
+            COALESCE(SUM(CASE WHEN fn >= 2 THEN 1 ELSE 0 END), 0)
+          FROM (SELECT v, SUM(n) AS n, SUM(pv) AS pv, SUM(b) AS b, SUM(d) AS d, MIN(fn) AS fn
+            FROM sv GROUP BY v)`,
       ),
-    ];
-    const remainder = rawRemainder(source, qc);
-    let dayKey: ReturnType<typeof bucketKeySql> | null = null;
-    if (remainder) {
-      dayKey = bucketKeySql("s.started_at", "day", tz, remainder.startMs, remainder.endMs);
+    );
+    if (options.goals) {
+      const gk = keySql("e.ts", interval, tz, startMs, endMs);
+      goalsKey = gk;
+      const join = hasFilters(qc)
+        ? raw("JOIN sessions s ON s.site_id = e.site_id AND s.id = e.session_id")
+        : raw("");
+      const where = hasFilters(qc) ? filterSql(qc, "s") : raw("1=1");
+      goalsIndex = stmts.length;
       stmts.push(
         prepare(
           qc.db,
-          sql`SELECT k, COUNT(*) AS visitors, SUM(n) AS sessions, SUM(pv) AS pageviews,
-              SUM(CASE WHEN fn < 2 THEN 1 ELSE 0 END) AS new_visitors,
-              SUM(CASE WHEN fn >= 2 THEN 1 ELSE 0 END) AS returning_visitors
-            FROM (SELECT ${raw(dayKey.sql)} AS k, s.visitor_id, COUNT(*) AS n, SUM(s.pageviews) AS pv,
-                MIN(s.session_number) AS fn
-              FROM sessions s INDEXED BY sessions_time WHERE s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", remainder)}
-              GROUP BY 1, 2)
-            GROUP BY k`,
+          sql`SELECT ${raw(gk.sql)} AS k, e.name AS g, COUNT(*) AS n FROM events e ${join}
+            WHERE ${eventScope(qc)} AND e.${raw(ACTIVITY)} AND e.type = 'custom' AND e.name IS NOT NULL
+              AND ${where}
+            GROUP BY 1, 2`,
         ),
       );
     }
-    const [r, rt, rolled, rawDays] = await qc.db.batch(stmts);
-    const add = (target: Bucket | undefined, row: Record<string, unknown>) => {
-      if (!target) return;
-      target.visitors += Number(row.visitors ?? 0);
-      target.newVisitors += Number(row.new_visitors ?? 0);
-      target.returningVisitors += Number(row.returning_visitors ?? 0);
-      target.sessions += Number(row.sessions ?? 0);
-      target.pageviews += Number(row.pageviews ?? 0);
-    };
-    for (const row of (rolled?.results ?? []) as Array<Record<string, unknown>>) {
-      const start = startOfDate(String(row.day), tz);
-      add(bucketOf(start), row);
-      add(totals, row);
+    const results = await qc.db.batch(stmts);
+    for (const row of (results[2]?.results ?? []) as Array<Record<string, unknown>>) {
+      addTraffic(
+        Number(row.t) === 1 ? totals : byStart.get(key.keyToStart(row.k as number)),
+        row,
+        true,
+      );
     }
-    for (const row of (rawDays?.results ?? []) as Array<Record<string, unknown>>) {
-      if (!dayKey) break;
-      const start = dayKey.keyToStart(row.k as number);
-      add(bucketOf(start), row);
-      add(totals, row);
+    if (goalsIndex >= 0 && goalsKey) {
+      for (const row of (results[goalsIndex]?.results ?? []) as Array<Record<string, unknown>>) {
+        addGoal(byStart.get(goalsKey.keyToStart(row.k as number)), row.g, row.n);
+        addGoal(totals, row.g, row.n);
+      }
     }
-    revenueRows = (r?.results ?? []) as Array<Record<string, unknown>>;
-    revenueTotalRow = rt?.results?.[0] as Record<string, unknown> | undefined;
-    for (const row of revenueRows)
-      applyRevenue(byStart.get(payKey.keyToStart(row.k as number)), row);
+    return finish(qc, interval, byStart, totals, results, payKey, approximate);
   }
-  const revenue = revenueFromRow(revenueTotalRow);
-  totals = {
-    ...totals,
-    revenueMinor: revenue.revenueMinor,
-    payments: revenue.payments,
-    payingVisitors: revenue.payingVisitors,
-  };
-  return { interval, buckets: [...byStart.values()], totals, revenue, approximate };
+
+  approximate = true;
+  const from = source.fromDay ?? "0000-00-00";
+  stmts.push(
+    prepare(
+      qc.db,
+      sql`SELECT day, visitors, new_visitors, returning_visitors, sessions, pageviews, bounces, duration_sum
+        FROM daily_stats WHERE site_id = ${qc.site.id} AND day >= ${from} AND day <= ${source.toDay}`,
+    ),
+  );
+  const remainder = rawRemainder(source, qc);
+  let dayIndex = -1;
+  let dayKey: ReturnType<typeof bucketKeySql> | null = null;
+  if (remainder) {
+    dayKey = bucketKeySql("s.started_at", "day", tz, remainder.startMs, remainder.endMs);
+    dayIndex = stmts.length;
+    stmts.push(
+      prepare(
+        qc.db,
+        sql`SELECT k, COUNT(*) AS visitors, SUM(n) AS sessions, SUM(pv) AS pageviews, SUM(b) AS bounces,
+            SUM(d) AS duration_sum, SUM(CASE WHEN fn < 2 THEN 1 ELSE 0 END) AS new_visitors,
+            SUM(CASE WHEN fn >= 2 THEN 1 ELSE 0 END) AS returning_visitors
+          FROM (SELECT ${raw(dayKey.sql)} AS k, s.visitor_id, COUNT(*) AS n, SUM(s.pageviews) AS pv,
+              SUM(CASE WHEN s.pageviews + s.interactions <= 1 THEN 1 ELSE 0 END) AS b,
+              SUM(s.last_seen_at - s.started_at) AS d, MIN(s.session_number) AS fn
+            FROM sessions s INDEXED BY sessions_time
+            WHERE s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", remainder)}
+            GROUP BY 1, 2)
+          GROUP BY k`,
+      ),
+    );
+  }
+  let goalsRolled = -1;
+  let goalsRaw = -1;
+  let goalsDayKey: ReturnType<typeof bucketKeySql> | null = null;
+  if (options.goals) {
+    goalsRolled = stmts.length;
+    stmts.push(
+      prepare(
+        qc.db,
+        sql`SELECT day, name, completions FROM daily_goals
+          WHERE site_id = ${qc.site.id} AND day >= ${from} AND day <= ${source.toDay}`,
+      ),
+    );
+    if (remainder) {
+      goalsDayKey = bucketKeySql("e.ts", "day", tz, remainder.startMs, remainder.endMs);
+      goalsRaw = stmts.length;
+      stmts.push(
+        prepare(
+          qc.db,
+          sql`SELECT ${raw(goalsDayKey.sql)} AS k, e.name AS g, COUNT(*) AS n FROM events e
+            WHERE e.site_id = ${qc.site.id} AND ${rangeOn("e.ts", remainder)} AND e.${raw(ACTIVITY)}
+              AND e.type = 'custom' AND e.name IS NOT NULL
+            GROUP BY 1, 2`,
+        ),
+      );
+    }
+  }
+  const results = await qc.db.batch(stmts);
+  for (const row of (results[2]?.results ?? []) as Array<Record<string, unknown>>) {
+    addTraffic(bucketOf(startOfDate(String(row.day), tz)), row);
+    addTraffic(totals, row);
+  }
+  if (dayIndex >= 0 && dayKey) {
+    for (const row of (results[dayIndex]?.results ?? []) as Array<Record<string, unknown>>) {
+      addTraffic(bucketOf(dayKey.keyToStart(row.k as number)), row);
+      addTraffic(totals, row);
+    }
+  }
+  if (goalsRolled >= 0) {
+    for (const row of (results[goalsRolled]?.results ?? []) as Array<Record<string, unknown>>) {
+      addGoal(bucketOf(startOfDate(String(row.day), tz)), row.name, row.completions);
+      addGoal(totals, row.name, row.completions);
+    }
+  }
+  if (goalsRaw >= 0 && goalsDayKey) {
+    for (const row of (results[goalsRaw]?.results ?? []) as Array<Record<string, unknown>>) {
+      addGoal(bucketOf(goalsDayKey.keyToStart(row.k as number)), row.g, row.n);
+      addGoal(totals, row.g, row.n);
+    }
+  }
+  return finish(qc, interval, byStart, totals, results, payKey, approximate);
 }
 
-function applyRevenue(target: Bucket | undefined, row: Record<string, unknown>): void {
-  if (!target) return;
-  target.revenueMinor = Number(row.revenue_minor ?? 0);
-  target.payments = Number(row.payments ?? 0);
-  target.payingVisitors = Number(row.paying_visitors ?? 0);
+function finish(
+  _qc: QueryContext,
+  interval: SeriesInterval,
+  byStart: Map<number, Bucket>,
+  totals: Bucket,
+  results: D1Result[],
+  payKey: { keyToStart: (k: number | string) => number },
+  approximate: boolean,
+): TimeseriesResult {
+  for (const row of (results[0]?.results ?? []) as Array<Record<string, unknown>>) {
+    const target = byStart.get(payKey.keyToStart(row.k as number));
+    if (!target) continue;
+    target.revenueMinor = Number(row.revenue_minor ?? 0);
+    target.payments = Number(row.payments ?? 0);
+    target.payingVisitors = Number(row.paying_visitors ?? 0);
+  }
+  const revenue = revenueFromRow(results[1]?.results?.[0] as Record<string, unknown> | undefined);
+  totals.revenueMinor = revenue.revenueMinor;
+  totals.payments = revenue.payments;
+  totals.payingVisitors = revenue.payingVisitors;
+  return { interval, buckets: [...byStart.values()], totals, revenue, approximate };
 }
 
 /** Render buckets in DataFast's shape for the requested fields. */
 export function renderPoint(
   b: Bucket,
-  fields: readonly TimeseriesField[],
-  interval: Interval,
+  fields: readonly SeriesField[],
+  interval: SeriesInterval,
   qc: QueryContext,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { timestamp: new Date(b.start).toISOString() };
@@ -253,9 +401,9 @@ export function renderPoint(
 
 function metricField(
   b: Bucket,
-  f: TimeseriesField,
+  f: SeriesField,
   qc: QueryContext,
-  interval: Interval,
+  interval: SeriesInterval,
 ): Record<string, unknown> {
   switch (f) {
     case "name":
@@ -278,11 +426,19 @@ function metricField(
       return { payments: b.payments };
     case "conversion_rate":
       return { conversion_rate: percentage(Math.min(b.payingVisitors, b.visitors), b.visitors) };
+    case "bounce_rate":
+      return { bounce_rate: percentage(b.bounces, b.sessions) };
+    case "avg_session_duration":
+      return {
+        avg_session_duration: b.sessions > 0 ? Math.round(b.durationSum / b.sessions / 1000) : 0,
+      };
+    case "goals":
+      return { goals: { ...b.goals } };
   }
 }
 
 /** Requested fields as DataFast echoes them: `revenue` adds `payments`. */
-export function normaliseFields(fields: TimeseriesField[]): TimeseriesField[] {
+export function normaliseFields(fields: SeriesField[]): SeriesField[] {
   const out = [...fields];
   if (out.includes("revenue") && !out.includes("payments")) {
     out.splice(out.indexOf("revenue") + 1, 0, "payments");
@@ -292,7 +448,7 @@ export function normaliseFields(fields: TimeseriesField[]): TimeseriesField[] {
 
 export function renderTotals(
   result: TimeseriesResult,
-  fields: readonly TimeseriesField[],
+  fields: readonly SeriesField[],
   qc: QueryContext,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -311,8 +467,10 @@ export function renderTotals(
   return out;
 }
 
-export function parseInterval(value: string | undefined): Interval {
+const INTERVALS: readonly SeriesInterval[] = ["minute", "hour", "day", "week", "month"];
+
+export function parseInterval(value: string | undefined): SeriesInterval {
   if (!value) throw new ApiError(400, "interval is required: hour, day, week or month");
-  if (value === "hour" || value === "day" || value === "week" || value === "month") return value;
-  throw new ApiError(400, `Invalid interval: ${value}. Use hour, day, week or month`);
+  if ((INTERVALS as readonly string[]).includes(value)) return value as SeriesInterval;
+  throw new ApiError(400, `Invalid interval: ${value}. Use hour, day, week or month (or minute)`);
 }

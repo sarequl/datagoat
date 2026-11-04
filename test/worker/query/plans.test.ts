@@ -15,7 +15,7 @@ import {
 } from "../../../src/query/event-breakdowns";
 import { computeFunnel } from "../../../src/query/funnels";
 import { computeTotals } from "../../../src/query/overview";
-import { realtimeMap, realtimeVisitors } from "../../../src/query/realtime";
+import { realtimeMap, realtimeReplay, realtimeVisitors } from "../../../src/query/realtime";
 import { computeTimeseries } from "../../../src/query/timeseries";
 import { listVisitors, parseVisitorListParams, visitorProfile } from "../../../src/query/visitors";
 import { resetDb } from "../../helpers/db";
@@ -123,6 +123,12 @@ describe("query plans", () => {
     expect(allPlans(map)).toMatch(/events_activity/);
     expect(allPlans(map)).toMatch(/sessions_visitor/);
     expect(allPlans(map)).toMatch(/payments_visitor/);
+    const replay = await plans((q) => realtimeReplay(q), qc);
+    expectNoFullScans(replay);
+    expect(allPlans(replay)).toMatch(/events_time/);
+    expect(allPlans(replay)).toMatch(/events_activity/);
+    expect(allPlans(replay)).toMatch(/payments_visitor/);
+    expect(allPlans(replay)).toMatch(/payments_time/);
     const profile = await plans((q) => visitorProfile(q, V1), qc);
     expectNoFullScans(profile);
     expect(allPlans(profile)).toMatch(/sessions_visitor/);

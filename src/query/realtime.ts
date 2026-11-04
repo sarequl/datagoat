@@ -215,3 +215,122 @@ export async function realtimeMap(qc: QueryContext) {
     recentPayments,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Globe replay
+// ---------------------------------------------------------------------------
+
+export const REPLAY_STEP_MS = 15 * MINUTE_MS;
+export const REPLAY_FRAMES = 32;
+export const MAX_REPLAY_VISITORS_PER_FRAME = 300;
+
+/**
+ * The last 8 hours of globe activity in 32 frames of 15 minutes (DataFast's globe replay): per
+ * frame the visitors with pageviews in it (position from their session, customer flag and
+ * purchase-likelihood score), and pageview, goal and payment counts. No PII.
+ *
+ * Cost: one batch: 8 hours of pageviews through `events_time` grouped by frame and visitor, the
+ * frame's sessions by primary key, goals through `events_activity`, payments through
+ * `payments_time`, and the prediction model.
+ */
+export async function realtimeReplay(qc: QueryContext) {
+  const { db, site, now } = qc;
+  const end = Math.floor(now / REPLAY_STEP_MS) * REPLAY_STEP_MS + REPLAY_STEP_MS;
+  const start = end - REPLAY_FRAMES * REPLAY_STEP_MS;
+  const paying = site.includeRenewalRevenue ? "('payment', 'renewal')" : "('payment')";
+  const [visitorsRes, goalsRes, paymentsRes, modelRes] = await db.batch([
+    db
+      .prepare(
+        `WITH a AS MATERIALIZED (
+           SELECT CAST((ts - ?2) / ${REPLAY_STEP_MS} AS INTEGER) AS f, visitor_id AS v, session_id AS sid, COUNT(*) AS pv, MAX(ts) AS last
+           FROM events WHERE site_id = ?1 AND ts >= ?2 AND ts < ?3 AND type = 'pageview'
+           GROUP BY 1, 2)
+         SELECT a.f, a.v, a.pv, s.lat, s.lon, s.country, s.city, s.channel, s.device, s.os,
+           ${REFERRER_EXPR} AS referrer_label,
+           CASE WHEN s.browser = 'Mobile Safari' THEN 'Safari' ELSE s.browser END AS browser,
+           EXISTS (SELECT 1 FROM payments p INDEXED BY payments_visitor WHERE p.site_id = ?1
+             AND p.visitor_id = a.v AND p.visitor_id IS NOT NULL AND p.kind IN ${paying}
+             AND p.occurred_at < ?3) AS is_customer
+         FROM a LEFT JOIN sessions s ON s.site_id = ?1 AND s.id = a.sid
+         ORDER BY a.f, a.last DESC`,
+      )
+      .bind(site.id, start, end),
+    db
+      .prepare(
+        `SELECT CAST((ts - ?2) / ${REPLAY_STEP_MS} AS INTEGER) AS f, COUNT(*) AS n FROM events
+         WHERE site_id = ?1 AND type <> 'pageview' AND type = 'custom' AND ts >= ?2 AND ts < ?3 GROUP BY 1`,
+      )
+      .bind(site.id, start, end),
+    db
+      .prepare(
+        `SELECT CAST((occurred_at - ?2) / ${REPLAY_STEP_MS} AS INTEGER) AS f, COUNT(*) AS n FROM payments
+         WHERE site_id = ?1 AND occurred_at >= ?2 AND occurred_at < ?3 AND kind IN ${paying} GROUP BY 1`,
+      )
+      .bind(site.id, start, end),
+    db
+      .prepare(
+        "SELECT model, baseline_conversion_rate, baseline_average_value, sample_visitors, trained_at FROM prediction_models WHERE site_id = ?",
+      )
+      .bind(site.id),
+  ]);
+  const modelRow = modelRes?.results?.[0] as Record<string, unknown> | undefined;
+  const model = modelRow ? rowToModel(modelRow) : null;
+  const frames = Array.from({ length: REPLAY_FRAMES }, (_, i) => ({
+    at: new Date(start + i * REPLAY_STEP_MS).toISOString(),
+    visitors: [] as Array<{
+      visitorId: string;
+      latitude: number | null;
+      longitude: number | null;
+      countryCode: string | null;
+      city: string | null;
+      isCustomer: boolean;
+      conversionScore: number | null;
+    }>,
+    pageviews: 0,
+    goals: 0,
+    payments: 0,
+  }));
+  for (const r of (visitorsRes?.results ?? []) as Array<Record<string, unknown>>) {
+    const frame = frames[Number(r.f)];
+    if (!frame) continue;
+    frame.pageviews += Number(r.pv ?? 0);
+    if (frame.visitors.length >= MAX_REPLAY_VISITORS_PER_FRAME) continue;
+    const isCustomer = Boolean(r.is_customer);
+    let score: number | null = null;
+    if (model) {
+      score = isCustomer
+        ? 100
+        : scoreVisitor(model, {
+            channel: r.channel as string | null,
+            referrer: r.referrer_label as string | null,
+            country: r.country as string | null,
+            device: r.device as string | null,
+            browser: r.browser as string | null,
+            os: r.os as string | null,
+          }).score;
+    }
+    frame.visitors.push({
+      visitorId: String(r.v),
+      latitude: r.lat === null || r.lat === undefined ? null : Number(r.lat),
+      longitude: r.lon === null || r.lon === undefined ? null : Number(r.lon),
+      countryCode: (r.country as string | null) ?? null,
+      city: (r.city as string | null) ?? null,
+      isCustomer,
+      conversionScore: score,
+    });
+  }
+  for (const r of (goalsRes?.results ?? []) as Array<{ f: number; n: number }>) {
+    const frame = frames[Number(r.f)];
+    if (frame) frame.goals = Number(r.n);
+  }
+  for (const r of (paymentsRes?.results ?? []) as Array<{ f: number; n: number }>) {
+    const frame = frames[Number(r.f)];
+    if (frame) frame.payments = Number(r.n);
+  }
+  return {
+    stepMinutes: REPLAY_STEP_MS / MINUTE_MS,
+    startAt: new Date(start).toISOString(),
+    endAt: new Date(end).toISOString(),
+    frames,
+  };
+}

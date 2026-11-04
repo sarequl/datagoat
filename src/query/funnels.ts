@@ -174,7 +174,8 @@ export async function computeFunnel(
   // Pageviews are read once; unless a leading not_completed step needs every pageview, only the
   // rows matching some pageview step are kept, so later steps work on a small temp table.
   const pageSteps = steps.filter((s) => s.type === "pageview");
-  const needAllPages = steps[0]?.goalCompletionType === "not_completed" && steps[0]?.type === "goal";
+  const needAllPages =
+    steps[0]?.goalCompletionType === "not_completed" && steps[0]?.type === "goal";
   if (pageSteps.length || needAllPages) {
     const anyStep = needAllPages
       ? raw("1=1")

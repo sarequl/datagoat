@@ -56,6 +56,23 @@ export function payByVisitorSql(qc: QueryContext): SqlFragment {
     FROM ${pay.from} WHERE ${pay.where} AND p.visitor_id IS NOT NULL GROUP BY p.visitor_id`;
 }
 
+/**
+ * Attach each visitor's revenue (`rev`, `n` from the `pay` CTE) to the rows of `rowsSql`, which
+ * must select `cols` and `v`. Instead of joining two temp tables (SQLite may nest-loop them, which
+ * was quadratic on real data), the rows and the payments are unioned and the per-visitor values
+ * spread with a window over `v`. Output columns: `cols`, `v`, `rev`, `n`.
+ */
+export function withVisitorRevenue(cols: string[], rowsSql: SqlFragment): SqlFragment {
+  const list = cols.join(", ");
+  const nulls = cols.map(() => "NULL").join(", ");
+  return sql`SELECT ${raw(list)}, v, rev, n FROM (
+      SELECT wr_kind, ${raw(list)}, v, MAX(rev) OVER (PARTITION BY v) AS rev,
+        MAX(n) OVER (PARTITION BY v) AS n
+      FROM (SELECT 0 AS wr_kind, ${raw(list)}, v, NULL AS rev, NULL AS n FROM (${rowsSql})
+        UNION ALL SELECT 1, ${raw(nulls)}, v, rev, n FROM pay))
+    WHERE wr_kind = 0`;
+}
+
 export interface PageRowRaw {
   hostname: string;
   path: string;
@@ -75,14 +92,16 @@ export async function pagesBreakdown(
       qc.db,
       sql`WITH pay AS MATERIALIZED (${payByVisitorSql(qc)})
         SELECT c0, c1, COUNT(*) AS visitors, SUM(pv) AS pageviews,
-          COALESCE(SUM(pay.rev), 0) AS revenue_minor, COALESCE(SUM(pay.n), 0) AS payments,
+          COALESCE(SUM(rev), 0) AS revenue_minor, COALESCE(SUM(n), 0) AS payments,
           COUNT(*) OVER () AS total_rows
-        FROM (SELECT COALESCE(e.hostname, '') AS c0, COALESCE(e.path, '/') AS c1, e.visitor_id AS v,
-            COUNT(*) AS pv
-          FROM events e ${sessionJoin(qc)}
-          WHERE ${eventScope(qc)} AND e.type = 'pageview' AND ${sessionFilter(qc)}
-          GROUP BY 1, 2, 3) x
-        LEFT JOIN pay ON pay.v = x.v
+        FROM (${withVisitorRevenue(
+          ["c0", "c1", "pv"],
+          sql`SELECT COALESCE(e.hostname, '') AS c0, COALESCE(e.path, '/') AS c1, e.visitor_id AS v,
+              COUNT(*) AS pv
+            FROM events e ${sessionJoin(qc)}
+            WHERE ${eventScope(qc)} AND e.type = 'pageview' AND ${sessionFilter(qc)}
+            GROUP BY 1, 2, 3`,
+        )})
         GROUP BY c0, c1 ORDER BY visitors DESC, c0, c1
         LIMIT ${page.limit} OFFSET ${page.offset}`,
     ).all<Record<string, unknown>>();
@@ -126,11 +145,13 @@ export async function pagesBreakdown(
         ps AS MATERIALIZED (SELECT s.id, s.visitor_id, s.started_at, s.last_seen_at FROM sessions s
           WHERE s.site_id = ${qc.site.id} AND s.visitor_id IN (SELECT v FROM pay)
             AND ${rangeOn("s.started_at", qc.range)})
-        SELECT c0, c1, SUM(pay.rev) AS revenue_minor, SUM(pay.n) AS payments FROM (
-          SELECT DISTINCT COALESCE(e.hostname, '') AS c0, COALESCE(e.path, '/') AS c1, e.visitor_id AS v
-          FROM ps JOIN events e ON e.site_id = ${qc.site.id} AND e.ts >= ps.started_at
-            AND e.ts <= ps.last_seen_at AND e.session_id = ps.id
-          WHERE e.type = 'pageview') x JOIN pay ON pay.v = x.v
+        SELECT c0, c1, SUM(rev) AS revenue_minor, SUM(n) AS payments FROM (${withVisitorRevenue(
+          ["c0", "c1"],
+          sql`SELECT DISTINCT COALESCE(e.hostname, '') AS c0, COALESCE(e.path, '/') AS c1, e.visitor_id AS v
+            FROM ps JOIN events e ON e.site_id = ${qc.site.id} AND e.ts >= ps.started_at
+              AND e.ts <= ps.last_seen_at AND e.session_id = ps.id
+            WHERE e.type = 'pageview'`,
+        )})
         GROUP BY c0, c1`,
     ),
   ]);
@@ -212,13 +233,15 @@ export async function goalsBreakdown(
       prepare(
         qc.db,
         sql`WITH pay AS MATERIALIZED (${payByVisitorSql(qc)})
-          SELECT c0, SUM(k) AS completions, COUNT(*) AS visitors, COALESCE(SUM(pay.rev), 0) AS revenue_minor,
+          SELECT c0, SUM(k) AS completions, COUNT(*) AS visitors, COALESCE(SUM(rev), 0) AS revenue_minor,
             COUNT(*) OVER () AS total_rows
-          FROM (SELECT e.name AS c0, e.visitor_id AS v, COUNT(*) AS k FROM events e ${sessionJoin(qc)}
-            WHERE ${eventScope(qc)} AND e.${raw(ACTIVITY)} AND e.type = 'custom' AND e.name IS NOT NULL
-              AND ${sessionFilter(qc)}
-            GROUP BY 1, 2) x
-          LEFT JOIN pay ON pay.v = x.v
+          FROM (${withVisitorRevenue(
+            ["c0", "k"],
+            sql`SELECT e.name AS c0, e.visitor_id AS v, COUNT(*) AS k FROM events e ${sessionJoin(qc)}
+              WHERE ${eventScope(qc)} AND e.${raw(ACTIVITY)} AND e.type = 'custom' AND e.name IS NOT NULL
+                AND ${sessionFilter(qc)}
+              GROUP BY 1, 2`,
+          )})
           GROUP BY c0 ORDER BY visitors DESC, completions DESC, c0
           LIMIT ${page.limit} OFFSET ${page.offset}`,
       ),
@@ -277,11 +300,12 @@ export async function goalsBreakdown(
     prepare(
       qc.db,
       sql`WITH pay AS MATERIALIZED (${payByVisitorSql(qc)})
-        SELECT c0, SUM(pay.rev) AS revenue_minor FROM (
-          SELECT DISTINCT e.name AS c0, e.visitor_id AS v FROM events e INDEXED BY events_visitor_activity
-          WHERE e.site_id = ${qc.site.id} AND e.${raw(ACTIVITY)} AND e.visitor_id IN (SELECT v FROM pay)
-            AND e.type = 'custom' AND ${rangeOn("e.ts", qc.range)}) x
-        JOIN pay ON pay.v = x.v GROUP BY c0`,
+        SELECT c0, SUM(rev) AS revenue_minor FROM (${withVisitorRevenue(
+          ["c0"],
+          sql`SELECT DISTINCT e.name AS c0, e.visitor_id AS v FROM events e INDEXED BY events_visitor_activity
+            WHERE e.site_id = ${qc.site.id} AND e.${raw(ACTIVITY)} AND e.visitor_id IN (SELECT v FROM pay)
+              AND e.type = 'custom' AND ${rangeOn("e.ts", qc.range)}`,
+        )}) GROUP BY c0`,
     ),
   ]);
   const revenue = new Map<string, number>();

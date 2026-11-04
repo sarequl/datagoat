@@ -122,8 +122,8 @@ describe("GET /api/v1/analytics/timeseries", () => {
 
   it.each([
     ["", "interval is required"],
-    ["interval=minute", "Invalid interval"],
-    ["interval=day&fields=bounce_rate", "Invalid fields value"],
+    ["interval=second", "Invalid interval"],
+    ["interval=day&fields=revenue_per_visitor", "Invalid fields value"],
     ["interval=hour&startAt=2020-01-01&endAt=2026-01-01", "Too many hour buckets"],
   ])("rejects %s", async (query, message) => {
     const f = await seedFixture();

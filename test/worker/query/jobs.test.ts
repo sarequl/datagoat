@@ -268,12 +268,15 @@ describe("query.rollups", () => {
     const ta = await computeTimeseries(
       { ...rolled, range: rolled.range as NonNullable<typeof rolled.range> },
       "day",
+      { goals: true },
     );
     const tb = await computeTimeseries(
       { ...rawQc, range: rawQc.range as NonNullable<typeof rawQc.range> },
       "day",
+      { goals: true },
     );
     expect(ta.buckets).toEqual(tb.buckets);
+    expect(ta.buckets[0]?.goals).toEqual({ signup: 1 });
     expect(ta.approximate).toBe(true);
   });
 
