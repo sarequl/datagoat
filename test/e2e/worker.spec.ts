@@ -37,13 +37,14 @@ test("first-run setup on the real Worker creates the owner and website", async (
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 });
 
-test("serves the tracker as a static asset and 501s for unbuilt routes", async ({ request }) => {
+test("serves the tracker as a static asset and validates ingest bodies", async ({ request }) => {
   const script = await request.get("/js/script.js");
   expect(script.status()).toBe(200);
   expect(await script.text()).toContain("DataGoat tracker");
   const ingest = await request.post("/api/events", { data: { type: "pageview" } });
-  expect(ingest.status()).toBe(501);
-  expect((await ingest.json()).error.message).toContain("owner: W1");
+  expect(ingest.status()).toBe(400);
+  expect(ingest.headers()["access-control-allow-origin"]).toBe("*");
+  expect((await ingest.json()).error.message).toBe("websiteId is required");
 });
 
 test("npm run smoke passes against the running Worker", async ({ baseURL }) => {
