@@ -16,6 +16,8 @@ export const VARIANTS = [
   { file: "script.hash.js", variant: "hash" },
 ];
 
+// Defines are substituted before minification, so `if (__DG_HASH__)` branches of the other
+// builds are removed entirely (a `const` alias would survive as a variable).
 for (const { file, variant } of VARIANTS) {
   await build({
     entryPoints: [join(root, "tracker", "src", "script.ts")],
@@ -23,10 +25,14 @@ for (const { file, variant } of VARIANTS) {
     bundle: true,
     minify: true,
     format: "iife",
-    target: ["es2017"],
+    // ES2020 (optional chaining, ??): every browser DataFast's own script supports.
+    target: ["es2020"],
     platform: "browser",
     legalComments: "none",
-    define: { __DG_VARIANT__: JSON.stringify(variant) },
+    define: {
+      __DG_COOKIELESS__: String(variant === "cookieless"),
+      __DG_HASH__: String(variant === "hash"),
+    },
     banner: { js: "/*! DataGoat tracker | MIT */" },
   });
   console.log(`built public/js/${file}`);
