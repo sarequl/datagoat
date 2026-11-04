@@ -60,11 +60,11 @@ export async function realtimeMap(qc: QueryContext) {
            ${REFERRER_EXPR} AS referrer_label, s.referrer_domain, s.source,
            vis.user_id, vis.name AS profile_name, vis.image, ${fsParams},
            (SELECT COUNT(*) FROM sessions s2 WHERE s2.site_id = ?1 AND s2.visitor_id = a.v) AS visits,
-           EXISTS (SELECT 1 FROM payments p WHERE p.site_id = ?1 AND p.visitor_id = a.v
+           EXISTS (SELECT 1 FROM payments p INDEXED BY payments_visitor WHERE p.site_id = ?1 AND p.visitor_id = a.v
              AND p.kind IN ${paying}) AS is_customer,
-           (SELECT p.customer_name FROM payments p WHERE p.site_id = ?1 AND p.visitor_id = a.v
+           (SELECT p.customer_name FROM payments p INDEXED BY payments_visitor WHERE p.site_id = ?1 AND p.visitor_id = a.v
              AND p.customer_name IS NOT NULL ORDER BY p.occurred_at DESC LIMIT 1) AS customer_name,
-           (SELECT p.customer_email FROM payments p WHERE p.site_id = ?1 AND p.visitor_id = a.v
+           (SELECT p.customer_email FROM payments p INDEXED BY payments_visitor WHERE p.site_id = ?1 AND p.visitor_id = a.v
              AND p.customer_email IS NOT NULL ORDER BY p.occurred_at DESC LIMIT 1) AS customer_email
          FROM a
          LEFT JOIN sessions s ON s.site_id = ?1 AND s.id = a.sid

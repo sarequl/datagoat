@@ -25,7 +25,7 @@ import {
   startOfDate,
   zonedToUtc,
 } from "../lib/time";
-import { type QueryContext, rangeOn, sessionScope } from "./context";
+import { type QueryContext, rangeOn, sessionScope, sessionsFrom } from "./context";
 import { paymentAggregates, paymentScope, revenueBreakdown, revenueFromRow } from "./revenue";
 import { chooseSource, rawRemainder } from "./strategy";
 
@@ -142,7 +142,7 @@ export async function computeTimeseries(
       sql`WITH sv AS MATERIALIZED (
           SELECT ${raw(key.sql)} AS k, s.visitor_id AS v, COUNT(*) AS n, SUM(s.pageviews) AS pv,
             MIN(s.session_number) AS fn
-          FROM sessions s WHERE ${sessionScope(qc)} GROUP BY 1, 2)
+          FROM ${sessionsFrom(qc.range)} WHERE ${sessionScope(qc)} GROUP BY 1, 2)
         SELECT 0 AS t, k, COUNT(*) AS visitors, SUM(n) AS sessions, SUM(pv) AS pageviews,
           SUM(CASE WHEN fn < 2 THEN 1 ELSE 0 END) AS new_visitors,
           SUM(CASE WHEN fn >= 2 THEN 1 ELSE 0 END) AS returning_visitors
@@ -191,7 +191,7 @@ export async function computeTimeseries(
               SUM(CASE WHEN fn >= 2 THEN 1 ELSE 0 END) AS returning_visitors
             FROM (SELECT ${raw(dayKey.sql)} AS k, s.visitor_id, COUNT(*) AS n, SUM(s.pageviews) AS pv,
                 MIN(s.session_number) AS fn
-              FROM sessions s WHERE s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", remainder)}
+              FROM sessions s INDEXED BY sessions_time WHERE s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", remainder)}
               GROUP BY 1, 2)
             GROUP BY k`,
         ),

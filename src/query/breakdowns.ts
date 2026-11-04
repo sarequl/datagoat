@@ -11,7 +11,7 @@
  */
 import { prepare, raw, type SqlFragment, sql } from "../lib/sql";
 import { bucketKeySql } from "../lib/time";
-import { type QueryContext, rangeOn, sessionScope } from "./context";
+import { type QueryContext, rangeOn, sessionScope, sessionsFrom } from "./context";
 import { paymentAggregates, paymentScope } from "./revenue";
 import { chooseSource, rawRemainder, type Source } from "./strategy";
 
@@ -68,7 +68,7 @@ function nonEmpty(spec: BreakdownSpec): string {
 function rawStatement(qc: QueryContext, spec: BreakdownSpec, page: Page): SqlFragment {
   const extra = spec.where ? raw(spec.where) : raw("1=1");
   return sql`SELECT ${raw(colNames(spec))}, COUNT(DISTINCT v) AS visitors, COUNT(*) OVER () AS total_rows
-    FROM (SELECT ${raw(cols(spec))}, s.visitor_id AS v FROM sessions s
+    FROM (SELECT ${raw(cols(spec))}, s.visitor_id AS v FROM ${sessionsFrom(qc.range)}
       WHERE ${sessionScope(qc)} AND ${extra})
     WHERE ${raw(nonEmpty(spec))}
     GROUP BY ${raw(colNames(spec))}
@@ -103,7 +103,7 @@ function rollupStatement(
     );
     union = sql`${rolled} UNION ALL
       SELECT ${raw(colNames(spec))}, COUNT(DISTINCT v) FROM (
-        SELECT ${raw(day.sql)} AS d, ${raw(cols(spec))}, s.visitor_id AS v FROM sessions s
+        SELECT ${raw(day.sql)} AS d, ${raw(cols(spec))}, s.visitor_id AS v FROM sessions s INDEXED BY sessions_time
         WHERE s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", remainder)})
       GROUP BY d, ${raw(colNames(spec))}`;
   }
@@ -117,7 +117,7 @@ function rollupStatement(
 function countStatement(qc: QueryContext, spec: BreakdownSpec): SqlFragment {
   const extra = spec.where ? raw(spec.where) : raw("1=1");
   return sql`SELECT COUNT(*) AS n FROM (SELECT DISTINCT ${raw(colNames(spec))} FROM
-    (SELECT ${raw(cols(spec))} FROM sessions s WHERE ${sessionScope(qc)} AND ${extra})
+    (SELECT ${raw(cols(spec))} FROM ${sessionsFrom(qc.range)} WHERE ${sessionScope(qc)} AND ${extra})
     WHERE ${raw(nonEmpty(spec))})`;
 }
 

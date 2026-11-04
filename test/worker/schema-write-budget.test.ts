@@ -64,12 +64,30 @@ describe("schema write budget (plan §7)", () => {
     expect(m.d1.rowsWritten).toBe(0);
   });
 
+  it("a goal or outbound click writes 4 event rows; a pageview still writes 2", async () => {
+    const m = meterEnv();
+    await insertEvent(m.db, "s-a").run();
+    expect(m.d1.rowsWritten).toBe(2);
+    m.reset();
+    await m.db
+      .prepare(
+        "INSERT INTO events (site_id, ts, session_id, visitor_id, type, name) VALUES ('site1', ?, 's-a', 'v1', 'custom', 'signup')",
+      )
+      .bind(Date.now())
+      .run();
+    expect(m.d1.rowsWritten).toBe(4);
+  });
+
   it("hot tables carry only the budgeted indexes", async () => {
     const res = await env.DB.prepare(
       "SELECT tbl_name, name FROM sqlite_master WHERE type = 'index' AND tbl_name IN ('events','sessions','visitors') AND sql IS NOT NULL ORDER BY name",
     ).all<{ tbl_name: string; name: string }>();
     expect((res.results ?? []).map((r) => r.name)).toEqual([
+      // W2 (migration 0200): partial indexes over non-pageview events only (goals, outbound
+      // clicks, identify, payment goals); pageviews never touch them.
+      "events_activity",
       "events_time",
+      "events_visitor_activity",
       "sessions_time",
       "sessions_visitor",
       "visitors_email",

@@ -143,16 +143,10 @@ export function rollupStatements(
     "payments",
   ];
   const sessionCols = ROLLUP_DIMENSIONS.map((d, i) => `${d.expr} AS x${i}`).join(", ");
-  const trafficBranches = ROLLUP_DIMENSIONS.map(
-    (d, i) =>
-      `SELECT d, '${d.dimension}' AS dimension, COALESCE(x${i}, '') AS value, COUNT(DISTINCT vid) AS visitors,
-         COUNT(*) AS sessions, SUM(pv) AS pageviews, SUM(b) AS bounces, SUM(dur) AS duration_sum,
-         0 AS revenue_minor, 0 AS payments FROM ss GROUP BY d, value`,
-  );
-  const revenueBranches = ROLLUP_DIMENSIONS.map(
-    (d, i) =>
-      `SELECT d, '${d.dimension}', COALESCE(x${i}, ''), 0, 0, 0, 0, 0, SUM(rev), SUM(cnt) FROM ps GROUP BY d, 3`,
-  );
+  // D1 caps compound SELECTs at a handful of terms, so dimensions fan out with a cross join
+  // against a constant list instead of one UNION ALL branch each.
+  const dimList = `'${JSON.stringify(ROLLUP_DIMENSIONS.map((d) => d.dimension))}'`;
+  const pickValue = `COALESCE(CASE dl.i ${ROLLUP_DIMENSIONS.map((_, i) => `WHEN ${i} THEN x${i}`).join(" ")} END, '')`;
   const dims = db
     .prepare(
       `WITH ss AS MATERIALIZED (
@@ -168,7 +162,13 @@ export function rollupStatements(
          WHERE p.site_id = ?1 AND p.occurred_at >= ?2 AND p.occurred_at < ?3)
        INSERT INTO daily_dimensions (site_id, day, dimension, value, ${dimCols.join(", ")})
        SELECT ?1, d, dimension, value, ${dimCols.map((c) => `SUM(${c})`).join(", ")} FROM (
-         ${[...trafficBranches, ...revenueBranches].join("\n UNION ALL ")})
+         SELECT ss.d AS d, dl.dim AS dimension, ${pickValue} AS value, COUNT(DISTINCT vid) AS visitors,
+           COUNT(*) AS sessions, SUM(pv) AS pageviews, SUM(b) AS bounces, SUM(dur) AS duration_sum,
+           0 AS revenue_minor, 0 AS payments
+         FROM ss CROSS JOIN (SELECT key AS i, value AS dim FROM json_each(${dimList})) dl GROUP BY 1, 2, 3
+         UNION ALL
+         SELECT ps.d, dl.dim, ${pickValue}, 0, 0, 0, 0, 0, SUM(rev), SUM(cnt)
+         FROM ps CROSS JOIN (SELECT key AS i, value AS dim FROM json_each(${dimList})) dl GROUP BY 1, 2, 3)
        WHERE 1 GROUP BY d, dimension, value
        ON CONFLICT (site_id, day, dimension, value) DO UPDATE SET
          ${dimCols.map((c) => `${c} = excluded.${c}`).join(", ")}

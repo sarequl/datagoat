@@ -151,9 +151,13 @@ ingestApiRoutes.delete("/api/v1/goals", requireSiteAccess("goals:write"), async 
   }
   const db = c.env.DB;
   const condition = where.join(" AND ");
+  // Pin the partial indexes: by visitor, or by type and time (never the pageview time index).
+  const source = visitorId
+    ? "events INDEXED BY events_visitor_activity"
+    : "events INDEXED BY events_activity";
   // Rollups of closed days that held these goals are rebuilt by the rollup job.
   const first = await db
-    .prepare(`SELECT MIN(ts) AS t FROM events WHERE ${condition}`)
+    .prepare(`SELECT MIN(ts) AS t FROM ${source} WHERE ${condition}`)
     .bind(...params)
     .first<number | null>("t");
   let deleted = 0;
@@ -161,7 +165,7 @@ ingestApiRoutes.delete("/api/v1/goals", requireSiteAccess("goals:write"), async 
   for (; rounds < DELETE_ROUNDS; rounds++) {
     const res = await db
       .prepare(
-        `DELETE FROM events WHERE id IN (SELECT id FROM events WHERE ${condition} LIMIT ${DELETE_CHUNK})`,
+        `DELETE FROM events WHERE id IN (SELECT id FROM ${source} WHERE ${condition} LIMIT ${DELETE_CHUNK})`,
       )
       .bind(...params)
       .run();

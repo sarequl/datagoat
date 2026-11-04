@@ -8,7 +8,7 @@
  */
 import { type DerivedMetrics, deriveMetrics, type RawTotals } from "../lib/metrics";
 import { prepare, raw, type SqlFragment, sql } from "../lib/sql";
-import { type QueryContext, rangeOn, sessionScope } from "./context";
+import { type QueryContext, rangeOn, sessionScope, sessionsFrom } from "./context";
 import { paymentAggregates, paymentScope, type RevenueTotals, revenueFromRow } from "./revenue";
 import { chooseSource, rawRemainder } from "./strategy";
 
@@ -18,11 +18,14 @@ export type TrafficTotals = Omit<RawTotals, "revenueMinor" | "payments" | "payin
 };
 
 /** Per-visitor grouping of filtered sessions; columns v, n, pv, b, d, fn. */
-export function visitorGroupSql(scope: SqlFragment): SqlFragment {
+export function visitorGroupSql(
+  scope: SqlFragment,
+  from: SqlFragment = raw("sessions s"),
+): SqlFragment {
   return sql`SELECT s.visitor_id AS v, COUNT(*) AS n, SUM(s.pageviews) AS pv,
       SUM(CASE WHEN s.pageviews + s.interactions <= 1 THEN 1 ELSE 0 END) AS b,
       SUM(s.last_seen_at - s.started_at) AS d, MIN(s.session_number) AS fn
-    FROM sessions s WHERE ${scope} GROUP BY s.visitor_id`;
+    FROM ${from} WHERE ${scope} GROUP BY s.visitor_id`;
 }
 
 /** Aggregates over a visitor grouping (see visitorGroupSql). */
@@ -93,7 +96,7 @@ export async function computeTotals(qc: QueryContext): Promise<Totals> {
     const [traffic, revenue] = await qc.db.batch([
       prepare(
         qc.db,
-        sql`SELECT ${raw(VISITOR_TOTALS_SELECT)} FROM (${visitorGroupSql(sessionScope(qc))})`,
+        sql`SELECT ${raw(VISITOR_TOTALS_SELECT)} FROM (${visitorGroupSql(sessionScope(qc), sessionsFrom(qc.range))})`,
       ),
       revenueStmt,
     ]);
@@ -119,7 +122,10 @@ export async function computeTotals(qc: QueryContext): Promise<Totals> {
   if (remainder) {
     const scope = sql`s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", remainder)}`;
     stmts.push(
-      prepare(qc.db, sql`SELECT ${raw(VISITOR_TOTALS_SELECT)} FROM (${visitorGroupSql(scope)})`),
+      prepare(
+        qc.db,
+        sql`SELECT ${raw(VISITOR_TOTALS_SELECT)} FROM (${visitorGroupSql(scope, raw("sessions s INDEXED BY sessions_time"))})`,
+      ),
     );
   }
   const [revenue, rolled, rawPart] = await qc.db.batch(stmts);

@@ -19,7 +19,7 @@ import { escapeLike, join, list, prepare, raw, type SqlFragment, sql } from "../
 import { localDate } from "../lib/time";
 import { normaliseGoalName } from "../lib/validate";
 import { REFERRER_EXPR } from "./breakdowns";
-import { ACTIVITY, type QueryContext, rangeOn, sessionScope } from "./context";
+import { ACTIVITY, type QueryContext, rangeOn, sessionScope, sessionsFrom } from "./context";
 import { PAYMENT_GOALS } from "./event-breakdowns";
 import { rowToModel, scoreVisitor } from "./prediction";
 import { payingKindsSql } from "./revenue";
@@ -179,7 +179,7 @@ export async function listVisitors(
   }
   const extraSql = extra.length ? sql` AND ${join(extra)}` : raw("");
   const goalSeen = params.completedGoals
-    ? sql`(SELECT MAX(e.ts) FROM events e WHERE e.site_id = ${site.id} AND e.${raw(ACTIVITY)}
+    ? sql`(SELECT MAX(e.ts) FROM events e INDEXED BY events_visitor_activity WHERE e.site_id = ${site.id} AND e.${raw(ACTIVITY)}
         AND e.visitor_id = g.v AND e.type = 'custom' AND e.name IN ${list(params.completedGoals)}
         AND ${rangeOn("e.ts", qc.range)})`
     : raw("g.last_seen");
@@ -188,14 +188,14 @@ export async function listVisitors(
   const grouped = sql`SELECT s.visitor_id AS v, MAX(s.last_seen_at) AS last_seen, s.session_number,
       s.hostname, s.exit_path, s.entry_path, s.country, s.region, s.city, s.browser, s.os, s.device,
       s.source, s.referrer_domain, ${raw(REFERRER_EXPR)} AS referrer_label, ${raw(acquisition)}
-    FROM sessions s WHERE ${scope}${extraSql}
+    FROM ${sessionsFrom(qc.range)} WHERE ${scope}${extraSql}
     GROUP BY s.visitor_id`;
   const res = await prepare(
     qc.db,
     sql`WITH g AS MATERIALIZED (${grouped})
       SELECT g.*, ${goalSeen} AS seen, COUNT(*) OVER () AS total_rows,
         vis.client_first_seen_at, vis.first_seen_at, vis.user_id, vis.name AS profile_name,
-        (SELECT COALESCE(SUM(p.reporting_minor), 0) FROM payments p WHERE p.site_id = ${site.id}
+        (SELECT COALESCE(SUM(p.reporting_minor), 0) FROM payments p INDEXED BY payments_visitor WHERE p.site_id = ${site.id}
           AND p.visitor_id = g.v AND p.kind IN ('payment', 'renewal', 'refund')) AS revenue_minor
       FROM g LEFT JOIN visitors vis ON vis.site_id = ${site.id} AND vis.id = g.v
       ORDER BY seen DESC, g.v LIMIT ${page.limit} OFFSET ${page.offset}`,
@@ -281,12 +281,12 @@ export async function visitorProfile(qc: QueryContext, visitorId: string) {
     db.prepare("SELECT * FROM visitors WHERE site_id = ? AND id = ?").bind(site.id, visitorId),
     db
       .prepare(
-        "SELECT id, provider, kind, reporting_minor, reporting_currency, occurred_at FROM payments WHERE site_id = ? AND visitor_id = ? ORDER BY occurred_at DESC LIMIT 500",
+        "SELECT id, provider, kind, reporting_minor, reporting_currency, occurred_at FROM payments INDEXED BY payments_visitor WHERE site_id = ? AND visitor_id = ? ORDER BY occurred_at DESC LIMIT 500",
       )
       .bind(site.id, visitorId),
     db
       .prepare(
-        `SELECT type, name, ts, path, hostname FROM events
+        `SELECT type, name, ts, path, hostname FROM events INDEXED BY events_visitor_activity
          WHERE site_id = ? AND visitor_id = ? AND ${ACTIVITY} ORDER BY ts DESC LIMIT 1000`,
       )
       .bind(site.id, visitorId),

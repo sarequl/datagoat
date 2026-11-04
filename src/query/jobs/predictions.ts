@@ -45,12 +45,8 @@ export function trainingStatements(db: D1Database, site: SiteRow, now: number) {
     )
     .bind(site.id);
   const cols = PREDICTION_DIMENSIONS.map((d) => `${DIMENSION_SQL[d]} AS ${d}`).join(", ");
-  const branches = PREDICTION_DIMENSIONS.map(
-    (d) =>
-      `SELECT * FROM (SELECT '${d}' AS dim, ${d} AS value, COUNT(*) AS n, SUM(conv) AS c, COALESCE(SUM(rev), 0) AS r
-        FROM j WHERE ${d} IS NOT NULL GROUP BY ${d} HAVING COUNT(*) >= ${MIN_SAMPLE}
-        ORDER BY n DESC LIMIT ${MAX_VALUES_PER_DIMENSION})`,
-  );
+  const dimList = `'${JSON.stringify(PREDICTION_DIMENSIONS)}'`;
+  const pick = `CASE dl.i ${PREDICTION_DIMENSIONS.map((d, i) => `WHEN ${i} THEN ${d}`).join(" ")} END`;
   const training = db
     .prepare(
       `WITH v AS MATERIALIZED (
@@ -63,7 +59,14 @@ export function trainingStatements(db: D1Database, site: SiteRow, now: number) {
          SELECT v.*, pv.rev AS rev, CASE WHEN pv.vid IS NULL THEN 0 ELSE 1 END AS conv
          FROM v LEFT JOIN pv ON pv.vid = v.vid)
        SELECT '' AS dim, '' AS value, COUNT(*) AS n, COALESCE(SUM(conv), 0) AS c, COALESCE(SUM(rev), 0) AS r FROM j
-       UNION ALL ${branches.join(" UNION ALL ")}`,
+       UNION ALL
+       SELECT dim, value, n, c, r FROM (
+         SELECT dim, value, n, c, r, ROW_NUMBER() OVER (PARTITION BY dim ORDER BY n DESC, value) AS rn FROM (
+           SELECT dl.dim AS dim, ${pick} AS value, COUNT(*) AS n, SUM(conv) AS c, COALESCE(SUM(rev), 0) AS r
+           FROM j CROSS JOIN (SELECT key AS i, value AS dim FROM json_each(${dimList})) dl
+           GROUP BY 1, 2)
+         WHERE value IS NOT NULL AND n >= ${MIN_SAMPLE})
+       WHERE rn <= ${MAX_VALUES_PER_DIMENSION}`,
     )
     .bind(site.id, now - TRAINING_WINDOW_DAYS * DAY_MS);
   return { counts, training };

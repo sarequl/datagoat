@@ -16,7 +16,14 @@ import { newId } from "../lib/ids";
 import { toMajor } from "../lib/money";
 import { escapeLike, join, list, prepare, raw, SqlFragment, sql } from "../lib/sql";
 import { zGoalName } from "../lib/validate";
-import { ACTIVITY, hasFilters, type QueryContext, rangeOn, sessionScope } from "./context";
+import {
+  ACTIVITY,
+  hasFilters,
+  type QueryContext,
+  rangeOn,
+  sessionScope,
+  sessionsFrom,
+} from "./context";
 import { payByVisitorSql } from "./event-breakdowns";
 
 export const URL_MATCH_TYPES = [
@@ -157,7 +164,7 @@ export async function computeFunnel(
 ): Promise<FunnelStepResult[]> {
   if (steps.length === 0) return [];
   const visitorFilter = hasFilters(qc)
-    ? sql`AND e.visitor_id IN (SELECT s.visitor_id FROM sessions s WHERE ${sessionScope(qc)})`
+    ? sql`AND e.visitor_id IN (SELECT s.visitor_id FROM ${sessionsFrom(qc.range)} WHERE ${sessionScope(qc)})`
     : raw("");
   const goalNames = [
     ...new Set(steps.filter((s) => s.type === "goal").map((s) => s.goalName ?? "")),
@@ -205,19 +212,20 @@ export async function computeFunnel(
     );
   });
   ctes.push(sql`pay AS MATERIALIZED (${payByVisitorSql(qc)})`);
-  const selects = steps.map(
-    (_, i) =>
-      sql`SELECT ${raw(String(i))} AS i, COUNT(*) AS n, COALESCE(SUM(pay.rev), 0) AS rev
-        FROM ${raw(`f${i}`)} f LEFT JOIN pay ON pay.v = f.v`,
-  );
-  // join() wraps parts in parentheses; CTE lists and compound selects must not be wrapped.
-  const unwrapped = sql`WITH ${listOf(ctes, ", ")} ${listOf(selects, " UNION ALL ")} ORDER BY 1`;
-  const res = await prepare(qc.db, unwrapped).all<{ i: number; n: number; rev: number }>();
-  const byIndex = new Map((res.results ?? []).map((r) => [Number(r.i), r]));
+  // One row of scalar subqueries (D1 caps compound SELECTs, so no UNION ALL per step).
+  const columns = steps
+    .map(
+      (_, i) =>
+        `(SELECT COUNT(*) FROM f${i}) AS n${i}, (SELECT COALESCE(SUM(pay.rev), 0) FROM f${i} f LEFT JOIN pay ON pay.v = f.v) AS r${i}`,
+    )
+    .join(", ");
+  // join() wraps parts in parentheses; a CTE list must not be wrapped.
+  const statement = sql`WITH ${listOf(ctes, ", ")} SELECT ${raw(columns)}`;
+  const row = (await prepare(qc.db, statement).first<Record<string, number>>()) ?? {};
   return steps.map((step, i) => ({
     step,
-    visitors: Number(byIndex.get(i)?.n ?? 0),
-    revenueMinor: Number(byIndex.get(i)?.rev ?? 0),
+    visitors: Number(row[`n${i}`] ?? 0),
+    revenueMinor: Number(row[`r${i}`] ?? 0),
   }));
 }
 

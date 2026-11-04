@@ -105,6 +105,16 @@ export function filterSql(qc: QueryContext, sessionAlias = "s"): SqlFragment {
   });
 }
 
+/**
+ * `sessions <alias>` for a range scan. With a range the scan is pinned to `sessions_time`: without
+ * ANALYZE statistics SQLite may otherwise walk the site's whole primary key when filters are
+ * present, reading every session ever recorded instead of the range.
+ */
+export function sessionsFrom(range: { startMs: number } | null, sessionAlias = "s"): SqlFragment {
+  const s = alias(sessionAlias);
+  return raw(range ? `sessions ${s} INDEXED BY sessions_time` : `sessions ${s}`);
+}
+
 /** Sessions of the site started in the range that match the filters. */
 export function sessionScope(qc: QueryContext, sessionAlias = "s"): SqlFragment {
   const s = alias(sessionAlias);

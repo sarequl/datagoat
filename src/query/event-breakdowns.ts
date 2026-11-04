@@ -10,7 +10,15 @@ import { compileFilters } from "../lib/filters";
 import { prepare, raw, type SqlFragment, sql } from "../lib/sql";
 import { bucketKeySql } from "../lib/time";
 import type { Page } from "./breakdowns";
-import { ACTIVITY, eventScope, filterSql, hasFilters, type QueryContext, rangeOn } from "./context";
+import {
+  ACTIVITY,
+  eventScope,
+  filterSql,
+  hasFilters,
+  type QueryContext,
+  rangeOn,
+  sessionsFrom,
+} from "./context";
 import { payingKindsSql, paymentScope, revenueKindsSql } from "./revenue";
 import { chooseSource, rawRemainder } from "./strategy";
 
@@ -219,7 +227,7 @@ export async function goalsBreakdown(
       stmts.push(
         prepare(
           qc.db,
-          sql`SELECT COUNT(DISTINCT s.visitor_id) AS n FROM sessions s WHERE ${filterSql(qc, "s")}
+          sql`SELECT COUNT(DISTINCT s.visitor_id) AS n FROM ${sessionsFrom(qc.range)} WHERE ${filterSql(qc, "s")}
             AND s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", qc.range)}`,
         ),
       );
@@ -254,7 +262,7 @@ export async function goalsBreakdown(
       remainder.endMs,
     );
     visitorsUnion = sql`SELECT (${visitorsUnion}) + (SELECT COALESCE(SUM(n), 0) FROM (
-        SELECT COUNT(DISTINCT s.visitor_id) AS n FROM sessions s
+        SELECT COUNT(DISTINCT s.visitor_id) AS n FROM sessions s INDEXED BY sessions_time
         WHERE s.site_id = ${qc.site.id} AND ${rangeOn("s.started_at", remainder)}
         GROUP BY ${raw(sday.sql)})) AS n`;
   }
