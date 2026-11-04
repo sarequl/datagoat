@@ -560,6 +560,30 @@ describe("account emails", () => {
 });
 
 describe("growth cron jobs through the scheduler (write budget)", () => {
+  it("spike and digest jobs write only their notifications", async () => {
+    const owner = await createUser();
+    const site = await createSite(owner.id);
+    await insertAlert(site.id, {
+      trigger_type: "traffic_spike",
+      trigger: JSON.stringify({ multiplier: 4, minSessions: 5 }),
+      channel: "webhook",
+      destination: JSON.stringify({ url: "https://h.example.com/s" }),
+    });
+    await insertAlert(site.id, {
+      trigger_type: "daily_digest",
+      channel: "webhook",
+      destination: JSON.stringify({ url: "https://h.example.com/d" }),
+    });
+    const quiet = meterEnv();
+    await evaluateTrafficSpikes(jobCtx({ now: Date.UTC(2026, 10, 3, 11, 3), db: quiet.db }));
+    expect(quiet.d1.rowsWritten).toBe(0);
+    const digest = meterEnv();
+    await runDigests(jobCtx({ now: Date.UTC(2026, 10, 3, 8), db: digest.db }));
+    // One outbox row: the row itself + its dedupe_key index + the pending partial index.
+    expect(digest.d1.rowsWritten).toBe(3);
+    expect(digest.d1.queries).toBeLessThanOrEqual(6);
+  });
+
   it("an idle install costs no writes beyond the scheduler's own bookkeeping", async () => {
     const owner = await createUser();
     await createSite(owner.id);
