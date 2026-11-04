@@ -330,6 +330,11 @@ export interface TimeseriesPoint {
   revenue?: number;
   payments?: number;
   conversion_rate?: number;
+  /** DataGoat extensions (`fields=bounce_rate,avg_session_duration,goals`). */
+  bounce_rate?: number;
+  avg_session_duration?: number;
+  /** Completions per goal name in the bucket (`fields=goals`). */
+  goals?: Record<string, number>;
 }
 
 export interface RevenueBreakdown {
@@ -502,6 +507,34 @@ export interface RealtimeMap {
     isNew: boolean;
     visible: boolean;
   }>;
+}
+
+/**
+ * DataGoat extension: `GET /api/v1/analytics/realtime/replay` — the last 8 hours of globe
+ * activity in 15-minute frames (DataFast's globe replay).
+ */
+export interface RealtimeReplayFrame {
+  /** Frame start (ISO). */
+  at: string;
+  visitors: Array<{
+    visitorId: string;
+    latitude: number | null;
+    longitude: number | null;
+    countryCode: string | null;
+    city: string | null;
+    isCustomer: boolean;
+    conversionScore: number | null;
+  }>;
+  pageviews: number;
+  goals: number;
+  payments: number;
+}
+
+export interface RealtimeReplay {
+  stepMinutes: number;
+  startAt: string;
+  endAt: string;
+  frames: RealtimeReplayFrame[];
 }
 
 export type FunnelUrlMatchType =
@@ -806,6 +839,15 @@ export interface RevenueSummary {
     revenue: number;
     averageValue: number;
   }>;
+  /** DataGoat extension: how customers got to their first payment in the range. */
+  pathToPurchase?: {
+    customers: number;
+    averageDaysToPurchase: number;
+    averageSessionsToPurchase: number;
+    averagePageviewsToPurchase: number;
+    /** Most common channel sequences across the customer's sessions before paying. */
+    topPaths: Array<{ channels: string[]; customers: number; revenue: number }>;
+  };
 }
 
 // ---------------------------------------------------------------------------
