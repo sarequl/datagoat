@@ -29,6 +29,13 @@ written and 5,000,000 read per day.
 | First pageview of a session     | `INSERT events` + `INSERT sessions` (row + `sessions_time` + `sessions_visitor`)     | 2 + 3 = **5** |
 | First pageview of a new visitor | the above + `INSERT OR IGNORE visitors`                                              | 5 + 1 = **6** |
 
+A goal, outbound click, identify or payment-goal event writes 4 event rows instead of 2: the row,
+`events_time` and W2's two partial indexes `events_activity (site_id, type, ts)` and
+`events_visitor_activity (site_id, visitor_id)`, both `WHERE type <> 'pageview'` (migration 0200),
+so pageviews are unaffected. They let goal, exit-click, funnel and realtime-event queries read only
+non-pageview events, and visitor profiles / server-side goal deletion find a visitor's events without
+scanning the site. Queries must repeat the predicate (`type <> 'pageview'`) for SQLite to use them.
+
 `INSERT OR IGNORE` on an existing visitor writes 0 rows. Measured in workerd by
 `test/worker/schema-write-budget.test.ts`, which also pins the index list of the hot tables.
 
@@ -65,7 +72,7 @@ written and 5,000,000 read per day.
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `visitors`         | One row per visitor, written once plus on identify/payment email: first seen (server and cookie), first session, identify profile (`user_id`, `name`, `image`, `profile` JSON, `identified_at`), `email` (when allowed) and `email_hash`                                                                                                                                                                 | `(site_id, id)`; partial indexes `(site_id, user_id)`, `(site_id, email_hash)`        |
 | `sessions`         | One row per session; dimensions from the first pageview, never overwritten: entry/exit path, hostname, pageviews, interactions, referrer + domain, `channel`, `source` (display name), UTM fields, `ref`, `source_param`, `via`, ad click ids, geo (country, region, city, lat, lon), device/browser/OS (+ versions, vendor, model), language, timezone, screen/viewport, `session_number`, `cookieless` | `(site_id, id)`; indexes `(site_id, started_at)`, `(site_id, visitor_id, started_at)` |
-| `events`           | Every pageview, goal (`custom`), identify, payment and outbound click (`external_link`); `path` includes `#hash` for the hash build; `name` = goal name; `props` JSON                                                                                                                                                                                                                                    | rowid; index `(site_id, ts)`                                                          |
+| `events`           | Every pageview, goal (`custom`), identify, payment and outbound click (`external_link`); `path` includes `#hash` for the hash build; `name` = goal name; `props` JSON                                                                                                                                    | rowid; index `(site_id, ts)`; partial (non-pageview, W2) `(site_id, type, ts)` and `(site_id, visitor_id)` |
 | `cookieless_salts` | Daily random salts for HMAC(site, IP, UA); today and yesterday only                                                                                                                                                                                                                                                                                                                                      | `day` (UTC)                                                                           |
 | `bot_daily`        | Count of ingest hits dropped as bots, by reason                                                                                                                                                                                                                                                                                                                                                          | `(site_id, day, reason)`                                                              |
 
@@ -92,25 +99,32 @@ goals) for attributed payments, so goal filters and journeys include them.
 | `goal_customizations` | Display name, colour, description, hidden                | `(site_id, name)`                                                           |
 | `segments`            | Saved filter sets (`{"filter_country": "is:US"}`)        | `id`; index `site_id`                                                       |
 | `notes`               | Manual chart notes with author and idempotency key       | `id`; index `(site_id, ts)`; unique `(site_id, author_id, idempotency_key)` |
-| `prediction_models`   | Per-site conversion-likelihood model, rebuilt daily      | `site_id`                                                                   |
+| `prediction_models`   | Per-site purchase-likelihood model (JSON: baseline and per-dimension `[visitors, conversions, revenue]` for channel, referrer, country, device, browser, os), trained daily by `query.predictions` when the site has 1,000+ visitors and 10+ attributed payments; written only when it changed | `site_id`                                                                   |
+| `rollup_state`        | Rollup watermark per site (0200): `timezone` the rollups were computed in, `first_day`, `through_day` (last rolled closed day) | `site_id`                                                                   |
 
 ### Rollups (W2)
 
-Recomputed by cron with `INSERT … SELECT … ON CONFLICT DO UPDATE … WHERE <changed>` for **closed**
-days (ranges ending today read raw tables for today), so idle sites write nothing.
+Written by the hourly `query.rollups` job (src/query/jobs/rollups.ts) with
+`INSERT … SELECT … ON CONFLICT DO UPDATE … WHERE <changed>` for **closed** days in the site timezone,
+from the day before the watermark to yesterday (14 days per run while backfilling), so idle sites and
+unchanged days write nothing. Queries read them only for days up to `rollup_state.through_day` and
+only while its timezone equals the site's; later days come from raw tables. On a timezone change the
+job deletes the site's rollups in bounded chunks and rebuilds them. `DELETE /api/v1/goals` removes
+affected `daily_goals` rows and moves the watermark back so the days are rebuilt. Revenue columns are
+a snapshot at rollup time; analytics revenue is always read from `payments`.
 
 | Table              | Grain                                                                                                                                                                                                                        |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `daily_stats`      | site, day: visitors, new/returning, sessions, pageviews, bounces, duration, revenue (total/new/renewal/refunds), payments, paying visitors                                                                                   |
+| `daily_stats`      | site, day: visitors, new/returning, sessions, pageviews, bounces, duration, `events` (0200: events stored, for the usage page), revenue (total/new/renewal/refunds), payments, paying visitors |
 | `daily_pages`      | site, day, hostname, path: pageviews, daily unique visitors, entries, exits                                                                                                                                                  |
-| `daily_dimensions` | site, day, dimension, value: visitors, sessions, pageviews, bounces, duration, revenue, payments (dimension in channel, referrer, country, region, city, device, browser, os, hostname, entry_page, utm_*, ref, source, via) |
+| `daily_dimensions` | site, day, dimension, value: visitors, sessions, pageviews, bounces, duration, revenue, payments (dimension in referrer, channel, country, region, city, device, browser (Mobile Safari merged), os, hostname; `''` = unknown; entry/exit pages use `daily_pages`, campaigns read raw sessions) |
 | `daily_goals`      | site, day, goal: completions, visitors                                                                                                                                                                                       |
 
 ### Alerts and delivery (W6)
 
 | Table           | Purpose                                                                                         | Key / indexes                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `alerts`        | Goal / new-sale / traffic-spike / digest alerts; email or Telegram (secret encrypted); counters | `id`; index `site_id`                                                  |
+| `alerts`        | Goal / new-sale / traffic-spike / digest alerts; email or Telegram (bot token in `secret_enc`, AAD `alert:<site_id>:<alert_id>`); counters. Rules are written by W2's CRUD API, counters by W6 | `id`; index `site_id`                                                  |
 | `alert_history` | Delivery log                                                                                    | rowid; index `(site_id, triggered_at)`                                 |
 | `outbox`        | Outbound deliveries with retries (email, Telegram); any team may enqueue, W6 delivers           | rowid; unique `dedupe_key`; partial index pending by `next_attempt_at` |
 
@@ -138,8 +152,9 @@ days (ranges ending today read raw tables for today), so idle sites write nothin
 
 ## Retention and deletion
 
-- `events` older than `sites.retention_days` are pruned by W2's retention job; sessions, visitors and
-  payments are kept so attribution survives pruning.
+- `events` older than `sites.retention_days` are pruned by W2's hourly `query.retention` job (at most
+  `RETENTION_ROWS_PER_RUN`, default 2000, per run, and only for days already rolled up); sessions,
+  visitors and payments are kept so attribution survives pruning, and rollups keep the history.
 - Deleting a website (dashboard only) sets `sites.deleted_at`, revokes its keys and invites; the
   `sites.purge` job (hourly) deletes its rows from every site-scoped table, at most
   `PURGE_ROWS_PER_RUN` (default 1000) rows per run because deletes cost writes, then deletes the site.

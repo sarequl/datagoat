@@ -16,3 +16,4 @@ All notable changes to DataGoat are recorded here. The format follows
 - The Worker bundles its D1 migrations and applies pending ones on first use, so setup works even when the deploy command skipped `wrangler d1 migrations apply`; schema failures answer 503 with the reason.
 - `npm run smoke -- --url <deployment>` checks a deployed instance end to end over HTTP.
 - Test harness (workerd + local D1, write-budget meter, factories), Playwright e2e and CI.
+- Analytics API (W2): every DataFast analytics, visitors, server-side goal/identify and website admin endpoint (funnels, goal customizations, notes, alerts, tracked goals) with `filter_*`, attribution-aware revenue, previous-period compare, pageview heatmap, minute buckets and globe replay; segments, share links with a public read-only API, usage; daily rollups, retention pruning and purchase-likelihood prediction jobs that write only changed rows; Cache API for closed ranges. See docs/api/analytics.md.

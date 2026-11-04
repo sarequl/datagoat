@@ -28,3 +28,8 @@ Behaviour:
 
 Foundation jobs: `auth.cleanup` (daily) and `sites.purge` (hourly, bounded deletes of soft-deleted
 websites).
+
+W2 jobs (src/query/jobs): `query.rollups` (hourly at :07, closed days into the daily rollup tables,
+changed rows only), `query.retention` (hourly at :23, bounded pruning of events past
+`retention_days`, only for rolled-up days) and `query.predictions` (daily at 04:43, purchase-likelihood
+models, written only when they change).
