@@ -93,7 +93,8 @@ Wrangler applies migrations in filename order, so ranges also fix the order acro
 | `npm test`               | Worker tests in workerd with a migrated local D1 (`vitest.config.ts`)      |
 | `npm run test:tracker`   | Tracker unit tests (happy-dom)                                             |
 | `npm run test:dashboard` | Dashboard tests (happy-dom, Testing Library, MSW)                          |
-| `npm run build`          | Dashboard + tracker into `public/`                                         |
+| `npm run test:cli`       | CLI tests (Node, mock HTTP server, built-package smoke test)               |
+| `npm run build`          | Dashboard + tracker into `public/` (`npm run build:cli` bundles the CLI)   |
 | `npm run size`           | Tracker and dashboard initial-JS gzip budgets (`tracker/size-budget.json`) |
 | `npm run e2e` | Playwright: mock dashboard + real Worker on `wrangler dev` started from an empty, unmigrated D1 (setup, sign-out, sign-in through the UI, then `npm run smoke` against it) |
 | `npm run smoke -- --url <deployment>` | HTTP smoke test of any deployed instance ([deploy.md](deploy.md)) |
