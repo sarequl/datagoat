@@ -743,7 +743,21 @@ export interface IntegrationsStatus {
     lastSyncedAt: string | null;
     lastError: string | null;
     backfillComplete: boolean;
+    /** Where to point the provider's webhook (DataGoat). */
+    webhookUrl?: string;
+    /** A signing secret is stored, so webhooks are accepted. */
+    webhookConfigured?: boolean;
+    /** DataGoat created the webhook through the provider API on connect. */
+    webhookAutoCreated?: boolean;
   }>;
+}
+
+/** POST …/integrations/<provider> response row (DataFast `{message, currency}` + DataGoat fields). */
+export interface IntegrationConnectResult {
+  message: string;
+  currency?: string;
+  webhookUrl: string;
+  webhookConfigured: boolean;
 }
 
 export interface CreatePaymentRequest {
@@ -806,6 +820,43 @@ export interface RevenueSummary {
     revenue: number;
     averageValue: number;
   }>;
+}
+
+/** GET /api/v1/analytics/revenue/sources row (`value` is "Unattributed" for the unattributed bucket). */
+export interface RevenueSourceRow {
+  value: string;
+  revenue: number;
+  newRevenue: number;
+  renewalRevenue: number;
+  refunds: number;
+  payments: number;
+  customers: number;
+  /** Share of total revenue in the range, 0-100. */
+  share: number;
+}
+
+/** GET /api/v1/analytics/revenue/path-to-purchase */
+export interface PathToPurchase {
+  currency: string;
+  model: "first_touch" | "last_touch" | "last_non_direct";
+  /** Visitors whose first purchase falls in the range. */
+  customers: number;
+  averageDaysToPurchase: number;
+  medianDaysToPurchase: number;
+  averageSessionsToPurchase: number;
+  medianSessionsToPurchase: number;
+  averagePageviewsToPurchase: number;
+  timeToPurchase: Array<{
+    bucket: "same_day" | "1_7_days" | "8_30_days" | "31_90_days" | "over_90_days";
+    customers: number;
+    percentage: number;
+  }>;
+  sessionsToPurchase: Array<{
+    sessions: "1" | "2" | "3" | "4" | "5+";
+    customers: number;
+    percentage: number;
+  }>;
+  paths: Array<{ firstChannel: string; lastChannel: string; customers: number; revenue: number }>;
 }
 
 // ---------------------------------------------------------------------------

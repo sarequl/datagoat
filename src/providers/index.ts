@@ -6,39 +6,29 @@
  * Webhook paths are explicit per provider (no `/webhooks/:provider` catch-all) because W6 owns
  * `/webhooks/github/:siteId`. Integration paths are explicit for the same reason (W6 owns
  * `/integrations/github|google-search-console|meta-ads|x`).
+ *
+ * Module map: types.ts (adapter interface), engine.ts (attribution + storage), lifecycle.ts
+ * (subscription goals), fx.ts (ECB rates), connections.ts (encrypted credentials), adapters/*,
+ * payments-api.ts, integrations-api.ts, webhooks.ts, revenue-api.ts, jobs.ts, hints.ts (W1 hooks).
  */
 import { Hono } from "hono";
 import type { JobDefinition } from "../jobs/registry";
-import { type Method, stubRoutes } from "../lib/stub";
 import type { AppEnv } from "../types";
+import { integrationRoutes } from "./integrations-api";
+import { providerJobDefinitions } from "./jobs";
+import { paymentsRoutes } from "./payments-api";
+import { revenueRoutes } from "./revenue-api";
+import { webhookRoutes } from "./webhooks";
 
 export const providerRoutes = new Hono<AppEnv>();
 
-const I = "/api/v1/admin/websites/:websiteId/integrations";
-const PROVIDERS = [
-  "stripe",
-  "polar",
-  "lemonsqueezy",
-  "paddle",
-  "dodo",
-  "creem",
-  "shopify",
-  "woocommerce",
-] as const;
+providerRoutes.route("/", paymentsRoutes);
+providerRoutes.route("/", revenueRoutes);
+providerRoutes.route("/", integrationRoutes);
+providerRoutes.route("/", webhookRoutes);
 
-stubRoutes(providerRoutes, "W3", [
-  ["POST", "/api/v1/payments"],
-  ["DELETE", "/api/v1/payments"],
-  ["GET", "/api/v1/payments"],
-  ["GET", "/api/v1/analytics/revenue"],
-  ["GET", I],
-  ...(["stripe", "polar", "lemonsqueezy", "paddle", "dodo", "creem"] as const).map(
-    (p) => ["POST", `${I}/${p}`] as readonly [Method, string],
-  ),
-  ...PROVIDERS.map((p) => ["DELETE", `${I}/${p}`] as readonly [Method, string]),
-  ...PROVIDERS.map((p) => ["PATCH", `${I}/${p}`] as readonly [Method, string]),
-  ...PROVIDERS.map((p) => ["POST", `/webhooks/${p}/:siteId`] as readonly [Method, string]),
-]);
+export const providerJobs: JobDefinition[] = [...providerJobDefinitions];
 
-/** e.g. provider sync ("providers.sync", every minute), "providers.resolve-hints", "providers.fx" (daily). */
-export const providerJobs: JobDefinition[] = [];
+export { saveConnection } from "./connections";
+export { attributeByEmail, hintFromExtraData, paymentHintStatement } from "./hints";
+export { processWebhook } from "./webhooks";

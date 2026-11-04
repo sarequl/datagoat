@@ -38,6 +38,19 @@ export const growthHandlers = [
   }),
   http.delete("/api/v1/payments", () => ok([{ message: "Payment deleted successfully" }])),
   http.get("/api/v1/analytics/revenue", () => ok(g.revenueSummary)),
+  http.get("/api/v1/analytics/revenue/sources", ({ request }) => {
+    const url = new URL(request.url);
+    return ok(
+      g.revenueSources,
+      {
+        currency: "USD",
+        groupBy: url.searchParams.get("groupBy") ?? "channel",
+        model: url.searchParams.get("model") ?? "first_touch",
+      },
+      { limit: 100, offset: 0, total: g.revenueSources.length, hasMore: false },
+    );
+  }),
+  http.get("/api/v1/analytics/revenue/path-to-purchase", () => ok(g.pathToPurchase)),
   http.get(`${W}/integrations`, () => ok([g.integrations])),
   http.post(`${W}/integrations/:provider`, ({ params }) =>
     ok([{ message: `${String(params.provider)} connected successfully`, currency: "USD" }]),

@@ -13,7 +13,9 @@ import type {
   IntegrationsStatus,
   Mention,
   OAuthConnection,
+  PathToPurchase,
   PaymentRow,
+  RevenueSourceRow,
   RevenueSummary,
   SearchConsoleRow,
   XLinkRow,
@@ -92,6 +94,69 @@ export const revenueSummary: RevenueSummary = {
   lifetimeValueByChannel: [
     { channel: "Organic Search", customers: 120, revenue: 11000, averageValue: 91.67 },
     { channel: "Direct", customers: 98, revenue: 8100, averageValue: 82.65 },
+  ],
+};
+
+export const revenueSources: RevenueSourceRow[] = [
+  {
+    value: "Organic Search",
+    revenue: 11000,
+    newRevenue: 8400,
+    renewalRevenue: 2900,
+    refunds: -300,
+    payments: 131,
+    customers: 120,
+    share: 38.66,
+  },
+  {
+    value: "Direct",
+    revenue: 8100,
+    newRevenue: 5900,
+    renewalRevenue: 2400,
+    refunds: -200,
+    payments: 101,
+    customers: 98,
+    share: 28.47,
+  },
+  {
+    value: "Unattributed",
+    revenue: 3350,
+    newRevenue: 2600,
+    renewalRevenue: 750,
+    refunds: 0,
+    payments: 40,
+    customers: 0,
+    share: 11.78,
+  },
+];
+
+export const pathToPurchase: PathToPurchase = {
+  currency: "USD",
+  model: "first_touch",
+  customers: 218,
+  averageDaysToPurchase: 6.4,
+  medianDaysToPurchase: 2,
+  averageSessionsToPurchase: 2.7,
+  medianSessionsToPurchase: 2,
+  averagePageviewsToPurchase: 7.9,
+  timeToPurchase: [
+    { bucket: "same_day", customers: 86, percentage: 39.45 },
+    { bucket: "1_7_days", customers: 71, percentage: 32.57 },
+    { bucket: "8_30_days", customers: 43, percentage: 19.72 },
+    { bucket: "31_90_days", customers: 15, percentage: 6.88 },
+    { bucket: "over_90_days", customers: 3, percentage: 1.38 },
+  ],
+  sessionsToPurchase: [
+    { sessions: "1", customers: 80, percentage: 36.7 },
+    { sessions: "2", customers: 62, percentage: 28.44 },
+    { sessions: "3", customers: 35, percentage: 16.06 },
+    { sessions: "4", customers: 18, percentage: 8.26 },
+    { sessions: "5+", customers: 23, percentage: 10.55 },
+  ],
+  paths: [
+    { firstChannel: "Organic Search", lastChannel: "Direct", customers: 64, revenue: 5800 },
+    { firstChannel: "Organic Search", lastChannel: "Organic Search", customers: 41, revenue: 3600 },
+    { firstChannel: "Referral", lastChannel: "Direct", customers: 22, revenue: 1900 },
   ],
 };
 
