@@ -1,0 +1,12 @@
+node_modules/
+dist/
+public/js/
+public/app/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+coverage/
+playwright-report/
+test-results/
+.claude/worktrees/
