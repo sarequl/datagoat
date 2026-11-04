@@ -102,10 +102,11 @@ describe("path and UA rules", () => {
     expect(pathMatches("/", "/")).toBe(true);
     expect(pathMatches("/x", "  ")).toBe(false);
   });
-  it("matches user agents by substring or glob", () => {
+  it("matches user agents by case-insensitive substring", () => {
     expect(userAgentMatches("Mozilla/5.0 MyMonitor/1", "mymonitor")).toBe(true);
-    expect(userAgentMatches("Mozilla/5.0 MyMonitor/1", "Mozilla*/1")).toBe(true);
-    expect(userAgentMatches("Mozilla/5.0 MyMonitor/1", "Mozilla*/2")).toBe(false);
+    expect(userAgentMatches("Mozilla/5.0 MyMonitor/1", " MYMONITOR/1 ")).toBe(true);
+    expect(userAgentMatches("Mozilla/5.0 MyMonitor/1", "Mozilla*/1")).toBe(false);
+    expect(userAgentMatches("Mozilla/5.0 MyMonitor/1", "   ")).toBe(false);
   });
 });
 

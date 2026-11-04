@@ -279,16 +279,15 @@ describe("exclusions", () => {
     );
   });
 
-  it("user agents: substrings and globs, case-insensitive", async () => {
+  it("user agents: case-insensitive substrings", async () => {
     const ua =
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) InternalQA/3.1 Chrome/130.0.0.0 Safari/537.36";
     await expectExcluded({ excluded_user_agents: JSON.stringify(["internalqa"]) }, { ua }, true);
     await resetIngest();
-    await expectExcluded(
-      { excluded_user_agents: JSON.stringify(["*Windows NT*Chrome/130*"]) },
-      { ua },
-      true,
-    );
+    await expectExcluded({ excluded_user_agents: JSON.stringify(["WIN64; X64"]) }, { ua }, true);
+    await resetIngest();
+    // No wildcard syntax: "*" is a literal character.
+    await expectExcluded({ excluded_user_agents: JSON.stringify(["*Windows NT*"]) }, { ua }, false);
     await resetIngest();
     await expectExcluded({ excluded_user_agents: JSON.stringify(["Firefox"]) }, { ua }, false);
   });

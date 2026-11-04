@@ -35,7 +35,7 @@ export interface Site {
   excludedPaths: string[];
   excludedCountries: string[];
   excludedHostnames: string[];
-  /** W1 (migration 0100): User-Agent substrings or `*` globs dropped at ingest. */
+  /** W1 (migration 0100): case-insensitive User-Agent substrings dropped at ingest. */
   excludedUserAgents: string[];
   kpi: string | null;
   kpiColorScheme: string | null;

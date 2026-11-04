@@ -173,8 +173,8 @@ const pathList = z
   });
 
 const userAgentList = z
-  .array(z.string().trim().min(1).max(200))
-  .max(100)
+  .array(z.string().trim().min(3).max(200))
+  .max(50)
   .transform((list) => [...new Set(list)]);
 
 const ipList = z

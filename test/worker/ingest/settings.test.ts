@@ -18,17 +18,23 @@ describe("excludedUserAgents setting", () => {
     const put = await api(`/api/v1/admin/websites/${site.id}`, {
       method: "PUT",
       cookie,
-      body: { excludedUserAgents: ["InternalQA", "InternalQA", "*Uptime*"] },
+      body: { excludedUserAgents: ["InternalQA", "InternalQA", "UptimeBot"] },
     });
     expect(put.status).toBe(200);
-    expect(put.body.data[0].excludedUserAgents).toEqual(["InternalQA", "*Uptime*"]);
+    expect(put.body.data[0].excludedUserAgents).toEqual(["InternalQA", "UptimeBot"]);
 
     const bad = await api(`/api/v1/admin/websites/${site.id}`, {
       method: "PUT",
       cookie,
-      body: { excludedUserAgents: [""] },
+      body: { excludedUserAgents: ["ab"] },
     });
-    expect(bad.status).toBe(400);
+    expect(bad.status).toBe(400); // at least 3 characters
+    const tooMany = await api(`/api/v1/admin/websites/${site.id}`, {
+      method: "PUT",
+      cookie,
+      body: { excludedUserAgents: Array.from({ length: 51 }, (_, i) => `agent-${i}`) },
+    });
+    expect(tooMany.status).toBe(400); // at most 50
 
     await postEvent(eventBody({ websiteId: site.publicId }), {
       ua: "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36 internalqa/2",

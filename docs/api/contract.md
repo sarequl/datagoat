@@ -190,11 +190,14 @@ allowedHostnames, isAllHostnamesAllowed, excludedIps, excludedPaths, excludedCou
 excludedHostnames, sendWeeklyReports, sendViralTrafficAlerts, isPublicDashboardEnabled,
 isPublicDataEnabled, createdAt`) plus DG `privacyMode (cookie|cookieless|consent), attributionModel,
 botLevel (off|standard|strict; strict = attack mode), honorGpc, storeCustomerEmails, retentionDays
-(30–36500|null), excludedUserAgents (≤100 case-insensitive substrings or `*` globs, W1), shareToken,
-updatedAt, role`. `isCookieless`/`isAttackModeEnabled` map onto
+(30–36500|null), shareToken, updatedAt, role`. `isCookieless`/`isAttackModeEnabled` map onto
 `privacyMode`/`botLevel` (the explicit DG field wins). `kpi: "revenue"` or `null` means revenue.
 `excludedCountries` accepts names or codes and stores ISO codes. `isPublicDashboardEnabled: true`
 mints a share token; `false` deletes it.
+
+**`excludedUserAgents` (DG, W1, migration 0100):** `string[]` on `Website` (always returned) and
+`WebsiteUpdate`: case-insensitive User-Agent substrings (3–200 chars, at most 50, duplicates
+removed) stored in `sites.excluded_user_agents`; ingest drops matching hits before storage.
 
 ## 4. Ingest (W1)
 

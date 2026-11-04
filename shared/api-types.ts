@@ -200,8 +200,6 @@ export interface Website {
   excludedPaths: string[];
   excludedCountries: string[];
   excludedHostnames: string[];
-  /** DG: User-Agent substrings or `*` globs (case-insensitive) dropped at ingest. */
-  excludedUserAgents: string[];
   sendWeeklyReports: boolean;
   sendViralTrafficAlerts: boolean;
   isPublicDashboardEnabled: boolean;
@@ -216,6 +214,11 @@ export interface Website {
   shareToken: string | null;
   updatedAt: string;
   role?: Role;
+  /**
+   * Proposed (W5 → F0/W1): substrings of User-Agent to drop at ingest. The dashboard shows the
+   * editor only when the server returns this field; see docs/api/contract.md §3.
+   */
+  excludedUserAgents?: string[];
 }
 
 export type WebsiteUpdate = Partial<

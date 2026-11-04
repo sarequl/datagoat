@@ -7,7 +7,7 @@
  *   page below it but not `/admin` itself; `*` matches any run of characters anywhere.
  * - Countries: ISO 3166-1 alpha-2 codes, matched against `request.cf.country`.
  * - Hostnames: exact hostnames only (`example.com` does not exclude `app.example.com`).
- * - User agents (DataGoat extension): case-insensitive substrings, or `*` globs over the whole UA.
+ * - User agents (DataGoat extension): case-insensitive substrings.
  */
 import type { Site } from "../lib/sites";
 
@@ -115,10 +115,8 @@ export function pathMatches(path: string, rule: string): boolean {
 }
 
 export function userAgentMatches(ua: string, rule: string): boolean {
-  const r = rule.trim();
-  if (!r) return false;
-  if (r.includes("*")) return globRegex(r, "i").test(ua);
-  return ua.toLowerCase().includes(r.toLowerCase());
+  const r = rule.trim().toLowerCase();
+  return r !== "" && ua.toLowerCase().includes(r);
 }
 
 export interface ExclusionInput {
