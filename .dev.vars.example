@@ -1,0 +1,12 @@
+# Secrets for DataGoat. The Deploy to Cloudflare flow prompts for each of these.
+# For local development copy this file to .dev.vars and replace every value.
+
+# One-time token for the first-run setup link: https://<your-worker>/setup?token=<SETUP_TOKEN>
+SETUP_TOKEN=replace-with-output-of-openssl-rand-hex-24 # openssl rand -hex 24
+
+# Signs dashboard session cookies. At least 32 characters.
+SESSION_SECRET=replace-with-output-of-openssl-rand-hex-32 # openssl rand -hex 32
+
+# Encrypts provider and integration credentials at rest (AES-GCM). At least 32 characters.
+# Never change it after connecting a provider.
+ENCRYPTION_KEY=replace-with-output-of-openssl-rand-hex-32 # openssl rand -hex 32

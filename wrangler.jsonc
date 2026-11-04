@@ -1,0 +1,83 @@
+// DataGoat Worker configuration.
+// Deploy-button ready: every binding has a default name and a placeholder id that the
+// Deploy to Cloudflare flow replaces with freshly provisioned resources. For a manual
+// deploy, create the resources (see docs/deploy.md) and paste their ids here.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "datagoat",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "upload_source_maps": true,
+
+  // Tracker scripts (/js/*) and the dashboard SPA are static assets: they cost no Worker
+  // invocation. Only the routes listed in run_worker_first reach the Worker.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*",
+      "/mcp",
+      "/mcp/*",
+      "/webhooks/*",
+      "/share/*",
+      "/oauth/*",
+      "/.well-known/*"
+    ]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "datagoat",
+      "database_id": "00000000-0000-4000-8000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Used ONLY to throttle failed dashboard logins. Never written on ingest or API paths.
+  "kv_namespaces": [
+    {
+      "binding": "LOGIN_THROTTLE",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+
+  // Workers Rate Limiting bindings (no KV/D1 writes). Periods must be 10 or 60 seconds.
+  "ratelimits": [
+    {
+      // Per site + client IP on POST /api/events.
+      "name": "INGEST_IP_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 60, "period": 60 }
+    },
+    {
+      // Per site on POST /api/events.
+      "name": "INGEST_SITE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 600, "period": 60 }
+    },
+    {
+      // Per API credential (df_ key, dft_ token, OAuth connection) on /api/v1/* and /mcp.
+      "name": "API_LIMITER",
+      "namespace_id": "1003",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
+
+  // One schedule; src/jobs/scheduler.ts multiplexes every registered job onto it.
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+
+  "vars": {
+    // PBKDF2-SHA256 iterations for new password hashes (max 100000 in the Workers runtime).
+    // Lower it only if logins fail with "exceeded CPU" on the Free plan; see docs/auth.md.
+    "PASSWORD_ITERATIONS": "100000"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

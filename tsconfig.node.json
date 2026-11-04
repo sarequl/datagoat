@@ -1,0 +1,25 @@
+{
+  // Node-side tooling: Vite/Vitest/Playwright configs and Playwright e2e tests.
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": [
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "dashboard/vite.config.ts",
+    "dashboard/vitest.config.ts",
+    "tracker/vitest.config.ts",
+    "test/e2e/**/*.ts"
+  ]
+}

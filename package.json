@@ -1,0 +1,94 @@
+{
+  "name": "datagoat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source, revenue-first web analytics on Cloudflare Workers + D1. DataFast-compatible tracker, ingest and API.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "workspaces": [
+    "cli",
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "node scripts/clean-public.mjs && npm run build:dashboard && npm run build:tracker",
+    "build:dashboard": "vite build --config dashboard/vite.config.ts",
+    "build:tracker": "node tracker/build.mjs",
+    "dev": "npm run build && npm run db:migrate:local && wrangler dev",
+    "dev:dashboard": "vite --config dashboard/vite.config.ts",
+    "dev:mock": "vite --config dashboard/vite.config.ts --mode mock",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:tracker": "vitest run --config tracker/vitest.config.ts",
+    "test:dashboard": "vitest run --config dashboard/vitest.config.ts",
+    "e2e": "playwright test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "tsc -p tsconfig.json && tsc -p dashboard/tsconfig.json && tsc -p tracker/tsconfig.json && tsc -p tsconfig.node.json",
+    "size": "node scripts/check-size.mjs",
+    "cf-typegen": "wrangler types --strict-vars=false src/worker-configuration.d.ts",
+    "reset-password": "node scripts/reset-password.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run test:tracker && npm run test:dashboard && npm run build && npm run size && npm run e2e"
+  },
+  "cloudflare": {
+    "bindings": {
+      "SETUP_TOKEN": {
+        "description": "One-time token for the first-run setup link (`/setup?token=...`). Generate one with `openssl rand -hex 24`. After the first owner exists it no longer works."
+      },
+      "SESSION_SECRET": {
+        "description": "Signs dashboard session cookies. Generate a random string with `openssl rand -hex 32`."
+      },
+      "ENCRYPTION_KEY": {
+        "description": "Encrypts payment-provider and integration credentials at rest (AES-GCM). Generate with `openssl rand -hex 32`. **Do not change it later**, or stored credentials can no longer be decrypted."
+      },
+      "DB": {
+        "description": "D1 database holding all analytics, revenue and account data."
+      },
+      "LOGIN_THROTTLE": {
+        "description": "KV namespace used only to throttle failed dashboard logins."
+      }
+    }
+  },
+  "dependencies": {
+    "hono": "4.13.16",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.5",
+    "@cloudflare/vitest-plugin": "1.5.1",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/vite": "4.3.4",
+    "@tanstack/react-query": "5.106.0",
+    "@tanstack/react-router": "1.170.46",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
+    "@types/node": "22.20.5",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "5.2.0",
+    "esbuild": "0.28.2",
+    "happy-dom": "21.0.4",
+    "msw": "2.15.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwindcss": "4.3.4",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "4.1.12",
+    "wrangler": "4.157.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "dashboard/mock-public"
+    ]
+  }
+}
