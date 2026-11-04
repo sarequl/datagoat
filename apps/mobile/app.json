@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "DataGoat",
+    "slug": "datagoat",
+    "scheme": "datagoat",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "dev.datagoat.mobile",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "dev.datagoat.mobile"
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-notifications"],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}

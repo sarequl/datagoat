@@ -10,8 +10,7 @@
   },
   "workspaces": [
     "cli",
-    "packages/*",
-    "apps/*"
+    "packages/*"
   ],
   "scripts": {
     "build": "node scripts/gen-migrations.mjs && node scripts/clean-public.mjs && npm run build:dashboard && npm run build:tracker",
@@ -29,15 +28,16 @@
     "test:tracker": "vitest run --config tracker/vitest.config.ts",
     "test:dashboard": "vitest run --config dashboard/vitest.config.ts",
     "test:cli": "vitest run --config cli/vitest.config.ts",
+    "test:ecosystem": "vitest run --config packages/vitest.config.ts && node packages/wordpress/test/run.mjs",
     "e2e": "playwright test",
     "lint": "biome check . && node scripts/gen-migrations.mjs --check",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "typecheck": "tsc -p tsconfig.json && tsc -p dashboard/tsconfig.json && tsc -p tracker/tsconfig.json && tsc -p tsconfig.node.json && tsc -p cli/tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p dashboard/tsconfig.json && tsc -p tracker/tsconfig.json && tsc -p tsconfig.node.json && tsc -p cli/tsconfig.json && tsc -p packages/tsconfig.json",
     "size": "node scripts/check-size.mjs",
     "cf-typegen": "wrangler types --strict-vars=false src/worker-configuration.d.ts",
     "reset-password": "node scripts/reset-password.mjs",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run test:scripts && npm run test:tracker && npm run test:dashboard && npm run test:cli && npm run build && npm run size && npm run e2e",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run test:scripts && npm run test:tracker && npm run test:dashboard && npm run test:cli && npm run test:ecosystem && npm run build && npm run size && npm run e2e",
     "gen:migrations": "node scripts/gen-migrations.mjs",
     "smoke": "node scripts/smoke.mjs",
     "seed:demo": "node scripts/seed-demo.mjs",

@@ -16,7 +16,6 @@ describe("route table", () => {
     ["POST", "/api/ai-crawls", "W6"],
     ["POST", "/webhooks/github/site1", "W6"],
     ["GET", "/share/abc", "W2"],
-    ["POST", "/api/v1/mobile/session", "W8"],
   ])("%s %s answers 501 naming %s", async (method, path, owner) => {
     const res = await api(path, { method, origin: null });
     expect(res.status).toBe(501);

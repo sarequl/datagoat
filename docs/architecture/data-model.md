@@ -145,6 +145,17 @@ days (ranges ending today read raw tables for today), so idle sites write nothin
 | `imports`                 | Plausible (and DataFast) import jobs                                                                                          | `id`; index `site_id`                                                  |
 | `imported_daily`          | Imported aggregates per day and dimension (`''` = totals)                                                                     | `(site_id, day, dimension, value, import_id)`                          |
 
+### Ecosystem (W8)
+
+| Table            | Purpose                                                                                                                                                                                                    | Key / indexes                              |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `mobile_devices` | Mobile app push devices (migration 0800): user, the mobile `dft_` token (`token_id` = `api_keys.id`), platform, Expo push token, sale/alert switches, muted site ids. User-scoped, no `site_id`; pushes stop when the token is revoked | `id`; unique `push_token`; index `user_id` |
+
+W8 also writes `api_keys` (mobile `dft_` tokens, `is_mobile = 1`), `provider_connections` rows for
+`shopify` and `woocommerce` (shapes in [contract §13.1](../api/contract.md)), and, for Shopify's
+`customers/redact` and `shop/redact` compliance webhooks only, nulls `customer_email`,
+`customer_name` and `email_hash` on `payments` rows with `provider = 'shopify'`.
+
 ### Operations (F0)
 
 | Table       | Purpose                                                                             | Key    |
