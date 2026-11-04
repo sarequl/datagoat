@@ -1069,6 +1069,52 @@ export interface OAuthConnection {
   lastUsedAt: string | null;
 }
 
+/** One permission on the consent page. */
+export interface OAuthScopeInfo {
+  scope: string;
+  label: string;
+  description: string;
+  access: "read" | "write";
+  /** Never pre-selected. */
+  sensitive: boolean;
+  /** The client asked for it. */
+  requested: boolean;
+  /** Pre-selected on the consent page. */
+  defaultChecked: boolean;
+}
+
+/** `GET /oauth/consent/details?request=` (W7). */
+export interface OAuthConsentDetails {
+  client: {
+    id: string;
+    /** Developer-supplied, unverified. */
+    name: string | null;
+    clientUri: string | null;
+    logoUri: string | null;
+    redirectUri: string;
+    redirectHost: string;
+  };
+  scopes: OAuthScopeInfo[];
+  resource: string;
+  expiresAt: string;
+  /** null when not signed in (sign in on the page, then reload the details). */
+  user: User | null;
+  websites: Array<{ _id: string; domain: string; name: string | null; role: Role }>;
+}
+
+/** `POST /oauth/authorize` from the consent page (session cookie). */
+export interface OAuthDecisionRequest {
+  request: string;
+  approve: boolean;
+  scopes?: string[];
+  websiteIds?: string[];
+}
+
+export interface OAuthDecisionResult {
+  /** Where the browser goes next: the client's redirect URI with `code` or `error`. */
+  redirectTo: string;
+}
+
 // ---------------------------------------------------------------------------
 // Public share links (W2)
 // ---------------------------------------------------------------------------

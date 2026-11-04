@@ -15,9 +15,6 @@ describe("route table", () => {
     ["POST", "/webhooks/stripe/site1", "W3"],
     ["POST", "/api/ai-crawls", "W6"],
     ["POST", "/webhooks/github/site1", "W6"],
-    ["POST", "/mcp", "W7"],
-    ["POST", "/oauth/token", "W7"],
-    ["GET", "/.well-known/oauth-authorization-server", "W7"],
     ["GET", "/share/abc", "W2"],
     ["POST", "/api/v1/mobile/session", "W8"],
   ])("%s %s answers 501 naming %s", async (method, path, owner) => {

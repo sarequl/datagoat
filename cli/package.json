@@ -1,8 +1,7 @@
 {
-  "name": "datagoat-cli",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Command-line client for the DataGoat API (placeholder; built by the CLI team).",
+  "name": "datagoat",
+  "version": "0.1.0",
+  "description": "Command-line client for DataGoat analytics: query analytics and manage websites, goals, funnels, alerts, keys and tokens from the terminal.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -12,7 +11,24 @@
     "bin",
     "dist"
   ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "analytics",
+    "datagoat",
+    "datafast",
+    "cli",
+    "mcp"
+  ],
+  "homepage": "https://github.com/sarequl/datagoat/blob/main/docs/cli.md",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sarequl/datagoat.git",
+    "directory": "cli"
+  },
   "scripts": {
-    "test": "node --test"
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
   }
 }

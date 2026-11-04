@@ -59,6 +59,13 @@ written and 5,000,000 read per day.
 | `oauth_tokens`      | Access (1 h) and rotating refresh (30 d) tokens, hashed                | `token_hash`; index `connection_id` |
 | `idempotency_keys`  | Replay protection for retried writes (MCP write tools, notes)          | `(scope, key)`                      |
 
+W7 notes: OAuth access tokens are `dgo_…`, refresh tokens `dgr_…`, codes `dgac_…`, client ids
+`dgc_…` (or an HTTPS metadata-document URL), all stored as SHA-256 hashes. MCP idempotency rows use
+scope `mcp:<credential kind>:<credential id>`, keep only redacted responses (never issued secrets)
+and expire after 24 hours; `mcp.cleanup` (daily) deletes expired codes, tokens, connections,
+registrations and `mcp:` idempotency rows. `api_keys` rows minted through an OAuth connection get
+`oauth_connection_id` and the connection's expiry and are revoked with it.
+
 ### Raw analytics (W1 writes, W2 reads)
 
 | Table              | Purpose                                                                                                                                                                                                                                                                                                                                                                                                  | Key / indexes                                                                         |
