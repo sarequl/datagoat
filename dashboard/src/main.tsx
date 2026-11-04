@@ -1,16 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app";
-import { applyTheme } from "./components/ThemeToggle";
+import { applyTheme, readTheme } from "./components/ThemeToggle";
 import "./styles.css";
 
 async function start() {
-  try {
-    const saved = localStorage.getItem("dg-theme");
-    if (saved === "light" || saved === "dark") applyTheme(saved);
-  } catch {
-    // storage unavailable
-  }
+  applyTheme(readTheme());
   if (__MOCK_API__) {
     const { startMockWorker } = await import("./mocks/browser");
     await startMockWorker();

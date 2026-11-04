@@ -4,7 +4,6 @@ import type { WebsiteSummary } from "../../../shared/api-types";
 import { useLogout, useMe } from "../api/hooks";
 import { NAV_GROUPS, SITE_PAGES } from "../nav";
 import { ThemeToggle } from "./ThemeToggle";
-import { cx } from "./ui";
 
 export function SiteSwitcher({
   websites,
@@ -41,7 +40,7 @@ export function Sidebar({ siteId, websites }: { siteId: string; websites: Websit
   return (
     <nav aria-label="Main" className="flex h-full flex-col gap-5 overflow-y-auto p-4">
       <div className="flex items-center gap-2 px-1 font-semibold">
-        <span className="flex size-7 items-center justify-center rounded-md bg-accent text-sm text-accent-fg">
+        <span className="flex size-7 items-center justify-center rounded-md bg-primary text-sm text-primary-fg">
           D
         </span>
         DataGoat
@@ -57,7 +56,10 @@ export function Sidebar({ siteId, websites }: { siteId: string; websites: Websit
                   to={`/app/$siteId/${p.path}`}
                   params={{ siteId }}
                   className="block rounded-md px-2 py-1.5 text-sm hover:bg-surface-2"
-                  activeProps={{ className: "bg-surface-2 font-medium", "aria-current": "page" }}
+                  activeProps={{
+                    className: "bg-surface-2 font-medium text-primary-text",
+                    "aria-current": "page",
+                  }}
                 >
                   {p.label}
                 </Link>
@@ -100,7 +102,7 @@ export function AppShell({ websites }: { websites: WebsiteSummary[] }) {
   const { siteId } = useParams({ strict: false }) as { siteId?: string };
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-[15rem_1fr]">
-      <aside className={cx("border-b border-line bg-surface md:border-r md:border-b-0")}>
+      <aside className="border-b border-line bg-surface md:border-r md:border-b-0">
         <Sidebar siteId={siteId ?? websites[0]?._id ?? ""} websites={websites} />
       </aside>
       <div className="min-w-0">

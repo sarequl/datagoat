@@ -18,10 +18,10 @@ export function Button({
       {...props}
       className={cx(
         "inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition disabled:opacity-50",
-        variant === "primary" && "bg-accent text-accent-fg hover:opacity-90",
+        variant === "primary" && "bg-primary text-primary-fg hover:opacity-90",
         variant === "secondary" && "border border-line bg-surface hover:bg-surface-2",
         variant === "ghost" && "hover:bg-surface-2",
-        variant === "danger" && "bg-negative text-white hover:opacity-90",
+        variant === "danger" && "bg-error text-primary-fg hover:opacity-90",
         className,
       )}
     />
@@ -88,8 +88,8 @@ export function Notice({
       role={tone === "error" ? "alert" : "status"}
       className={cx(
         "rounded-md border px-3 py-2 text-sm",
-        tone === "error" && "border-negative/40 text-negative",
-        tone === "success" && "border-positive/40 text-positive",
+        tone === "error" && "border-error/40 text-error-text",
+        tone === "success" && "border-success/40 text-success-text",
         tone === "info" && "border-line text-muted",
       )}
     >
@@ -105,7 +105,7 @@ export function Spinner({ label = "Loading" }: { label?: string }) {
       aria-live="polite"
       className="flex items-center gap-2 p-6 text-sm text-muted"
     >
-      <span className="size-4 animate-spin rounded-full border-2 border-line border-t-accent" />
+      <span className="size-4 animate-spin rounded-full border-2 border-line border-t-primary" />
       {label}…
     </div>
   );

@@ -1,67 +1,80 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. Components use the semantic utilities generated from @theme (bg-surface,
- * text-muted, border-line, bg-accent, ...), never raw palette colours, so light/dark switches by
- * swapping the CSS variables below. Theme: system preference, overridable with
- * <html data-theme="light|dark"> (the top bar toggle stores the choice in localStorage).
+ * Design tokens. Palette values follow DataFast's public theme (orange primary, light-blue
+ * visitors, coral revenue, teal accent); the CSS is ours. Components use the semantic utilities
+ * generated from @theme below (bg-surface, text-muted, border-line, bg-primary, text-error, ...)
+ * and never raw colours, so themes switch by swapping variables.
+ *
+ * Themes: <html data-theme="dark|light|system">. Dark is the default (index.html); "system"
+ * follows prefers-color-scheme. The top-bar toggle stores the choice in localStorage.
+ * Text pairs are checked for WCAG AA (4.5:1) by src/test/contrast.test.ts; the *-text tokens are
+ * darkened/lightened variants of status colours used for text so they pass on both themes.
  */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
-  --dg-bg: #f7f7f8;
-  --dg-surface: #ffffff;
-  --dg-surface-2: #f1f1f4;
-  --dg-line: #e3e3e8;
-  --dg-text: #17171c;
-  --dg-muted: #62626e;
-  --dg-accent: #4f46e5;
-  --dg-accent-fg: #ffffff;
-  --dg-positive: #15803d;
-  --dg-negative: #b91c1c;
-  --dg-warning: #b45309;
-  --dg-chart-1: #4f46e5;
-  --dg-chart-2: #f59e0b;
-  --dg-chart-3: #10b981;
-  --dg-chart-4: #ec4899;
-}
+  /* Brand and status palette (same in both themes unless overridden) */
+  --dg-primary: #e16540; /* main brand: buttons, active state, revenue */
+  --dg-primary-fg: #171717; /* text on primary (white fails AA on #e16540) */
+  --dg-revenue: #e78468; /* revenue bars and highlights */
+  --dg-secondary: #8dcdff; /* visitors line/series */
+  --dg-accent: #00d7c0; /* teal */
+  --dg-info: #00b5ff;
+  --dg-success: #00a96e;
+  --dg-warning: #ffbe00;
+  --dg-error: #ff5861;
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --dg-bg: #0e0e12;
-    --dg-surface: #17171d;
-    --dg-surface-2: #202028;
-    --dg-line: #2c2c36;
-    --dg-text: #ececf1;
-    --dg-muted: #9a9aa8;
-    --dg-accent: #818cf8;
-    --dg-accent-fg: #0e0e12;
-    --dg-positive: #4ade80;
-    --dg-negative: #f87171;
-    --dg-warning: #fbbf24;
-    --dg-chart-1: #818cf8;
-    --dg-chart-2: #fbbf24;
-    --dg-chart-3: #34d399;
-    --dg-chart-4: #f472b6;
-  }
+  /* Light theme surfaces and text */
+  --dg-bg: #fcfbfa; /* base-200: page */
+  --dg-surface: #ffffff; /* base-100: cards, sidebar */
+  --dg-surface-2: #fbfaf9; /* base-300: hover, wells */
+  --dg-line: rgba(0, 0, 0, 0.06);
+  --dg-line-strong: rgba(0, 0, 0, 0.12);
+  --dg-text: #262626;
+  --dg-muted: #5c5c5c;
+  --dg-neutral: #282828;
+  --dg-primary-text: #b4401c; /* links/active labels in primary hue, AA on light surfaces */
+  --dg-success-text: #00754c;
+  --dg-warning-text: #8a6200;
+  --dg-error-text: #c8202b;
+  --dg-info-text: #00648f;
 }
 
 :root[data-theme="dark"] {
-  --dg-bg: #0e0e12;
-  --dg-surface: #17171d;
-  --dg-surface-2: #202028;
-  --dg-line: #2c2c36;
-  --dg-text: #ececf1;
-  --dg-muted: #9a9aa8;
-  --dg-accent: #818cf8;
-  --dg-accent-fg: #0e0e12;
-  --dg-positive: #4ade80;
-  --dg-negative: #f87171;
-  --dg-warning: #fbbf24;
-  --dg-chart-1: #818cf8;
-  --dg-chart-2: #fbbf24;
-  --dg-chart-3: #34d399;
-  --dg-chart-4: #f472b6;
+  --dg-accent: #00cdb7;
+  --dg-bg: #171717;
+  --dg-surface: #212121; /* base-200 */
+  --dg-surface-2: #262626; /* base-100 */
+  --dg-line: rgba(255, 255, 255, 0.08);
+  --dg-line-strong: rgba(255, 255, 255, 0.14);
+  --dg-text: #dedddc;
+  --dg-muted: #a3a3a3;
+  --dg-neutral: #4d4d4d;
+  --dg-primary-text: #f08a6a;
+  --dg-success-text: #00c27e;
+  --dg-warning-text: #ffbe00;
+  --dg-error-text: #ff6b73;
+  --dg-info-text: #33c4ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    --dg-accent: #00cdb7;
+    --dg-bg: #171717;
+    --dg-surface: #212121;
+    --dg-surface-2: #262626;
+    --dg-line: rgba(255, 255, 255, 0.08);
+    --dg-line-strong: rgba(255, 255, 255, 0.14);
+    --dg-text: #dedddc;
+    --dg-muted: #a3a3a3;
+    --dg-neutral: #4d4d4d;
+    --dg-primary-text: #f08a6a;
+    --dg-success-text: #00c27e;
+    --dg-warning-text: #ffbe00;
+    --dg-error-text: #ff6b73;
+    --dg-info-text: #33c4ff;
+  }
 }
 
 @theme inline {
@@ -69,17 +82,30 @@
   --color-surface: var(--dg-surface);
   --color-surface-2: var(--dg-surface-2);
   --color-line: var(--dg-line);
+  --color-line-strong: var(--dg-line-strong);
   --color-text: var(--dg-text);
   --color-muted: var(--dg-muted);
+  --color-neutral: var(--dg-neutral);
+  --color-primary: var(--dg-primary);
+  --color-primary-fg: var(--dg-primary-fg);
+  --color-primary-text: var(--dg-primary-text);
+  --color-revenue: var(--dg-revenue);
+  --color-secondary: var(--dg-secondary);
+  --color-visitors: var(--dg-secondary);
   --color-accent: var(--dg-accent);
-  --color-accent-fg: var(--dg-accent-fg);
-  --color-positive: var(--dg-positive);
-  --color-negative: var(--dg-negative);
+  --color-info: var(--dg-info);
+  --color-success: var(--dg-success);
   --color-warning: var(--dg-warning);
-  --color-chart-1: var(--dg-chart-1);
-  --color-chart-2: var(--dg-chart-2);
-  --color-chart-3: var(--dg-chart-3);
-  --color-chart-4: var(--dg-chart-4);
+  --color-error: var(--dg-error);
+  --color-info-text: var(--dg-info-text);
+  --color-success-text: var(--dg-success-text);
+  --color-warning-text: var(--dg-warning-text);
+  --color-error-text: var(--dg-error-text);
+  /* Chart series: visitors, revenue, teal, info */
+  --color-chart-1: var(--dg-secondary);
+  --color-chart-2: var(--dg-revenue);
+  --color-chart-3: var(--dg-accent);
+  --color-chart-4: var(--dg-info);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -91,7 +117,15 @@ body {
   font-family: var(--font-sans);
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
 *:focus-visible {
-  outline: 2px solid var(--dg-accent);
+  outline: 2px solid var(--dg-primary);
   outline-offset: 2px;
 }

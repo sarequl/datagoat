@@ -1,43 +1,45 @@
 import { useEffect, useState } from "react";
 
-type Theme = "system" | "light" | "dark";
+export type Theme = "dark" | "light" | "system";
 const KEY = "dg-theme";
+/** Dark is the default theme. */
+export const DEFAULT_THEME: Theme = "dark";
 
-function readTheme(): Theme {
+export function readTheme(): Theme {
   try {
     const v = localStorage.getItem(KEY);
-    return v === "light" || v === "dark" ? v : "system";
+    return v === "light" || v === "dark" || v === "system" ? v : DEFAULT_THEME;
   } catch {
-    return "system";
+    return DEFAULT_THEME;
   }
 }
 
 export function applyTheme(theme: Theme): void {
-  const root = document.documentElement;
-  if (theme === "system") root.removeAttribute("data-theme");
-  else root.setAttribute("data-theme", theme);
+  document.documentElement.setAttribute("data-theme", theme);
 }
+
+const NEXT: Record<Theme, Theme> = { dark: "light", light: "system", system: "dark" };
+const LABEL: Record<Theme, string> = { dark: "Dark", light: "Light", system: "System" };
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   useEffect(() => {
     applyTheme(theme);
     try {
-      if (theme === "system") localStorage.removeItem(KEY);
+      if (theme === DEFAULT_THEME) localStorage.removeItem(KEY);
       else localStorage.setItem(KEY, theme);
     } catch {
       // storage unavailable
     }
   }, [theme]);
-  const next: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
   return (
     <button
       type="button"
-      onClick={() => setTheme(next[theme])}
+      onClick={() => setTheme(NEXT[theme])}
       className="rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-2"
-      aria-label={`Theme: ${theme}. Switch to ${next[theme]}`}
+      aria-label={`Theme: ${LABEL[theme]}. Switch to ${LABEL[NEXT[theme]]}`}
     >
-      Theme: {theme}
+      Theme: {LABEL[theme]}
     </button>
   );
 }
