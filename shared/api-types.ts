@@ -1018,6 +1018,83 @@ export interface SearchConsoleRow {
   estimatedRevenue: number;
 }
 
+/** GET /api/v1/search-console/overview (DG) */
+export interface SearchConsoleTotals {
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+  estimatedRevenue: number;
+}
+export interface SearchConsoleOverview extends SearchConsoleTotals {
+  currency: string;
+  timeseries: Array<{
+    date: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>;
+  previous: SearchConsoleTotals;
+}
+
+/** GET /api/v1/search-console/status (DG) */
+export interface SearchConsoleStatus {
+  connected: boolean;
+  oauthConfigured: boolean;
+  connectUrl: string | null;
+  status: "active" | "error" | "disconnected" | "pending" | null;
+  property: string | null;
+  properties: Array<{ siteUrl: string; permissionLevel: string }> | null;
+  propertiesError: string | null;
+  lastSyncedAt: string | null;
+  lastError: string | null;
+  oldestDay: string | null;
+  newestDay: string | null;
+  backfillComplete: boolean;
+}
+
+/** GET /api/v1/ads/summary (DG) */
+export interface AdsSummary {
+  currency: string;
+  spend: number;
+  revenue: number;
+  roas: number | null;
+  campaigns: number;
+  impressions: number;
+  clicks: number;
+  visitors: number;
+  payments: number;
+  currencyConverted: boolean;
+}
+
+/** GET /api/v1/ads/accounts (DG) */
+export interface MetaAdAccount {
+  id: string;
+  name: string | null;
+  currency: string | null;
+  accountStatus: number | null;
+  campaigns: Array<{ id: string; name: string | null; status: string | null }>;
+}
+
+/** GET/PUT /api/v1/admin/websites/:id/bot-traffic/attack-mode (DG) */
+export interface AttackModeState {
+  enabled: boolean;
+  autoEnable: boolean;
+  multiplier: number;
+  minHits: number;
+  durationMinutes: number;
+  autoActiveUntil: string | null;
+  events: Array<{
+    id: string;
+    source: "auto" | "manual";
+    reason: string;
+    details: Record<string, unknown>;
+    startedAt: string | null;
+    endedAt: string | null;
+  }>;
+}
+
 export interface AdCampaignRow {
   platform: "meta";
   accountId: string;
