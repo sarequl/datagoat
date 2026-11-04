@@ -18,6 +18,7 @@ import {
 } from "../../../auth/credentials";
 import { invalidateMembership, listUserSiteRows } from "../../../auth/memberships";
 import { requireAccountAccess, requireSiteAccess } from "../../../auth/middleware";
+import { queueInviteEmail } from "../../../growth/alerts/account-emails";
 import { sha256Hex } from "../../../lib/crypto";
 import { ApiError } from "../../../lib/errors";
 import { newId, randomToken } from "../../../lib/ids";
@@ -338,14 +339,29 @@ websiteRoutes.post(
         throw new ApiError(409, "This email already has a pending invite");
       throw err;
     }
+    const inviteUrl = `${new URL(c.req.url).origin}/invite/${token}`;
+    // W6: email the invite when an email provider is configured (otherwise share the link).
+    const emailQueued = await queueInviteEmail(c.env, c.env.DB, {
+      siteId: site.id,
+      siteLabel: site.name?.trim() || site.domain,
+      email: body.email,
+      role: body.role,
+      inviteUrl,
+      inviterName: user.name,
+      expiresAt: now + INVITE_TTL_MS,
+      invitationId: id,
+    });
     return success(c, [
       {
-        message: "Invitation created. Send the invite link to the user.",
+        message: emailQueued
+          ? "Invitation created and emailed to the user."
+          : "Invitation created. Send the invite link to the user.",
         invitationId: id,
         email: body.email,
         role: body.role,
-        inviteUrl: `${new URL(c.req.url).origin}/invite/${token}`,
+        inviteUrl,
         expiresAt: toIso(now + INVITE_TTL_MS),
+        emailQueued,
       },
     ]);
   },

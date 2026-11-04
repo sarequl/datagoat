@@ -11,8 +11,6 @@ describe("route table", () => {
 
   it.each([
     ["GET", "/api/v1/visitors/abc", "W2"],
-    ["POST", "/api/ai-crawls", "W6"],
-    ["POST", "/webhooks/github/site1", "W6"],
     ["GET", "/share/abc", "W2"],
   ])("%s %s answers 501 naming %s", async (method, path, owner) => {
     const res = await api(path, { method, origin: null });

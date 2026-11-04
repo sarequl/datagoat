@@ -121,6 +121,7 @@ describe("payment providers", () => {
 
 describe("growth integrations", () => {
   it("saves the GitHub repository and disconnects", async () => {
+    const log = recordRequests();
     openPage(`/app/${SITE}/integrations`);
     const github = await screen.findByRole("heading", { name: /GitHub/ });
     const card = github.closest("section") as HTMLElement;
@@ -132,7 +133,7 @@ describe("growth integrations", () => {
     await userEvent.type(repo, "acme/site");
     await userEvent.click(within(card).getByRole("button", { name: "Save" }));
     await waitFor(() =>
-      expect(state.growth[`${SITE}:github`]?.settings).toEqual({ repo: "acme/site" }),
+      expect(writes(log, "PUT", "/integrations/github")[0]?.body).toEqual({ repo: "acme/site" }),
     );
     await userEvent.click(within(card).getByRole("button", { name: "Disconnect" }));
     await userEvent.click(
@@ -174,12 +175,14 @@ describe("growth integrations", () => {
     );
     const card = keywords.closest("section") as HTMLElement;
     await userEvent.click(within(card).getByRole("button", { name: "Save" }));
-    await waitFor(() =>
-      expect(writes(log, "PUT", "/integrations/x")[0]?.body).toEqual({
-        keywords: ["DataGoat"],
-        handles: ["@goatdev"],
-      }),
-    );
+    // The saved body keeps any handles already configured and adds the new one.
+    await waitFor(() => {
+      const body = writes(log, "PUT", "/integrations/x")[0]?.body as
+        | { keywords: string[]; handles: string[] }
+        | undefined;
+      expect(body?.keywords).toEqual(["DataGoat"]);
+      expect(body?.handles).toContain("@goatdev");
+    });
     expect(await within(card).findByText("Saved")).toBeInTheDocument();
   });
 });

@@ -1,7 +1,8 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
+import { PagePlaceholder } from "../components/PagePlaceholder";
 import { MOCK_PASSWORD } from "../mocks/fixtures/core";
 import { server } from "../mocks/node";
 import { resetMockState } from "../mocks/state";
@@ -80,12 +81,16 @@ describe("dashboard shell", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Setup failed: disk full");
   });
 
-  it("renders every website page's placeholder when signed in", async () => {
-    resetMockState({ signedIn: true });
-    const page = SITE_PAGES.find((p) => p.path === "bot-traffic");
-    renderApp(`/app/6728f0a0a1b2c3d4e5f6a001/${page?.path}`);
-    expect(await screen.findByRole("heading", { name: "Bot traffic" })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId("coming-soon")).toBeInTheDocument());
+  it("renders the placeholder for pages that are not built yet", async () => {
+    // Pages are replaced by their teams; the placeholder component itself stays covered here.
+    render(
+      <PagePlaceholder
+        title="Unbuilt page"
+        description="AI assistant, indexing and training crawler requests."
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Unbuilt page" })).toBeInTheDocument();
+    expect(screen.getByTestId("coming-soon")).toHaveTextContent("Coming soon");
     expect(
       screen.getByText(/AI assistant, indexing and training crawler requests/),
     ).toBeInTheDocument();

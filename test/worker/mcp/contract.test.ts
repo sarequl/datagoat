@@ -424,7 +424,8 @@ describe("growth tools (W6)", () => {
         name: "New signup",
         trigger: { goalName: "signup" },
         template: { message: "Someone signed up just now" },
-        destination: { type: "email", email: "owner@example.com" },
+        // A webhook needs no server-side email provider (email alerts are refused without one).
+        destination: { type: "webhook", url: "https://hooks.example.com/datagoat" },
         confirm: true,
       },
       route,

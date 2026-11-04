@@ -10,11 +10,12 @@ import type {
   PaymentProvider,
 } from "../../../../shared/api-types";
 import * as f from "../fixtures/analytics";
-import { growthOf, integrationsOf, isNewSite, state } from "../state";
+import { integrationsOf, isNewSite, state } from "../state";
 import { fail, ok } from "./util";
 
 const W = "/api/v1/admin/websites/:websiteId";
 
+/** Growth integration slugs: served by handlers/growth-w6.ts, so the generic routes skip them. */
 const GROWTH_KINDS: Record<string, GrowthIntegrationStatus["kind"]> = {
   github: "github",
   "google-search-console": "gsc",
@@ -67,33 +68,13 @@ const share = (siteId: string) => {
 };
 
 export const settingsHandlers = [
-  // Growth integrations (W6 endpoints), before the generic provider routes.
-  ...Object.entries(GROWTH_KINDS).flatMap(([path, kind]) => [
-    http.get(`${W}/integrations/${path}`, ({ params }) =>
-      ok(growthOf(String(params.websiteId), kind)),
-    ),
-    http.put(`${W}/integrations/${path}`, async ({ params, request }) => {
-      const current = growthOf(String(params.websiteId), kind);
-      const settings = (await request.json()) as Record<string, unknown>;
-      if (kind === "x") {
-        const bad = ((settings.keywords as string[] | undefined) ?? []).find(
-          (k) => k.length < 4 || k.length > 15,
-        );
-        if (bad) return fail(400, `keywords: "${bad}" must be 4-15 characters`);
-      }
-      Object.assign(current, { settings: { ...current.settings, ...settings } });
-      return ok(current);
-    }),
-    http.delete(`${W}/integrations/${path}`, ({ params }) => {
-      const current = growthOf(String(params.websiteId), kind);
-      Object.assign(current, { connected: false, status: "disconnected", settings: {} });
-      return ok(current);
-    }),
-  ]),
+  // Growth integrations (GitHub, Search Console, Meta Ads, X) are served by the growth
+  // mocks (handlers/growth-w6.ts), which own that state, so both pages agree.
 
   // Payment providers (W3 endpoints)
   http.get(`${W}/integrations`, ({ params }) => ok([integrationsOf(String(params.websiteId))])),
   http.post(`${W}/integrations/:provider`, async ({ params, request }) => {
+    if (String(params.provider) in GROWTH_KINDS) return; // falls through to the growth mocks
     const provider = String(params.provider) as PaymentProvider;
     if (!PROVIDERS.includes(provider)) return fail(404, `Unknown provider ${provider}`);
     const body = (await request.json()) as Record<string, string>;
@@ -115,6 +96,7 @@ export const settingsHandlers = [
     return ok([{ message: `${NAMES[provider]} connected successfully`, currency: "EUR" }]);
   }),
   http.patch(`${W}/integrations/:provider`, ({ params }) => {
+    if (String(params.provider) in GROWTH_KINDS) return; // falls through to the growth mocks
     const provider = String(params.provider) as PaymentProvider;
     const status = integrationsOf(String(params.websiteId));
     const detail = status.details?.find((d) => d.provider === provider);
@@ -123,6 +105,7 @@ export const settingsHandlers = [
     return ok([{ message: `${NAMES[provider]} payment re-sync queued` }]);
   }),
   http.delete(`${W}/integrations/:provider`, ({ params }) => {
+    if (String(params.provider) in GROWTH_KINDS) return; // falls through to the growth mocks
     const provider = String(params.provider) as PaymentProvider;
     const status = integrationsOf(String(params.websiteId));
     if (!status[provider]?.connected) return fail(404, `${NAMES[provider]} is not connected`);

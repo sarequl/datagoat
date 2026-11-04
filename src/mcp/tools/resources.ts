@@ -110,12 +110,14 @@ const zStep = z
   })
   .strict();
 
+// Mirrors the alerts API's destination (src/growth/alerts/model.ts); the API validates details.
 const zAlertDestination = z
   .object({
-    type: z.enum(["email", "telegram"]),
+    type: z.enum(["email", "telegram", "webhook"]),
     email: z.string().max(320).optional(),
     chatId: z.string().max(100).optional(),
     botToken: z.string().max(200).optional(),
+    url: z.string().max(2000).optional().describe("HTTPS endpoint for webhook destinations."),
   })
   .strict();
 
