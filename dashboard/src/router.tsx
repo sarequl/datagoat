@@ -43,7 +43,7 @@ export interface RouterContext {
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: () => <Outlet />,
   notFoundComponent: () => (
-    <PagePlaceholder title="Page not found" owner="F0" description="This page does not exist." />
+    <PagePlaceholder title="Page not found" description="This page does not exist." />
   ),
 });
 
@@ -142,7 +142,6 @@ function SiteLayout() {
     return (
       <PagePlaceholder
         title="Website not found"
-        owner="F0"
         description="You do not have access to this website."
       />
     );

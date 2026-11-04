@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
@@ -20,7 +20,8 @@ describe("dashboard shell", () => {
     for (const item of SITE_PAGES.filter((p) => !p.hidden)) {
       expect(nav).toHaveTextContent(item.label);
     }
-    expect(screen.getByTestId("placeholder-owner")).toHaveTextContent("Owner: W4");
+    expect(screen.getByTestId("coming-soon")).toHaveTextContent("Coming soon");
+    expect(document.body).not.toHaveTextContent(/Owner: W\d|CONTRACTS\.md/);
     expect(screen.getByRole("combobox", { name: "Website" })).toHaveDisplayValue("Example SaaS");
   });
 
@@ -85,8 +86,40 @@ describe("dashboard shell", () => {
     const page = SITE_PAGES.find((p) => p.path === "bot-traffic");
     renderApp(`/app/6728f0a0a1b2c3d4e5f6a001/${page?.path}`);
     expect(await screen.findByRole("heading", { name: "Bot traffic" })).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByTestId("placeholder-owner")).toHaveTextContent("Owner: W6"),
-    );
+    await waitFor(() => expect(screen.getByTestId("coming-soon")).toBeInTheDocument());
+    expect(
+      screen.getByText(/AI assistant, indexing and training crawler requests/),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("phone navigation drawer", () => {
+  it("opens from the menu button, traps focus, closes on Escape, backdrop and navigation", async () => {
+    resetMockState({ signedIn: true });
+    renderApp("/app/6728f0a0a1b2c3d4e5f6a001/overview");
+    const menu = await screen.findByRole("button", { name: "Open menu" });
+    expect(menu).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(menu);
+    const dialog = screen.getByRole("dialog", { name: "Navigation" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(menu).toHaveAttribute("aria-expanded", "true");
+    // Focus moves into the drawer and Tab cycles inside it.
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    for (let i = 0; i < 40; i++) {
+      await userEvent.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(menu).toHaveFocus();
+
+    await userEvent.click(menu);
+    await userEvent.click(screen.getByRole("button", { name: "Close menu" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await userEvent.click(menu);
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("link", { name: "Goals" }));
+    expect(await screen.findByRole("heading", { name: "Goals" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

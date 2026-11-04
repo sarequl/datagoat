@@ -1,23 +1,15 @@
 import { Card } from "./ui";
 
-/** Shown by pages a feature team has not built yet. */
-export function PagePlaceholder({
-  title,
-  owner,
-  description,
-}: {
-  title: string;
-  owner: string;
-  description: string;
-}) {
+/** Shown by pages that are not available yet. */
+export function PagePlaceholder({ title, description }: { title: string; description: string }) {
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">{title}</h1>
       <Card>
-        <p className="text-sm text-muted">{description}</p>
-        <p className="mt-3 text-xs text-muted" data-testid="placeholder-owner">
-          Not built yet. Owner: {owner}. See docs/CONTRACTS.md.
+        <p className="text-sm font-medium text-primary-text" data-testid="coming-soon">
+          Coming soon
         </p>
+        <p className="mt-1 text-sm text-muted">{description}</p>
       </Card>
     </div>
   );

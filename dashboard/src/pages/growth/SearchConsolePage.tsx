@@ -5,7 +5,6 @@ export default function SearchConsolePage() {
   return (
     <PagePlaceholder
       title="Search Console"
-      owner="W6"
       description="Search queries and pages with clicks, impressions, CTR, position and revenue estimates."
     />
   );

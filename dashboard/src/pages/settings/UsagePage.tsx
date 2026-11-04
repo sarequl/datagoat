@@ -5,7 +5,6 @@ export default function UsagePage() {
   return (
     <PagePlaceholder
       title="Usage & data"
-      owner="W5"
       description="Database size, rows written, Free-plan headroom, retention."
     />
   );

@@ -5,7 +5,6 @@ export default function AccountPage() {
   return (
     <PagePlaceholder
       title="Account"
-      owner="W5"
       description="Profile, password, dft_ account tokens, connected MCP apps."
     />
   );

@@ -5,7 +5,6 @@ export default function AdsPage() {
   return (
     <PagePlaceholder
       title="Ads & ROAS"
-      owner="W6"
       description="Meta Ads campaigns with spend, attributed revenue and ROAS."
     />
   );

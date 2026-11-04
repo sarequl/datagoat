@@ -1,5 +1,6 @@
 /** Signed-in layout: sidebar with site switcher and navigation, top bar, page outlet. */
-import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import type { WebsiteSummary } from "../../../shared/api-types";
 import { useLogout, useMe } from "../api/hooks";
 import { NAV_GROUPS, SITE_PAGES } from "../nav";
@@ -84,7 +85,7 @@ export function TopBar() {
   return (
     <header className="flex items-center justify-end gap-3 border-b border-line px-6 py-3 text-sm">
       <ThemeToggle />
-      <span className="text-muted">{me.data?.user.email}</span>
+      <span className="hidden truncate text-muted sm:inline">{me.data?.user.email}</span>
       <button
         type="button"
         className="rounded-md px-2 py-1 hover:bg-surface-2"
@@ -98,16 +99,120 @@ export function TopBar() {
   );
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), select, input, textarea, [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Phone navigation drawer: a modal dialog holding the sidebar. Focus is trapped inside, Escape
+ * and the backdrop close it, and it closes after navigation. Focus returns to the menu button.
+ */
+export function NavDrawer({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const first = panel.current?.querySelector<HTMLElement>(FOCUSABLE);
+    first?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !panel.current) return;
+      const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (!items.length) return;
+      const firstItem = items[0] as HTMLElement;
+      const lastItem = items[items.length - 1] as HTMLElement;
+      if (e.shiftKey && document.activeElement === firstItem) {
+        e.preventDefault();
+        lastItem.focus();
+      } else if (!e.shiftKey && document.activeElement === lastItem) {
+        e.preventDefault();
+        firstItem.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+      previous?.focus();
+    };
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 md:hidden">
+      <button
+        type="button"
+        aria-label="Close menu"
+        tabIndex={-1}
+        className="absolute inset-0 h-full w-full cursor-default bg-black/50"
+        onClick={onClose}
+      />
+      <div
+        ref={panel}
+        id="nav-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation"
+        className="absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto border-r border-line bg-surface shadow-xl"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({ websites }: { websites: WebsiteSummary[] }) {
   const { siteId } = useParams({ strict: false }) as { siteId?: string };
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const close = useCallback(() => setMenuOpen(false), []);
+  // Close the drawer after navigation.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the path changes
+  useEffect(() => setMenuOpen(false), [pathname]);
+  const current = siteId ?? websites[0]?._id ?? "";
   return (
-    <div className="grid min-h-screen grid-cols-1 md:grid-cols-[15rem_1fr]">
-      <aside className="border-b border-line bg-surface md:border-r md:border-b-0">
-        <Sidebar siteId={siteId ?? websites[0]?._id ?? ""} websites={websites} />
+    <div className="min-h-screen md:grid md:grid-cols-[13rem_1fr] lg:grid-cols-[15rem_1fr]">
+      <aside className="hidden border-r border-line bg-surface md:block">
+        <Sidebar siteId={current} websites={websites} />
       </aside>
+      <div className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2 md:hidden">
+        <button
+          type="button"
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          aria-controls="nav-drawer"
+          onClick={() => setMenuOpen(true)}
+          className="rounded-md p-2 hover:bg-surface-2"
+        >
+          <svg aria-hidden="true" viewBox="0 0 20 20" className="size-5" fill="currentColor">
+            <path d="M3 5h14v2H3zm0 4h14v2H3zm0 4h14v2H3z" />
+          </svg>
+        </button>
+        <span className="flex items-center gap-2 font-semibold">
+          <span className="flex size-6 items-center justify-center rounded-md bg-primary text-xs text-primary-fg">
+            D
+          </span>
+          DataGoat
+        </span>
+      </div>
+      <NavDrawer open={menuOpen} onClose={close}>
+        <Sidebar siteId={current} websites={websites} />
+      </NavDrawer>
       <div className="min-w-0">
         <TopBar />
-        <main className="mx-auto max-w-6xl p-6">
+        <main className="mx-auto max-w-6xl p-4 md:p-6">
           <Outlet />
         </main>
       </div>

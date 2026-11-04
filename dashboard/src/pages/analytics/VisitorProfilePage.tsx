@@ -5,7 +5,6 @@ export default function VisitorProfilePage() {
   return (
     <PagePlaceholder
       title="Visitor"
-      owner="W4"
       description="Visitor profile: identity, journey timeline of sessions, pageviews, goals and payments, prediction."
     />
   );

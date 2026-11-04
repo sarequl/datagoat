@@ -5,7 +5,6 @@ export default function IntegrationsPage() {
   return (
     <PagePlaceholder
       title="Integrations"
-      owner="W5"
       description="Stripe, Polar, Lemon Squeezy, Paddle, Dodo, Creem, Shopify, WooCommerce, GitHub, Search Console, Meta Ads, X."
     />
   );
