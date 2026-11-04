@@ -341,7 +341,45 @@ OAuth access tokens authenticate only at `/mcp`; they register with `registerBea
 
 | Method        | Path                                                                                         | Notes                                                                                          |
 | ------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| POST          | `/api/v1/mobile/session`                                                                     | `{email, password}` → mints an `is_mobile` `df_` key per website or a `dft_` token for the app |
-| POST / DELETE | `/api/v1/mobile/devices[/:deviceId]`                                                         | push notification devices                                                                      |
-| GET           | `/api/apps/shopify/install`, `/api/apps/shopify/callback`; POST `/api/apps/shopify/webhooks` | Shopify app install; creates `provider_connections` rows for W3                                |
-| POST          | `/api/apps/woocommerce/connect`                                                              | WordPress/WooCommerce plugin connection                                                        |
+| POST          | `/api/v1/mobile/session` (DG)                                                                | `{email, password, deviceName?}` (login throttling as `/api/auth/login`) → `MobileSession` (object): a read-only `dft_` token with `is_mobile = 1`, 365-day expiry, permissions `analytics:read, websites:read, settings:read, goals:read, payments:read, alerts:read`, no PII, plus `user` and `websites` like `Me`. At the 20-token cap the oldest mobile token is replaced; 400 if the cap is full of non-mobile tokens. 401 `Invalid email or password`, 429 throttled |
+| DELETE        | `/api/v1/mobile/session` (DG)                                                                | mobile token only (403 otherwise) → `{message}`; revokes the token and its devices             |
+| GET           | `/api/v1/mobile/devices` (DG)                                                                | any non-`df_` credential → `MobileDevice[]` of the caller                                       |
+| POST          | `/api/v1/mobile/devices` (DG)                                                                | mobile token only; `RegisterDeviceRequest {pushToken (Expo), platform: ios\|android, name?, notifySales?, notifyAlerts?, mutedSiteIds?}` upserts on `pushToken` (re-owned when another account signs in on the phone) → `[MobileDevice]`, **201** new / 200 update; max 20 devices per user |
+| DELETE        | `/api/v1/mobile/devices/:deviceId` (DG)                                                      | own devices only → `[{deleted: true, id}]`; 404                                                 |
+| POST          | `/api/apps/shopify/connect?websiteId=` (DG)                                                  | session or token with `settings:write`; `ShopifyConnectRequest {shop, clientId, clientSecret, grant?: client_credentials (default) \| authorization_code}`. Client credentials: mints a token, reads the shop, registers webhooks, installs the storefront ScriptTag → `[{status: "active", shop, shopName, currency, scriptTagInstalled, webhooks, warnings}]`; 400 when Shopify rejects. Authorization code: stores a `pending` connection → `[{status: "pending", shop, installUrl, redirectUrl}]` |
+| GET           | `/api/apps/shopify/install?websiteId=` (DG)                                                  | `settings:write`; 302 to `https://<shop>/admin/oauth/authorize` with a signed 15-minute `state`; 400 without a saved connection |
+| GET           | `/api/apps/shopify/callback`                                                                 | Shopify's redirect: verifies `hmac` (client secret) and `state`, exchanges `code` for an offline token, sets up the shop, 302 to `/app/:siteId/integrations?shopify=connected\|error` |
+| POST          | `/api/apps/shopify/webhooks`                                                                 | `X-Shopify-Hmac-Sha256` (base64 HMAC of the raw body with the client secret), matched by `X-Shopify-Shop-Domain`. `app/uninstalled` → connection `disconnected`; `shop/redact` → connection deleted and Shopify payments' customer email/name nulled; `customers/redact` → those fields nulled for the listed orders and customer; `customers/data_request` → 200 |
+| GET           | `/api/apps/shopify/pixel.js?websiteId=` (DG)                                                 | public; JavaScript for a Shopify custom pixel (goals only, see [docs/install/shopify.md](../install/shopify.md)) |
+| GET           | `/apps/shopify.js?id=<trackingId>[&domain=][&goals=0]`                                       | static asset (no Worker): storefront loader installed as the ScriptTag                          |
+| GET           | `/api/apps/woocommerce/connect?websiteId=&storeUrl=[&format=json]` (DG)                      | `settings:write`; 302 to `<store>/wc-auth/v1/authorize` (scope `read_write`, `user_id` = signed 30-minute state, `callback_url` = the POST below, `return_url` = `/app/:siteId/integrations?woocommerce=connected`); `format=json` → `[{authorizeUrl}]` |
+| POST          | `/api/apps/woocommerce/connect`                                                              | WooCommerce's key delivery `{key_id, user_id, consumer_key, consumer_secret, key_permissions}`; 401 bad state → stores the connection, answers `{message}`, then (in `waitUntil`) reads the currency and creates `order.created`/`order.updated` webhooks |
+
+### 13.1 Connections W8 creates for W3
+
+`provider_connections` rows, credentials encrypted with `encryptJson(ENCRYPTION_KEY, …, "provider:<provider>:<siteId>")`
+and `webhook_secret_enc` with `encryptString` and the same AAD.
+
+| Provider      | `credentials` JSON                                                                                                                                         | `webhook_secret_enc`                                                  | Other columns                                                                                                            | Webhooks registered                                                                                    |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `shopify`     | `{shop, clientId, clientSecret, grant, accessToken, accessTokenExpiresAt (ms or null), scope}`. Client-credentials tokens expire (~24 h): mint a new one with `POST https://<shop>/admin/oauth/access_token` `grant_type=client_credentials` | the client secret (Shopify signs webhooks with it)                    | `account_id` = `<shop>.myshopify.com`, `account_name`, `currency`; `settings {grant, storefrontDomain, scriptTagId, webhookIds}`; `status` `pending` until OAuth completes | `orders/paid`, `refunds/create` → `/webhooks/shopify/:siteId` (W3); `app/uninstalled` → W8 |
+| `woocommerce` | `{storeUrl, consumerKey, consumerSecret, keyId, permissions}`; REST base `<storeUrl>/wp-json/wc/v3/`, HTTP Basic auth                                       | random secret WooCommerce signs `X-WC-Webhook-Signature` with (null if webhook creation failed: poll instead) | `account_id` = store host, `currency`; `settings {webhookIds, visitorMetaKey: "_datagoat_visitor_id", connectedBy}`         | `order.created`, `order.updated` → `/webhooks/woocommerce/:siteId` (W3)                                 |
+
+Visitor attribution for these orders:
+
+- **Shopify**: the storefront loader copies the cookies into cart attributes `_datafast_visitor_id`
+  and `_datafast_session_id`; Shopify copies them onto the order's `note_attributes`
+  (`[{name, value}]`).
+- **WooCommerce**: the WordPress plugin stores order meta `_datagoat_visitor_id` and
+  `_datagoat_session_id` (from the `datafast_visitor_id` / `datafast_session_id` cookies) at
+  checkout, visible in the REST order's `meta_data`.
+
+### 13.2 Proxied ingest (for W1)
+
+The install guides in [docs/install/](../install/README.md) tell operators who proxy
+`/js/script.js` and `/api/events` through their own server to forward the visitor's address as
+`X-Forwarded-For` (appending) and `X-Real-IP`. A request reaching the Worker through such a proxy has
+the proxy's address in `CF-Connecting-IP` and the proxy's location in `request.cf`. The guides
+recommend the two setups that need no proxy code (same-zone Worker route, custom domain) because
+Cloudflare then sees the visitor directly; for self-hosted proxies they state that country and city
+reflect what the ingest can derive from those headers.

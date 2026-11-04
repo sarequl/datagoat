@@ -1033,3 +1033,70 @@ export interface SharedWebsite {
   currency: string;
   showRevenue: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Ecosystem (W8): mobile app, Shopify app, WooCommerce connect
+// ---------------------------------------------------------------------------
+
+export interface MobileSessionRequest {
+  email: string;
+  password: string;
+  deviceName?: string;
+}
+
+export interface MobileSession extends Me {
+  /** Read-only `dft_` token for the app; shown once. */
+  token: string;
+  tokenId: string;
+  expiresAt: string;
+  permissions: Grant[];
+}
+
+export interface RegisterDeviceRequest {
+  /** Expo push token, `ExponentPushToken[...]`. */
+  pushToken: string;
+  platform: "ios" | "android";
+  name?: string | null;
+  notifySales?: boolean;
+  notifyAlerts?: boolean;
+  /** sites.id values whose pushes are muted on this device. */
+  mutedSiteIds?: string[];
+}
+
+export interface MobileDevice {
+  id: string;
+  platform: "ios" | "android";
+  name: string | null;
+  pushToken: string;
+  notifySales: boolean;
+  notifyAlerts: boolean;
+  mutedSiteIds: string[];
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface ShopifyConnectRequest {
+  /** `xxx.myshopify.com` (or just `xxx`). */
+  shop: string;
+  clientId: string;
+  clientSecret: string;
+  grant?: "client_credentials" | "authorization_code";
+}
+
+export type ShopifyConnectResult =
+  | {
+      status: "active";
+      message: string;
+      shop: string;
+      shopName: string;
+      currency: string;
+      scriptTagInstalled: boolean;
+      webhooks: string[];
+      warnings: string[];
+    }
+  | { status: "pending"; shop: string; installUrl: string; redirectUrl: string };
+
+export interface WooCommerceAuthorizeUrl {
+  authorizeUrl: string;
+}

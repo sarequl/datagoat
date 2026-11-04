@@ -20,7 +20,6 @@ describe("route table", () => {
     ["POST", "/oauth/token", "W7"],
     ["GET", "/.well-known/oauth-authorization-server", "W7"],
     ["GET", "/share/abc", "W2"],
-    ["POST", "/api/v1/mobile/session", "W8"],
   ])("%s %s answers 501 naming %s", async (method, path, owner) => {
     const res = await api(path, { method, origin: null });
     expect(res.status).toBe(501);
