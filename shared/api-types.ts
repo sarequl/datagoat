@@ -820,6 +820,15 @@ export interface RevenueSummary {
     revenue: number;
     averageValue: number;
   }>;
+  /** DataGoat extension: how customers got to their first payment in the range. */
+  pathToPurchase?: {
+    customers: number;
+    averageDaysToPurchase: number;
+    averageSessionsToPurchase: number;
+    averagePageviewsToPurchase: number;
+    /** Most common channel sequences across the customer's sessions before paying. */
+    topPaths: Array<{ channels: string[]; customers: number; revenue: number }>;
+  };
 }
 
 /** GET /api/v1/analytics/revenue/sources row (`value` is "Unattributed" for the unattributed bucket). */

@@ -33,7 +33,7 @@ export const revenueRoutes = new Hono<AppEnv>();
 const DAY = 86_400_000;
 const kinds = (list: string[]) => raw(`(${list.map((k) => `'${k}'`).join(", ")})`);
 
-interface Common {
+export interface Common {
   site: Site;
   range: DateRange;
   filters: ParsedFilter[];
@@ -67,6 +67,84 @@ function paymentScope(x: Common): { from: SqlFragment; where: SqlFragment } {
   return { from, where: parts.reduce((a, b) => sql`${a} AND ${b}`) };
 }
 
+/** Customers analysed per request (most recent first purchases), to bound rows read. */
+export const MAX_PATH_CUSTOMERS = 2000;
+/** Sessions per customer read for the channel sequence. */
+const MAX_PATH_SESSIONS = 50;
+/** Steps kept in a channel sequence: the first touch plus the last four. */
+const MAX_PATH_STEPS = 5;
+const SEP = "\u001f";
+
+interface PurchasePath {
+  paidAt: number;
+  firstSeen: number;
+  sessionsBefore: number;
+  pageviewsBefore: number;
+  /** Channels of the sessions up to the first purchase, consecutive repeats collapsed. */
+  channels: string[];
+  revenueMinor: number;
+}
+
+/** Collapse consecutive repeats; keep the first touch and the last steps before the purchase. */
+export function compactChannels(raw: string[]): string[] {
+  const out: string[] = [];
+  for (const ch of raw) if (out[out.length - 1] !== ch) out.push(ch);
+  if (out.length <= MAX_PATH_STEPS) return out;
+  return [out[0] as string, ...out.slice(out.length - (MAX_PATH_STEPS - 1))];
+}
+
+/**
+ * Every visitor whose first payment (payment or renewal, all time) falls in the range, with the
+ * sessions that led to it. Filters apply to the session that first payment is attributed to.
+ */
+export async function purchasePaths(db: D1Database, x: Common): Promise<PurchasePath[]> {
+  const { site } = x;
+  const col = raw(attributionColumn(x.model));
+  const counted = kinds(paymentCountKinds(true));
+  const filterSql = x.filters.length
+    ? sql`AND ${compileFilters(x.filters, { siteId: site.id, range: null, sessionAlias: "s" })}`
+    : sql``;
+  const res = await prepare(
+    db,
+    sql`WITH firsts AS (
+        SELECT * FROM (
+          SELECT p.visitor_id, p.occurred_at, p.reporting_minor, p.${col} AS attributed_session,
+            ROW_NUMBER() OVER (PARTITION BY p.visitor_id ORDER BY p.occurred_at, p.id) AS rn
+          FROM payments p WHERE p.site_id = ${site.id} AND p.visitor_id IS NOT NULL AND p.kind IN ${counted}
+        ) WHERE rn = 1 AND occurred_at >= ${x.range.startMs} AND occurred_at < ${x.range.endMs}
+      )
+      SELECT f.occurred_at AS paid_at, f.reporting_minor,
+        (SELECT MIN(started_at) FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id) AS first_seen,
+        (SELECT COUNT(*) FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id AND a.started_at <= f.occurred_at) AS sessions_before,
+        (SELECT COALESCE(SUM(a.pageviews), 0) FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id AND a.started_at <= f.occurred_at) AS pageviews_before,
+        (SELECT group_concat(channel, ${SEP}) FROM (SELECT a.channel FROM sessions a
+           WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id AND a.started_at <= f.occurred_at
+           ORDER BY a.started_at LIMIT ${MAX_PATH_SESSIONS})) AS channels,
+        (SELECT a.channel FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id
+           ORDER BY a.started_at LIMIT 1) AS first_channel
+      FROM firsts f LEFT JOIN sessions s ON s.site_id = ${site.id} AND s.id = f.attributed_session
+      WHERE 1 = 1 ${filterSql}
+      ORDER BY f.occurred_at DESC
+      LIMIT ${MAX_PATH_CUSTOMERS}`,
+  ).all<Record<string, unknown>>();
+  return (res.results ?? [])
+    .filter((r) => r.first_seen !== null)
+    .map((r) => {
+      const seq = typeof r.channels === "string" && r.channels ? r.channels.split(SEP) : [];
+      return {
+        paidAt: Number(r.paid_at),
+        firstSeen: Number(r.first_seen),
+        sessionsBefore: Math.max(1, Number(r.sessions_before)),
+        pageviewsBefore: Number(r.pageviews_before),
+        channels: compactChannels(seq.length ? seq : [String(r.first_channel ?? "Unknown")]),
+        revenueMinor: Number(r.reporting_minor),
+      };
+    });
+}
+
+const average = (v: number[]) => (v.length ? round2(v.reduce((a, b) => a + b, 0) / v.length) : 0);
+const daysOf = (p: PurchasePath) => Math.max(0, (p.paidAt - p.firstSeen) / DAY);
+
 revenueRoutes.get("/api/v1/analytics/revenue", requireSiteAccess("analytics:read"), async (c) => {
   const x = common(c);
   const { site } = x;
@@ -74,6 +152,7 @@ revenueRoutes.get("/api/v1/analytics/revenue", requireSiteAccess("analytics:read
   const rev = kinds(revenueKinds(site.includeRenewalRevenue));
   const counted = kinds(paymentCountKinds(site.includeRenewalRevenue));
   const db = c.env.DB;
+  const pathsPromise = purchasePaths(db, x);
   const [byMethod, totals, ltv] = await db.batch([
     prepare(
       db,
@@ -154,6 +233,25 @@ revenueRoutes.get("/api/v1/analytics/revenue", requireSiteAccess("analytics:read
         averageValue: customers ? round2(revenue / customers) : 0,
       };
     }),
+  };
+  const paths = await pathsPromise;
+  const sequences = new Map<string, { channels: string[]; customers: number; revenue: number }>();
+  for (const p of paths) {
+    const key = p.channels.join(SEP);
+    const entry = sequences.get(key) ?? { channels: p.channels, customers: 0, revenue: 0 };
+    entry.customers += 1;
+    entry.revenue += p.revenueMinor;
+    sequences.set(key, entry);
+  }
+  body.pathToPurchase = {
+    customers: paths.length,
+    averageDaysToPurchase: average(paths.map(daysOf)),
+    averageSessionsToPurchase: average(paths.map((p) => p.sessionsBefore)),
+    averagePageviewsToPurchase: average(paths.map((p) => p.pageviewsBefore)),
+    topPaths: [...sequences.values()]
+      .sort((a, b) => b.customers - a.customers || b.revenue - a.revenue)
+      .slice(0, 10)
+      .map((e) => ({ ...e, revenue: toMajor(e.revenue, site.currency) })),
   };
   return success(c, body);
 });
@@ -251,36 +349,12 @@ revenueRoutes.get(
   async (c) => {
     const x = common(c);
     const { site } = x;
-    const col = raw(attributionColumn(x.model));
-    const counted = kinds(paymentCountKinds(true));
-    const filterSql = x.filters.length
-      ? sql`AND ${compileFilters(x.filters, { siteId: site.id, range: null, sessionAlias: "s" })}`
-      : sql``;
-    const res = await prepare(
-      c.env.DB,
-      sql`WITH firsts AS (
-          SELECT * FROM (
-            SELECT p.visitor_id, p.occurred_at, p.reporting_minor, p.${col} AS attributed_session,
-              ROW_NUMBER() OVER (PARTITION BY p.visitor_id ORDER BY p.occurred_at, p.id) AS rn
-            FROM payments p WHERE p.site_id = ${site.id} AND p.visitor_id IS NOT NULL AND p.kind IN ${counted}
-          ) WHERE rn = 1 AND occurred_at >= ${x.range.startMs} AND occurred_at < ${x.range.endMs}
-        )
-        SELECT f.visitor_id, f.occurred_at AS paid_at, f.reporting_minor,
-          (SELECT MIN(started_at) FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id) AS first_seen,
-          (SELECT COUNT(*) FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id AND a.started_at <= f.occurred_at) AS sessions_before,
-          (SELECT COALESCE(SUM(a.pageviews), 0) FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id AND a.started_at <= f.occurred_at) AS pageviews_before,
-          (SELECT a.channel FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id ORDER BY a.started_at LIMIT 1) AS first_channel,
-          (SELECT a.channel FROM sessions a WHERE a.site_id = ${site.id} AND a.visitor_id = f.visitor_id AND a.started_at <= f.occurred_at ORDER BY a.started_at DESC LIMIT 1) AS last_channel
-        FROM firsts f LEFT JOIN sessions s ON s.site_id = ${site.id} AND s.id = f.attributed_session
-        WHERE 1 = 1 ${filterSql}
-        LIMIT 5000`,
-    ).all<Record<string, unknown>>();
-    const rows = (res.results ?? []).filter((r) => r.first_seen !== null);
-    const days = rows.map((r) => Math.max(0, (Number(r.paid_at) - Number(r.first_seen)) / DAY));
-    const sessions = rows.map((r) => Math.max(1, Number(r.sessions_before)));
-    const pageviews = rows.map((r) => Number(r.pageviews_before));
+    const rows = await purchasePaths(c.env.DB, x);
+    const days = rows.map(daysOf);
+    const sessions = rows.map((r) => r.sessionsBefore);
+    const pageviews = rows.map((r) => r.pageviewsBefore);
     const n = rows.length;
-    const avg = (v: number[]) => (v.length ? round2(v.reduce((a, b) => a + b, 0) / v.length) : 0);
+    const avg = average;
     const timeCounts = TIME_BUCKETS.map(() => 0);
     for (const d of days) {
       const i = TIME_BUCKETS.findIndex((b) => d < b.maxDays);
@@ -297,12 +371,12 @@ revenueRoutes.get(
       { firstChannel: string; lastChannel: string; customers: number; revenue: number }
     >();
     for (const r of rows) {
-      const firstChannel = String(r.first_channel ?? "Unknown");
-      const lastChannel = String(r.last_channel ?? firstChannel);
-      const key = `${firstChannel}\u0000${lastChannel}`;
+      const firstChannel = r.channels[0] ?? "Unknown";
+      const lastChannel = r.channels[r.channels.length - 1] ?? firstChannel;
+      const key = `${firstChannel}${SEP}${lastChannel}`;
       const p = paths.get(key) ?? { firstChannel, lastChannel, customers: 0, revenue: 0 };
       p.customers += 1;
-      p.revenue += Number(r.reporting_minor);
+      p.revenue += r.revenueMinor;
       paths.set(key, p);
     }
     const body: PathToPurchase = {

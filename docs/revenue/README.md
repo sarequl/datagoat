@@ -76,7 +76,9 @@ currency re-converts existing payments within the hour.
 ## Revenue reports
 
 - `GET /api/v1/analytics/revenue`: revenue, new vs renewal, refunds, customers, attribution
-  coverage by method, lifetime value by first channel.
+  coverage by method, lifetime value by first channel, and `pathToPurchase` (average days,
+  sessions and pageviews to a first purchase, and the most common channel sequences, e.g.
+  Organic Search → Direct; repeats collapsed, first touch plus the last four steps).
 - `GET /api/v1/analytics/revenue/sources?groupBy=channel&model=last_touch`: revenue by channel,
   referrer, UTM, country, device … under any attribution model, with an Unattributed row.
 - `GET /api/v1/analytics/revenue/path-to-purchase`: days and sessions from first visit to first

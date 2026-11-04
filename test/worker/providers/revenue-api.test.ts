@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { resetDb } from "../../helpers/db";
+import { compactChannels, purchasePaths } from "../../../src/providers/revenue-api";
+import { meterEnv, resetDb } from "../../helpers/db";
 import { createApiKey, createPayment } from "../../helpers/factories";
 import { api } from "../../helpers/http";
 import { DAY, ownerWithSite, visitorWithSessions } from "./helpers";
@@ -100,7 +101,79 @@ describe("GET /api/v1/analytics/revenue", () => {
         { channel: "Organic Search", customers: 1, revenue: 180, averageValue: 180 },
         { channel: "Referral", customers: 1, revenue: 50, averageValue: 50 },
       ],
+      pathToPurchase: {
+        customers: 2,
+        averageDaysToPurchase: 2,
+        averageSessionsToPurchase: 1.5,
+        averagePageviewsToPurchase: 1.5,
+        topPaths: [
+          { channels: ["Organic Search", "Direct"], customers: 1, revenue: 100 },
+          { channels: ["Referral"], customers: 1, revenue: 50 },
+        ],
+      },
     });
+  });
+
+  it("collapses repeated channels in purchase paths and stays within the read budget", async () => {
+    const { site, cookie } = await ownerWithSite({ currency: "USD" });
+    const channels = [
+      "Organic Search",
+      "Organic Search",
+      "Direct",
+      "Referral",
+      "Direct",
+      "Email",
+      "Direct",
+      "Direct",
+    ];
+    const v = await visitorWithSessions(
+      site.id,
+      channels.map((channel, i) => ({ at: D(1) + i * DAY, channel })),
+    );
+    await createPayment({
+      siteId: site.id,
+      amountMinor: 4200,
+      occurredAt: D(9),
+      visitorId: v.visitorId,
+      firstSessionId: v.sessions[0]?.id,
+      attributedVia: "metadata",
+    });
+    // A later payment by the same customer is not a new path.
+    await createPayment({
+      siteId: site.id,
+      amountMinor: 4200,
+      kind: "renewal",
+      occurredAt: D(20),
+      visitorId: v.visitorId,
+      firstSessionId: v.sessions[0]?.id,
+      attributedVia: "customer",
+    });
+    const res = await api(`/api/v1/analytics/revenue?websiteId=${site.id}&${RANGE}`, { cookie });
+    expect(res.body.data.pathToPurchase).toEqual({
+      customers: 1,
+      averageDaysToPurchase: 8,
+      averageSessionsToPurchase: 8,
+      averagePageviewsToPurchase: 8,
+      // Organic Search → Direct → Referral → Direct → Email → Direct, first touch + last four.
+      topPaths: [
+        {
+          channels: ["Organic Search", "Referral", "Direct", "Email", "Direct"],
+          customers: 1,
+          revenue: 42,
+        },
+      ],
+    });
+    expect(compactChannels(["A", "A", "B"])).toEqual(["A", "B"]);
+    // Rows read: the site's payments plus this customer's sessions per subquery, nothing more.
+    const m = meterEnv();
+    await purchasePaths(m.db, {
+      site,
+      range: { startMs: D(1), endMs: D(31), timezone: "UTC" },
+      filters: [],
+      model: "first_touch",
+    });
+    expect(m.d1.rowsRead).toBeLessThan(60);
+    expect(m.d1.queries).toBe(1);
   });
 
   it("excludes renewals when the website does, and applies filters to the attributed session", async () => {
