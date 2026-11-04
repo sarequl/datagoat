@@ -215,11 +215,14 @@ export async function callTool(
   }
 
   const tc = buildContext(tool, x);
-  try {
+  const checks = async () => {
     if (tool.oauthOwnerOnly && caller.connection) await requireOwner(tc, args);
     if (tool.guard) await tool.guard(args, tc);
+  };
+  try {
     if (tool.access === "write") {
       if (args.confirm !== true) {
+        await checks();
         const preview: Record<string, unknown> = {
           dryRun: true,
           tool: tool.name,
@@ -243,6 +246,7 @@ export async function callTool(
 
     const key = tool.access === "write" ? (args.idempotencyKey as string | undefined) : undefined;
     if (!key) {
+      await checks();
       const result = await execute(tool, args, tc);
       return formatResult(result.status, result.body);
     }
@@ -265,8 +269,11 @@ export async function callTool(
       }
       return replay;
     }
+    // A replay above returns the recorded result even when the change it made (e.g. a deleted
+    // token) would now fail these checks; a new call runs them.
     let result: { status: number; body: unknown };
     try {
+      await checks();
       result = await execute(tool, args, tc);
     } catch (err) {
       if (err instanceof ToolError) {

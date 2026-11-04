@@ -307,6 +307,21 @@ describe("idempotency", () => {
     expect(keys.body.data).toHaveLength(1);
   });
 
+  it("replays a completed delete even though the target is gone", async () => {
+    const { token } = await world();
+    const created = await callTool(token, "access_tokens_create", { name: "tmp", confirm: true });
+    const id = created.structuredContent.data[0].id;
+    const args = { tokenId: id, confirm: true, idempotencyKey: "delete-tok-01" };
+    expect((await callTool(token, "access_tokens_delete", args)).isError).toBeUndefined();
+    const replay = await callTool(token, "access_tokens_delete", args);
+    expect(replay.structuredContent.replayed).toBe(true);
+    const fresh = await callTool(token, "access_tokens_delete", {
+      ...args,
+      idempotencyKey: "delete-tok-02",
+    });
+    expect(fresh.structuredContent.error.code).toBe(404);
+  });
+
   it("lets a failed (4xx) call be retried with the same key", async () => {
     const { token, site } = await world();
     const args = {

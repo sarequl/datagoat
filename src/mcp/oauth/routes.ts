@@ -411,8 +411,8 @@ oauthRoutes.post("/oauth/authorize", sameOriginGuard, async (c) => {
   }
   const origin = originOf(c);
   const client = await clientForRequest(c, request.clientId);
-  deleteCookie(c, CONSENT_COOKIE, { path: "/oauth" });
   if (!body.approve) {
+    deleteCookie(c, CONSENT_COOKIE, { path: "/oauth" });
     const result: OAuthDecisionResult = {
       redirectTo: clientRedirect(request.redirectUri, {
         error: "access_denied",
@@ -456,6 +456,7 @@ oauthRoutes.post("/oauth/authorize", sameOriginGuard, async (c) => {
     now,
   );
   await c.env.DB.batch(created.statements);
+  deleteCookie(c, CONSENT_COOKIE, { path: "/oauth" });
   log.info("oauth.connection_approved", {
     connectionId: created.connectionId,
     clientId: client.id,

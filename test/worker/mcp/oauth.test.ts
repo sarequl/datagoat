@@ -336,6 +336,14 @@ describe("consent", () => {
       websiteIds: [site.id],
     });
     expect(usage.body.error.message).toContain("every website you own");
+    // The browser binding survives a rejected selection, so the user can fix it and retry.
+    const fixed = await decide(start, session, {
+      approve: true,
+      scopes: ["analytics:read"],
+      websiteIds: [site.id],
+    });
+    expect(fixed.status).toBe(200);
+    expect(fixed.cookies.join(";")).toContain("dg_oauth_consent=;");
   });
 
   it("redirects with access_denied when the user declines", async () => {
