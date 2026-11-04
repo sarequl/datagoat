@@ -16,3 +16,4 @@ All notable changes to DataGoat are recorded here. The format follows
 - The Worker bundles its D1 migrations and applies pending ones on first use, so setup works even when the deploy command skipped `wrangler d1 migrations apply`; schema failures answer 503 with the reason.
 - `npm run smoke -- --url <deployment>` checks a deployed instance end to end over HTTP.
 - Test harness (workerd + local D1, write-budget meter, factories), Playwright e2e and CI.
+- Revenue attribution: Stripe (read-only restricted key, Events API polling, backfill, optional webhooks, Payment Links), Polar, Lemon Squeezy, Paddle Billing, Dodo Payments, Creem, Shopify and WooCommerce; DataFast's `POST`/`DELETE /api/v1/payments`; integrations connect/status/re-sync/disconnect; subscription lifecycle goals; ECB currency conversion; revenue by source, LTV by first channel, path to purchase and the payments list (docs/revenue/).
