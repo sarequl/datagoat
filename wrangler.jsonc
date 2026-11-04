@@ -72,9 +72,10 @@
   },
 
   "vars": {
-    // PBKDF2-SHA256 iterations for new password hashes (max 100000 in the Workers runtime).
-    // Lower it only if logins fail with "exceeded CPU" on the Free plan; see docs/auth.md.
-    "PASSWORD_ITERATIONS": "100000"
+    // PBKDF2-SHA256 iterations for password hashes. 100000 (the Workers runtime maximum) measured
+    // ~16 ms CPU per hash, above the Free plan's 10 ms; 50000 is ~8 ms. On Workers Paid raise it
+    // to 100000; existing hashes are upgraded at the next login. See docs/deploy.md.
+    "PASSWORD_ITERATIONS": "50000"
   },
 
   "observability": {

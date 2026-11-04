@@ -7,8 +7,8 @@ website. It works once; afterwards everyone signs in at `/login`.
 
 ## Dashboard sign-in
 
-- Passwords: PBKDF2-SHA256 via Web Crypto, 100,000 iterations by default (the Workers maximum),
-  per-user salt. Hashes record their iteration count and are upgraded on login when the configured
+- Passwords: PBKDF2-SHA256 via Web Crypto with a per-user salt; 50,000 iterations by default to
+  fit the Free plan's CPU limit, up to 100,000 (the Workers maximum) via `PASSWORD_ITERATIONS`. Hashes record their iteration count and are upgraded on login when the configured
   count changes.
 - Session: an HttpOnly, Secure, SameSite=Lax cookie (`dg_session`, 30 days) holding a random token
   and its HMAC (`SESSION_SECRET`); the server stores only a hash, so sign-out and password changes

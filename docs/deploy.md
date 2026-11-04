@@ -49,10 +49,11 @@ its daily request limit.
 
 ## Free-plan notes
 
-- PBKDF2 uses 100,000 iterations (`PASSWORD_ITERATIONS` in `wrangler.jsonc`, the runtime maximum).
-  If logins fail with "exceeded CPU" on the Free plan, lower it (e.g. `"30000"`); existing hashes
-  are re-hashed with the new count at the next login. This is a security/CPU trade-off: fewer
-  iterations make offline guessing of a leaked hash cheaper.
+- PBKDF2 uses **50,000** iterations by default (`PASSWORD_ITERATIONS` in `wrangler.jsonc`). The
+  Workers runtime allows up to 100,000, which measured about 16 ms per hash in local workerd, above
+  the Free plan's 10 ms CPU limit per request; 50,000 is about 8 ms. On Workers Paid, set it to
+  `"100000"`. Existing hashes are re-hashed with the configured count at the next login. Trade-off:
+  fewer iterations make offline guessing of a leaked hash cheaper, so use long passwords.
 - The cron runs every minute. Idle jobs write almost nothing (see [architecture/jobs.md](architecture/jobs.md)).
 - Deleting a website removes its rows gradually (1000 rows per hour by default,
   `PURGE_ROWS_PER_RUN`), because deletes count against the 100,000 daily row writes.
