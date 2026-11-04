@@ -1,0 +1,28 @@
+{
+  // Type-checks the ecosystem packages, their tests and the mobile app's data layer from the root
+  // (`npm run typecheck`). The mobile app's screens are checked in apps/mobile with Expo's types.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "vitest.config.ts",
+    "sdk/src/**/*",
+    "sdk/test/**/*",
+    "react-native/src/**/*",
+    "react-native/test/**/*",
+    "react-native/types/**/*",
+    "test/**/*",
+    "../apps/mobile/src/lib/**/*.ts"
+  ]
+}
