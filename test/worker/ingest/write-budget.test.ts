@@ -70,55 +70,57 @@ describe("ingest write budget (cookie mode)", () => {
     });
   });
 
-  it("goal and outbound click within a session: 3 rows each", async () => {
+  // Non-pageview events also write two partial-index entries (migration 0200: events_activity,
+  // events_visitor_activity), which make goal, funnel and journey queries index seeks.
+  it("goal and outbound click within a session: 5 rows each (event + 2 partial indexes + session)", async () => {
     await send();
     expect(
       await send({ type: "custom", extraData: { eventName: "signup", plan: "pro" } }),
-    ).toMatchObject({ written: 3, queries: 1 });
+    ).toMatchObject({ written: 5, queries: 1 });
     expect(
       await send({ type: "external_link", extraData: { url: "https://x.com/", text: "X" } }),
-    ).toMatchObject({ written: 3, queries: 1 });
+    ).toMatchObject({ written: 5, queries: 1 });
   });
 
-  it("identify: 5 rows for a new user id, 4 for profile changes, 3 when nothing changed", async () => {
+  it("identify: 7 rows for a new user id, 6 for profile changes, 5 when nothing changed", async () => {
     await send();
     const identify = (extraData: Record<string, unknown>) => send({ type: "identify", extraData });
+    expect(await identify({ user_id: "u1", plan: "pro" })).toMatchObject({
+      written: 7,
+      queries: 1,
+    });
     expect(await identify({ user_id: "u1", plan: "pro" })).toMatchObject({
       written: 5,
       queries: 1,
     });
-    expect(await identify({ user_id: "u1", plan: "pro" })).toMatchObject({
-      written: 3,
-      queries: 1,
-    });
     expect(await identify({ user_id: "u1", plan: "team" })).toMatchObject({
-      written: 4,
+      written: 6,
       queries: 1,
     });
     // New user id (row + index entry) and a first email (row + index entry), one batch.
     expect(await identify({ user_id: "u2", email: "a@b.co" })).toMatchObject({
-      written: 7,
+      written: 9,
       queries: 1,
     });
     expect(await identify({ user_id: "u2", email: "a@b.co" })).toMatchObject({
-      written: 3,
+      written: 5,
       queries: 1,
     });
   });
 
-  it("payment with a provider reference: 5 rows (hint + its pending index), 3 for a repeat", async () => {
+  it("payment with a provider reference: 7 rows (hint + its pending index), 5 for a repeat", async () => {
     await send();
     const hint = () =>
       send({ type: "payment", extraData: { stripe_session_id: "cs_test_abcdef123" } });
-    expect(await hint()).toMatchObject({ written: 5, queries: 1, kvWrites: 0 });
-    expect(await hint()).toMatchObject({ written: 3, queries: 1 });
+    expect(await hint()).toMatchObject({ written: 7, queries: 1, kvWrites: 0 });
+    expect(await hint()).toMatchObject({ written: 5, queries: 1 });
   });
 
-  it("payment with an email: 5 rows the first time, 3 for a repeat", async () => {
+  it("payment with an email: 7 rows the first time, 5 for a repeat", async () => {
     await send();
     const email = () => send({ type: "payment", extraData: { email: "buyer@example.com" } });
+    expect(await email()).toMatchObject({ written: 7, queries: 1 });
     expect(await email()).toMatchObject({ written: 5, queries: 1 });
-    expect(await email()).toMatchObject({ written: 3, queries: 1 });
   });
 
   it("payment email matching an unattributed payment adds the payment row and its visitor index", async () => {
@@ -129,7 +131,7 @@ describe("ingest write budget (cookie mode)", () => {
       .run();
     expect(
       await send({ type: "payment", extraData: { email: "buyer@example.com" } }),
-    ).toMatchObject({ written: 7, queries: 1 });
+    ).toMatchObject({ written: 9, queries: 1 });
   });
 
   it("engagement beacon: 1 row, one statement", async () => {

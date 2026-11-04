@@ -44,3 +44,8 @@ Growth jobs (W6, `src/growth/index.ts`; details in [docs/growth/](../growth/READ
 | `github.sync` | hourly :37 | new commits and line stats (3 sites per run) | 1 read |
 | `gsc.sync` | hourly :17 | Search Console daily refresh and 2-day backfill per run | 1 read |
 | `meta.sync` | hourly :23 | Meta spend per selected campaign | 1 read |
+
+W2 jobs (src/query/jobs): `query.rollups` (hourly at :07, closed days into the daily rollup tables,
+changed rows only), `query.retention` (hourly at :23, bounded pruning of events past
+`retention_days`, only for rolled-up days) and `query.predictions` (daily at 04:43, purchase-likelihood
+models, written only when they change).

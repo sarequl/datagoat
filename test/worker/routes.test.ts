@@ -9,21 +9,16 @@ describe("route table", () => {
     expect(res.headers.get("x-request-id")).toBeTruthy();
   });
 
-  it.each([
-    ["GET", "/api/v1/visitors/abc", "W2"],
-    ["GET", "/share/abc", "W2"],
-  ])("%s %s answers 501 naming %s", async (method, path, owner) => {
-    const res = await api(path, { method, origin: null });
-    expect(res.status).toBe(501);
-    expect(res.body.status).toBe("error");
-    expect(res.body.error.code).toBe(501);
-    expect(res.body.error.message).toContain(`owner: ${owner}`);
-  });
-
-  it("requires authentication before reaching unbuilt /api/v1 routes", async () => {
-    const res = await api("/api/v1/analytics/overview");
-    // Unauthenticated callers still hit the stub: auth is the handler's job (requireSiteAccess).
-    expect(res.status).toBe(501);
+  it("has no unbuilt routes left", async () => {
+    // Every team's routes are implemented; an unauthenticated API call is refused, not stubbed.
+    for (const path of [
+      "/api/v1/analytics/overview",
+      "/api/v1/analytics/bot-traffic",
+      "/api/v1/visitors",
+    ]) {
+      const res = await api(path);
+      expect(res.status, path).toBe(401);
+    }
     const bad = await api("/api/v1/analytics/overview", { token: "df_nope" });
     expect(bad.status).toBe(401);
   });

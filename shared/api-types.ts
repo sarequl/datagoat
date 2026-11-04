@@ -378,6 +378,27 @@ export interface BreakdownMetrics {
 export interface PageRow extends BreakdownMetrics {
   hostname: string;
   path: string;
+  /** DataGoat extension (`fields` may request it). */
+  pageviews?: number;
+}
+
+/**
+ * DataGoat top-level fields on analytics responses: `approximate: true` when visitor counts are
+ * sums of daily unique visitors (long ranges served from rollups). Overview and timeseries with
+ * `compare=previous` add `previous` (same shape as the current data) and, for the overview,
+ * `previousRange {startAt, endAt}`.
+ */
+export interface AnalyticsExtra {
+  approximate?: boolean;
+  previousRange?: { startAt: string; endAt: string };
+}
+
+/** DataGoat `GET /api/v1/analytics/heatmap`: pageviews by local ISO weekday (1 = Monday) and hour. */
+export interface HeatmapCell {
+  weekday: number;
+  hour: number;
+  pageviews: number;
+  visitors: number;
 }
 export interface ReferrerRow extends BreakdownMetrics {
   referrer: string;
@@ -680,6 +701,8 @@ export interface VisitorProfile {
     provider: string;
     timestamp: string;
   }>;
+  /** DataGoat extension: activity per local day (DataFast's visitor activity grid). */
+  activityGrid?: Array<{ date: string; events: number; goals: number }>;
 }
 
 // ---------------------------------------------------------------------------

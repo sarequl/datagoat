@@ -138,7 +138,8 @@ describe("attribution order", () => {
       now: T0,
     });
     // payment row + unique + time + visitor indexes (4), goal event + index (2), customer map (1).
-    expect(m.d1.rowsWritten).toBe(7);
+    // The goal event also writes 2 partial-index entries (migration 0200), so 9 in total.
+    expect(m.d1.rowsWritten).toBe(9);
     expect(m.d1.queries).toBeLessThanOrEqual(3);
     m.reset();
     await ingestBatch(m.db, batch({ payments: [p] }), {
