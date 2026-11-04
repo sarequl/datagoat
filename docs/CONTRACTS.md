@@ -95,7 +95,8 @@ Wrangler applies migrations in filename order, so ranges also fix the order acro
 | `npm run test:dashboard` | Dashboard tests (happy-dom, Testing Library, MSW)                          |
 | `npm run build`          | Dashboard + tracker into `public/`                                         |
 | `npm run size`           | Tracker and dashboard initial-JS gzip budgets (`tracker/size-budget.json`) |
-| `npm run e2e`            | Playwright: mock dashboard + real Worker on `wrangler dev`                 |
+| `npm run e2e` | Playwright: mock dashboard + real Worker on `wrangler dev` started from an empty, unmigrated D1 (setup, sign-out, sign-in through the UI, then `npm run smoke` against it) |
+| `npm run smoke -- --url <deployment>` | HTTP smoke test of any deployed instance ([deploy.md](deploy.md)) |
 | `npm run check`          | All of the above, in that order (CI runs this)                             |
 
 Worker test helpers: `resetDb()`, `meterEnv()` (write-budget meter: `m.d1.rowsWritten`, `m.d1.rowsRead`, `m.d1.queries`, `m.kv.writes`), factories (`createUser`, `createSite`, `addMember`, `createApiKey`, `sessionCookie`, `createSession`, `createEvent`, `createPayment`) and `api(path, {token | cookie, body, method})`.
