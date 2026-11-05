@@ -60,15 +60,20 @@ the last error, with **Re-sync** and **Disconnect**.
 
 ### Growth
 
-Google Search Console, GitHub, X and Reddit mentions, and Meta Ads connect through the provider's
-OAuth flow (`/api/connect/<integration>/start`). The operator must register an OAuth app with each
-provider and set its client ID and secret on the Worker first. After connecting:
+Google Search Console, GitHub, X and Reddit mentions, and Meta Ads can connect through the
+provider's OAuth flow (`/api/connect/<integration>/start`) once the operator has registered an OAuth
+app with the provider and set its client ID and secret on the Worker. Without that, the card says
+which variables are missing instead of offering a Connect button, and GitHub and Meta Ads still
+connect with a pasted token:
 
-- Search Console: the property (`sc-domain:example.com` or a URL prefix).
-- GitHub: the repository as `owner/name`. Push events go to `/webhooks/github/<websiteId>`.
+- Search Console: the property (`sc-domain:example.com` or a URL prefix). OAuth only.
+- GitHub: the repository as `owner/name` and an optional branch. A public repository needs nothing
+  else; for a private one paste a fine-grained token (*Contents: read*, *Metadata: read*). Once saved,
+  the card shows the push webhook URL (`/webhooks/github/<websiteId>`) and its signing secret.
 - X and Reddit: keywords (4 to 15 characters, shared by both searches) and link-in-bio handles. Your
   domain is always searched.
-- Meta Ads: ad account IDs and campaign IDs, plus the recommended UTM template for your ads.
+- Meta Ads: ad account IDs and campaign IDs (and, without OAuth, a system-user access token with
+  `ads_read`), plus the recommended UTM template for your ads.
 
 ## Share link
 

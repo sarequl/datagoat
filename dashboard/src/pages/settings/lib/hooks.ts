@@ -321,6 +321,21 @@ export function useSaveGrowthIntegration(siteId: string, kind: GrowthKind) {
   });
 }
 
+/** Repositories the stored GitHub credentials can read (`GET /api/v1/github/repos`), for a picker. */
+export function useGithubRepos(siteId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["settings", siteId, "github-repos"] as const,
+    queryFn: () =>
+      apiGet<Array<{ fullName: string; private: boolean; defaultBranch: string | null }>>(
+        "/api/v1/github/repos",
+        { websiteId: siteId },
+      ),
+    enabled,
+    retry: false,
+    staleTime: 5 * 60_000,
+  });
+}
+
 /** Where the dashboard sends the browser to start a growth integration's OAuth flow. */
 export function connectUrl(kind: GrowthKind, siteId: string): string {
   return `/api/connect/${kind}/start?websiteId=${encodeURIComponent(siteId)}`;

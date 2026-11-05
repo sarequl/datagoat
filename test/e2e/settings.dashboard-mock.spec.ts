@@ -104,6 +104,32 @@ test("team invite, API key shown once, and integrations", async ({ page }) => {
   await expect(polar.getByText("Connected", { exact: true })).toBeVisible();
 });
 
+/** The copy button must sit outside the code text: no overlap, no clipped or scrolled-away text. */
+async function expectCodeBlockReadable(page: Page, name: string) {
+  const figure = page.getByRole("figure", { name });
+  await figure.scrollIntoViewIfNeeded();
+  const button = figure.getByRole("button", { name: `Copy ${name}` });
+  const pre = figure.locator("pre");
+  const [b, p] = [await button.boundingBox(), await pre.boundingBox()];
+  if (!b || !p) throw new Error(`${name}: not rendered`);
+  const overlaps =
+    b.x < p.x + p.width && b.x + b.width > p.x && b.y < p.y + p.height && b.y + b.height > p.y;
+  expect(overlaps, `${name}: copy button overlaps the code`).toBe(false);
+  const fits = await pre.evaluate((el) => el.scrollWidth <= el.clientWidth);
+  expect(fits, `${name}: code is cut off horizontally`).toBe(true);
+  const box = await figure.boundingBox();
+  const viewport = page.viewportSize();
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport?.width ?? 0);
+}
+
+test("Meta Ads UTM template is fully readable next to its copy button", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await open(page, `/app/${SITE}/integrations`);
+  await expectCodeBlockReadable(page, "Meta URL parameters");
+  await page.getByRole("button", { name: "Copy Meta URL parameters" }).click();
+  await expect(page.getByRole("figure", { name: "Meta URL parameters" })).toContainText("Copied");
+});
+
 test("account: sign out everywhere returns to sign-in", async ({ page }) => {
   await open(page, "/app/account");
   await page.getByRole("button", { name: "Sign out everywhere" }).click();
@@ -137,6 +163,11 @@ test.describe("phone width (390 px)", () => {
       const width = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(width, path).toBeLessThanOrEqual(390);
     }
+  });
+
+  test("the Meta Ads UTM template wraps beside its copy button", async ({ page }) => {
+    await open(page, `/app/${SITE}/integrations`);
+    await expectCodeBlockReadable(page, "Meta URL parameters");
   });
 
   test("dialogs work on a phone", async ({ page }) => {

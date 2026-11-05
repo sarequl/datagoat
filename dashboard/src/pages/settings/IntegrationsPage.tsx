@@ -7,6 +7,7 @@ import {
   connectUrl,
   type GrowthKind,
   useAccess,
+  useGithubRepos,
   useGrowthIntegration,
   useIntegrations,
   useProviderAction,
@@ -388,6 +389,7 @@ function GrowthShell({
   description,
   steps,
   disabled,
+  oauthHint,
   children,
 }: {
   kind: GrowthKind;
@@ -396,6 +398,8 @@ function GrowthShell({
   description: string;
   steps: string[];
   disabled: boolean;
+  /** Shown instead of the Connect button when the server has no OAuth client for this provider. */
+  oauthHint: string;
   children?: (state: GrowthIntegrationStatus) => ReactNode;
 }) {
   const status = useGrowthIntegration(siteId, kind);
@@ -447,6 +451,8 @@ function GrowthShell({
                   >
                     Disconnect
                   </Button>
+                ) : s.oauthConfigured === false ? (
+                  <p className="text-xs text-muted">{oauthHint}</p>
                 ) : (
                   <a
                     href={connectUrl(kind, siteId)}
@@ -526,6 +532,7 @@ function SearchConsoleCard({ siteId, disabled }: { siteId: string; disabled: boo
         "Pick the property below. Search data can take 24 to 48 hours to appear.",
       ]}
       disabled={disabled}
+      oauthHint="Google sign-in is not set up on this server: the operator sets GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (docs/growth/search-console.md)."
     >
       {(s) =>
         s.connected ? (
@@ -575,61 +582,124 @@ function GithubCard({ siteId, disabled }: { siteId: string; disabled: boolean })
       title="GitHub"
       description="Show commits on your chart to see which releases move traffic and revenue. Only commit messages and stats are read, never code."
       steps={[
-        "Choose Connect to install the DataGoat GitHub App on the account or organization that owns the repository.",
-        "Grant it access to the repository (you need admin access to it).",
-        "Pick the repository below; one repository per website.",
+        "Enter the repository below (owner/name); one repository per website. A public repository needs nothing else.",
+        "For a private repository, paste a fine-grained token with Contents: read and Metadata: read, or choose Connect GitHub to sign in.",
+        "Optional: add a push webhook with the URL and secret shown after saving, for instant updates.",
       ]}
       disabled={disabled}
+      oauthHint="Sign-in with GitHub is not set up on this server (GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET, see docs/growth/github.md). A repository name, plus a token for private repositories, is enough."
     >
-      {(s) =>
-        s.connected ? <RepoForm siteId={siteId} settings={s.settings} disabled={disabled} /> : null
-      }
+      {(s) => <RepoForm key={String(s.connected)} siteId={siteId} state={s} disabled={disabled} />}
     </GrowthShell>
   );
 }
 
+const GITHUB_REPO = /^[\w.-]+\/[\w.-]+$/;
+
 function RepoForm({
   siteId,
-  settings,
+  state,
   disabled,
 }: {
   siteId: string;
-  settings: Record<string, unknown>;
+  state: GrowthIntegrationStatus;
   disabled: boolean;
 }) {
   const save = useSaveGrowthIntegration(siteId, "github");
-  const initial = str(settings.repo);
-  const [repo, setRepo] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
+  const repos = useGithubRepos(siteId, Boolean(state.hasCredentials) && !disabled);
+  const settings = state.settings;
+  const initialRepo = str(settings.repo);
+  const initialBranch = str(settings.branch);
+  const [repo, setRepo] = useState(initialRepo);
+  const [branch, setBranch] = useState(initialBranch);
+  const [token, setToken] = useState("");
+  const [errors, setErrors] = useState<{ repo?: string; token?: string }>({});
+  const listId = `github-repos-${siteId}`;
+  const dirty = repo.trim() !== initialRepo || branch.trim() !== initialBranch || token !== "";
+  const onSave = () => {
+    const found: { repo?: string; token?: string } = {};
+    if (!GITHUB_REPO.test(repo.trim())) found.repo = "Use the owner/name form, e.g. acme/website.";
+    if (token && token.trim().length < 10) found.token = "This does not look like a GitHub token.";
+    setErrors(found);
+    if (found.repo || found.token) return;
+    const body: Record<string, unknown> = { repo: repo.trim() };
+    if (branch.trim() !== initialBranch) body.branch = branch.trim() || null;
+    if (token.trim()) body.accessToken = token.trim();
+    save.mutate({ settings: body }, { onSuccess: () => setToken("") });
+  };
+  const webhookSecret = str(settings.webhookSecret);
   return (
     <div className="space-y-2">
-      <Field label="Repository" error={error} hint="owner/name">
+      <Field label="Repository" error={errors.repo} hint="owner/name">
         <Input
           value={repo}
           disabled={disabled}
           placeholder="acme/website"
+          list={repos.data?.length ? listId : undefined}
           onChange={(e) => {
             setRepo(e.target.value);
-            setError(null);
+            setErrors({ ...errors, repo: undefined });
           }}
         />
       </Field>
-      <SaveSettings
-        save={save}
-        dirty={repo.trim() !== initial}
-        disabled={disabled}
-        onSave={() => {
-          if (!/^[\w.-]+\/[\w.-]+$/.test(repo.trim())) {
-            setError("Use the owner/name form, e.g. acme/website.");
-            return;
+      {repos.data?.length ? (
+        <datalist id={listId}>
+          {repos.data.map((r) => (
+            <option key={r.fullName} value={r.fullName} />
+          ))}
+        </datalist>
+      ) : null}
+      <Field label="Branch" hint="Leave empty for the default branch.">
+        <Input
+          value={branch}
+          disabled={disabled}
+          placeholder="main"
+          onChange={(e) => setBranch(e.target.value)}
+        />
+      </Field>
+      {!disabled ? (
+        <Field
+          label="Access token"
+          error={errors.token}
+          hint={
+            state.hasCredentials
+              ? "A token is stored. Paste a new one to replace it."
+              : "Optional for public repositories. A fine-grained token with Contents: read and Metadata: read."
           }
-          save.mutate({ settings: { repo: repo.trim() } });
-        }}
-      />
-      <p className="text-xs text-muted">
-        Push events arrive at{" "}
-        <code className="break-all">{`${window.location.origin}/webhooks/github/${siteId}`}</code>.
-      </p>
+        >
+          <Input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="github_pat_…"
+            value={token}
+            onChange={(e) => {
+              setToken(e.target.value);
+              setErrors({ ...errors, token: undefined });
+            }}
+          />
+        </Field>
+      ) : null}
+      <SaveSettings save={save} dirty={dirty} disabled={disabled} onSave={onSave} />
+      {state.connected ? (
+        <div className="space-y-2">
+          <CopyField
+            visibleLabel
+            label="Push webhook URL"
+            value={
+              str(settings.webhookUrl) || `${window.location.origin}/webhooks/github/${siteId}`
+            }
+          />
+          {webhookSecret ? (
+            <CopyField
+              visibleLabel
+              label="Webhook secret"
+              value={webhookSecret}
+              hint="In the repository: Settings > Webhooks > Add webhook, content type application/json, just the push event."
+            />
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -655,6 +725,7 @@ function MentionsCard({
         "Choose Connect to link your X account for tweet link attribution.",
       ]}
       disabled={disabled}
+      oauthHint="Sign-in with X is not set up on this server (X_CLIENT_ID and X_CLIENT_SECRET, see docs/growth/mentions.md). Keyword search uses the server's X bearer token when one is set; Reddit needs nothing."
     >
       {(s) => (
         <KeywordsForm
@@ -743,13 +814,20 @@ function MetaAdsCard({ siteId, disabled }: { siteId: string; disabled: boolean }
         "Add UTM parameters to every ad so visits match campaigns (template below).",
       ]}
       disabled={disabled}
+      oauthHint="Facebook sign-in is not set up on this server (META_APP_ID and META_APP_SECRET, see docs/growth/meta-ads.md). Paste a system-user access token below instead."
     >
       {(s) => (
         <div className="space-y-3">
-          {s.connected ? (
-            <AdsForm siteId={siteId} settings={s.settings} disabled={disabled} />
+          {s.connected || s.oauthConfigured === false ? (
+            <AdsForm
+              key={String(s.connected)}
+              siteId={siteId}
+              settings={s.settings}
+              hasCredentials={Boolean(s.hasCredentials)}
+              disabled={disabled}
+            />
           ) : null}
-          <CodeBlock code={META_UTM} label="Meta URL parameters" />
+          <CodeBlock code={META_UTM} label="Meta URL parameters" wrap />
         </div>
       )}
     </GrowthShell>
@@ -759,10 +837,12 @@ function MetaAdsCard({ siteId, disabled }: { siteId: string; disabled: boolean }
 function AdsForm({
   siteId,
   settings,
+  hasCredentials,
   disabled,
 }: {
   siteId: string;
   settings: Record<string, unknown>;
+  hasCredentials: boolean;
   disabled: boolean;
 }) {
   const save = useSaveGrowthIntegration(siteId, "meta-ads");
@@ -770,7 +850,9 @@ function AdsForm({
   const initialCampaigns = strs(settings.campaignIds);
   const [accounts, setAccounts] = useState(initialAccounts);
   const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const [token, setToken] = useState("");
   const dirty =
+    token !== "" ||
     JSON.stringify(accounts) !== JSON.stringify(initialAccounts) ||
     JSON.stringify(campaigns) !== JSON.stringify(initialCampaigns);
   return (
@@ -798,11 +880,40 @@ function AdsForm({
           validate={(v) => (/^\d+$/.test(v) ? null : "Campaign IDs are numbers.")}
         />
       </FieldGroup>
+      {!disabled ? (
+        <Field
+          label="Access token"
+          hint={
+            hasCredentials
+              ? "A token is stored. Paste a new one to replace it."
+              : "A Meta system-user token with ads_read, if you do not sign in with Facebook."
+          }
+        >
+          <Input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+          />
+        </Field>
+      ) : null}
       <SaveSettings
         save={save}
         dirty={dirty}
         disabled={disabled}
-        onSave={() => save.mutate({ settings: { adAccountIds: accounts, campaignIds: campaigns } })}
+        onSave={() =>
+          save.mutate(
+            {
+              settings: {
+                adAccountIds: accounts,
+                campaignIds: campaigns,
+                ...(token.trim() ? { accessToken: token.trim() } : {}),
+              },
+            },
+            { onSuccess: () => setToken("") },
+          )
+        }
       />
     </div>
   );
