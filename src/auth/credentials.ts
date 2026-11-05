@@ -1,8 +1,9 @@
 /**
  * API credentials (plan §13, DataFast authentication docs):
  *
- * - `df_…`  website API key: one website, full website-scoped access capped at member role.
- * - `dft_…` account token: scoped permissions plus an optional website allowlist; requires
+ * - `dg_…` (or legacy `df_…`) website API key: one website, full website-scoped access capped at
+ *   member role.
+ * - `dgt_…` (or legacy `dft_…`) account token: scoped permissions plus an optional website allowlist; requires
  *   `?websiteId=` on website endpoints.
  *
  * Secrets are shown once. Only SHA-256(secret) is stored (`api_keys.key_hash`, unique index).
@@ -26,28 +27,39 @@ export const MAX_TOKENS_PER_USER = 20;
 export const MAX_KEYS_PER_SITE = 10;
 const SECRET_LENGTH = 40;
 
+/**
+ * New secrets use DataGoat's prefixes: `dg_` (website key) and `dgt_` (account token). Keys made
+ * before the rename keep working with `df_` / `dft_`. The stored `kind` stays "df" / "dft".
+ */
+const SECRET_PREFIX: Record<KeyKind, string> = { df: "dg_", dft: "dgt_" };
+
 export function generateSecret(kind: KeyKind): string {
-  return `${kind}_${randomBase62(SECRET_LENGTH)}`;
+  return `${SECRET_PREFIX[kind]}${randomBase62(SECRET_LENGTH)}`;
 }
 
 export function keyKindOf(secret: string): KeyKind | null {
-  if (secret.startsWith("dft_")) return "dft";
-  if (secret.startsWith("df_")) return "df";
+  if (secret.startsWith("dgt_") || secret.startsWith("dft_")) return "dft";
+  if (secret.startsWith("dg_") || secret.startsWith("df_")) return "df";
   return null;
+}
+
+/** Whether `secret` looks like a website key or account token (either prefix generation). */
+export function isApiKeySecret(secret: string): boolean {
+  return keyKindOf(secret) !== null;
 }
 
 export function hashSecret(secret: string): Promise<string> {
   return sha256Hex(secret);
 }
 
-/** First 8 characters, e.g. `df_ab123`. */
+/** First 8 characters, e.g. `dg_ab123`. */
 export function keyPrefixOf(secret: string): string {
   return secret.slice(0, 8);
 }
 
-/** Masked display value: `df_ab...xyz9` / `dft_ab1...xyz9`. */
+/** Masked display value: `dg_ab...xyz9` / `dgt_ab1...xyz9`. */
 export function displayKeyOf(secret: string): string {
-  const head = secret.startsWith("dft_") ? 7 : 5;
+  const head = keyKindOf(secret) === "dft" ? 7 : 5;
   return `${secret.slice(0, head)}...${secret.slice(-4)}`;
 }
 
@@ -184,7 +196,7 @@ const extraResolvers: Array<{ prefix: string; resolve: BearerResolver }> = [];
  * Call it at module load from your area's index.ts.
  */
 export function registerBearerResolver(prefix: string, resolve: BearerResolver): void {
-  if (prefix === "df_" || prefix === "dft_") throw new Error("df_/dft_ are built in");
+  if (keyKindOf(`${prefix}x`) !== null) throw new Error("dg_/dgt_/df_/dft_ are built in");
   extraResolvers.push({ prefix, resolve });
 }
 

@@ -16,17 +16,21 @@ are DataGoat extensions. The owning team is in the last column; F0 endpoints are
 | Prefix                         | What                                    | Auth                                                     |
 | ------------------------------ | --------------------------------------- | -------------------------------------------------------- |
 | `/api/events`                  | Tracker ingest (W1)                     | none (public site id)                                    |
-| `/api/ai-crawls`               | Server-side crawler ingest (W6)         | optional `dfbot_` token                                  |
+| `/api/ai-crawls`               | Server-side crawler ingest (W6)         | optional `dgbot_` token (legacy `dfbot_`)                |
 | `/api/setup`, `/api/auth/*`    | First-run setup and dashboard auth (F0) | cookie                                                   |
-| `/api/v1/*`                    | Public + dashboard API                  | session cookie **or** `Authorization: Bearer df_…/dft_…` |
+| `/api/v1/*`                    | Public + dashboard API                  | session cookie **or** `Authorization: Bearer dg_…/dgt_…` |
 | `/api/share/:token/*`          | Read-only share-link API (W2)           | the share token                                          |
-| `/mcp`, `/api/mcp`             | MCP server, streamable HTTP (W7)        | Bearer `dft_` or MCP OAuth token                         |
+| `/mcp`, `/api/mcp`             | MCP server, streamable HTTP (W7)        | Bearer `dgt_` or MCP OAuth token                         |
 | `/oauth/*`, `/.well-known/*`   | MCP OAuth 2.1 (W7)                      | per OAuth spec                                           |
 | `/webhooks/<provider>/:siteId` | Provider webhooks (W3, W6 for GitHub)   | provider signature                                       |
 | `/share/:token`                | Public dashboard page shell (W2)        | the share token                                          |
 
+Credential prefixes: `dg_` website keys, `dgt_` account tokens, `dgbot_` bot-traffic request tokens
+(MCP OAuth tokens: `dgo_`). Keys created before the rename keep working with DataFast's prefixes
+`df_`, `dft_` and `dfbot_`; everything below that says `dg_` / `dgt_` / `dgbot_` applies to them too.
+
 The dashboard uses the same `/api/v1` endpoints as API clients, authenticated by the session cookie
-and passing `?websiteId=` like a `dft_` token. There is no separate internal API.
+and passing `?websiteId=` like a `dgt_` token. There is no separate internal API.
 
 ### 1.2 Authentication and website resolution
 
@@ -36,8 +40,8 @@ Implemented in `src/auth/middleware.ts` (`requireSiteAccess`, `requireAccountAcc
 | Credential                  | Website on website routes                     | Permissions             | Role                               |
 | --------------------------- | --------------------------------------------- | ----------------------- | ---------------------------------- |
 | Session cookie `dg_session` | `?websiteId=` (or path `:websiteId`) required | all (`*`)               | the user's membership role         |
-| `df_` website key           | inferred; a different `websiteId` → **403**   | all website permissions | creator's role, capped at `member` |
-| `dft_` account token        | `?websiteId=` required (**400** without)      | the token's list        | the user's membership role         |
+| `dg_` website key           | inferred; a different `websiteId` → **403**   | all website permissions | creator's role, capped at `member` |
+| `dgt_` account token        | `?websiteId=` required (**400** without)      | the token's list        | the user's membership role         |
 | MCP OAuth token (W7)        | per connection                                | the connection's scopes | membership role                    |
 
 - `websiteId` accepts the internal id (`_id`, 24 hex) or the public tracking id (`trackingId`).
@@ -46,8 +50,8 @@ Implemented in `src/auth/middleware.ts` (`requireSiteAccess`, `requireAccountAcc
   **403** `Your role (<role>) does not allow <perm>`.
 - Roles: `viewer` = every `:read`; `member` = everything except `team:write`; `owner` = everything.
   Owner-only actions additionally use `minRole: "owner"`.
-- `df_` keys cannot call account-level routes (access tokens, website creation, OAuth connections) or
-  owner-only routes (team writes) → **403**. A `df_` key stops working (**401**) when its creator
+- `dg_` keys cannot call account-level routes (access tokens, website creation, OAuth connections) or
+  owner-only routes (team writes) → **403**. A `dg_` key stops working (**401**) when its creator
   loses membership.
 - Invalid/expired/revoked Bearer → **401** `Invalid, expired or revoked API key`. Malformed header →
   **401**.
@@ -162,9 +166,9 @@ throttling: 20 failures per IP or 8 per email per 15 minutes (KV, written only o
 
 ## 3. Account API `/api/v1/admin` (F0, implemented)
 
-| Method      | Path                                              | Perm (`df_`?)                                         | Body / query                                                                                                          | Response `data`                                                                                       |
+| Method      | Path                                              | Perm (`dg_`?)                                         | Body / query                                                                                                          | Response `data`                                                                                       |
 | ----------- | ------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| GET         | `/account`                                        | analytics:read (yes)                                  | –                                                                                                                     | `[Account]`; `websiteId` with `df_`                                                                   |
+| GET         | `/account`                                        | analytics:read (yes)                                  | –                                                                                                                     | `[Account]`; `websiteId` with `dg_`                                                                   |
 | PUT         | `/account`                                        | analytics:read (no)                                   | `{name}` 1–100                                                                                                        | `[{id, name, email, image}]`                                                                          |
 | GET         | `/access-tokens`                                  | api-keys:read (no)                                    | –                                                                                                                     | `AccessToken[]` (masked)                                                                              |
 | POST        | `/access-tokens`                                  | api-keys:write (no)                                   | `CreateAccessTokenRequest {name?, permissions? (default ["*"]), websiteIds? ([] = all), includePii?, expiresInDays?}` | `[AccessToken & {key}]` (key shown once)                                                              |
@@ -212,15 +216,19 @@ removed) stored in `sites.excluded_user_agents`; ingest drops matching hits befo
 
 | Method | Path               | Perm           | Body / query                                                                                                    | Response                                                                          |
 | ------ | ------------------ | -------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| POST   | `/api/v1/goals`    | goals:write    | `{datafast_visitor_id\|visitorId, name, description?, metadata? (≤10 keys, key ^[a-z0-9_-]+$ ≤64, value ≤255)}` | `[{message, eventId}]`; 400, 403 suspended, 404 visitor has no pageviews          |
-| DELETE | `/api/v1/goals`    | goals:write    | query `datafast_visitor_id?`, `name?`, `startAt&endAt` (required when unfiltered)                               | `[{message, datafast_visitor_id?, goal_name?, timeRange?, deleted (DG)}]`; 400; 504 when more than 50,000 events matched (retry: the rest remains) |
-| POST   | `/api/v1/identify` | identify:write | `{user_id ≤255, datafast_visitor_id, ...profile}` (shallow merge; `name`, `image`/`avatar` and `email` also fill the visitor's profile columns; email stored only when the site stores customer emails, its hash always) | `{message, profileId?, action?: created\|updated\|unchanged}` (object, not array); cookieless sites: `{message}` only; 404 visitor has no pageviews |
+| POST   | `/api/v1/goals`    | goals:write    | `{datagoat_visitor_id\|visitorId, name, description?, metadata? (≤10 keys, key ^[a-z0-9_-]+$ ≤64, value ≤255)}` | `[{message, eventId}]`; 400, 403 suspended, 404 visitor has no pageviews          |
+| DELETE | `/api/v1/goals`    | goals:write    | query `datagoat_visitor_id?`, `name?`, `startAt&endAt` (required when unfiltered)                               | `[{message, datafast_visitor_id?, goal_name?, timeRange?, deleted (DG)}]`; 400; 504 when more than 50,000 events matched (retry: the rest remains) |
+| POST   | `/api/v1/identify` | identify:write | `{user_id ≤255, datagoat_visitor_id, ...profile}` (shallow merge; `name`, `image`/`avatar` and `email` also fill the visitor's profile columns; email stored only when the site stores customer emails, its hash always) | `{message, profileId?, action?: created\|updated\|unchanged}` (object, not array); cookieless sites: `{message}` only; 404 visitor has no pageviews |
+
+Request bodies and queries take `datagoat_visitor_id`; DataFast's `datafast_visitor_id` is accepted as
+an alias everywhere (`datagoat_session_id` / `datafast_session_id` likewise). Response field names are
+DataFast's and did not change.
 
 Server-side goals attach to the visitor's latest session (path = its exit page) and store `description` as the reserved property `$description` (hidden from goal properties). They do not change the session's bounce state. Deleting goals by visitor or without a name leaves payment-provider goals (`payment`, `free_trial`, `subscription_*`) alone; delete payments with `DELETE /api/v1/payments`.
 
 ## 6. Analytics `/api/v1/analytics` (W2 unless noted, `analytics:read`)
 
-All take `websiteId` (non-`df_`), `startAt`, `endAt`, `timezone`, `filter_*`. Breakdowns take
+All take `websiteId` (non-`dg_`), `startAt`, `endAt`, `timezone`, `filter_*`. Breakdowns take
 `fields`, `limit`, `offset`, sort by visitors desc, and return `pagination`.
 
 | Method | Path                                                                                    | Extra params                                                                                                                                                                                                                                                                              | Response                                                                                                                                                  |
@@ -335,7 +343,7 @@ Implemented in `src/providers/` (guides: [`docs/revenue/`](../revenue/README.md)
 | Method | Path                                                    | Perm           | Body / query                                                                                                                                             | Response                                                                                                                                                         |
 | ------ | ------------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | POST   | `/api/v1/payments` (DF)                                 | payments:write | `CreatePaymentRequest` (≤ 16 KB)                                                                                                                         | **plain** `CreatePaymentResult {message, transaction_id?}`; duplicates 200 message-only; unknown visitor 200 message-only (stored unattributed); 400 plain `{error}` |
-| DELETE | `/api/v1/payments` (DF)                                 | payments:write | `transaction_id\|tx_id` (ignores dates), else `datafast_visitor_id\|visitorId` (+ optional range), else `startAt&endAt` (or `start&end`) required        | `[{message, transaction_id?, datafast_visitor_id?, timeRange?: {start, end}}]`; 404 `Transaction not found`; 400 no filter / bad visitor / incomplete or conflicting range |
+| DELETE | `/api/v1/payments` (DF)                                 | payments:write | `transaction_id\|tx_id` (ignores dates), else `datagoat_visitor_id\|visitorId` (+ optional range), else `startAt&endAt` (or `start&end`) required        | `[{message, transaction_id?, datafast_visitor_id?, timeRange?: {start, end}}]`; 404 `Transaction not found`; 400 no filter / bad visitor / incomplete or conflicting range |
 | GET    | `/api/v1/payments` (DG)                                 | payments:read  | range, `filter_*` (on the attributed session), `attributed=true\|false`, `kind` (comma list), `provider`, `limit`, `offset`                              | `PaymentRow[]` + `pagination`; emails/names only with `includePii`                                                                                               |
 | GET    | `/api/v1/analytics/revenue` (DG)                        | analytics:read | range (default last 30 days), `filter_*`, `model?`                                                                                                       | `RevenueSummary` (object), incl. DG `pathToPurchase {customers, averageDaysToPurchase, averageSessionsToPurchase, averagePageviewsToPurchase, topPaths[{channels[], customers, revenue}]}` (W4): visitors whose first payment is in the range (most recent 2000), channels of their sessions up to it with repeats collapsed (first touch + last 4), top 10 sequences |
 | GET    | `/api/v1/analytics/revenue/sources` (DG)                | analytics:read | range, `filter_*`, `groupBy` (channel default, referrer, utm_*, ref, source, via, country, region, city, device, browser, os, entry_page, hostname), `model?` (first_touch\|last_touch\|last_non_direct, default the website's), `limit`, `offset` | `RevenueSourceRow[]` (incl. `Unattributed` row when unfiltered) + top-level `currency, groupBy, model` + `pagination`                                             |
@@ -353,6 +361,11 @@ Implemented in `src/providers/` (guides: [`docs/revenue/`](../revenue/README.md)
 | DELETE | `…/integrations/<provider>` (DF)                        | settings:write | –                                                                                                                                                        | `[{message: "<Provider> disconnected successfully"}]` (idempotent; revenue kept; auto-created webhooks removed)                                                   |
 | POST   | `/webhooks/<provider>/:siteId`                          | signature      | provider payload (≤ 1 MB)                                                                                                                                | 200 `{received: true}` (+ `duplicate: true`); 401 bad signature; 400 no secret; 404 unknown site / not connected; 500 ingest failed (provider retries)            |
 
+`POST` and `DELETE /api/v1/payments` take `datagoat_visitor_id` or its alias `datafast_visitor_id`
+(responses keep `datafast_visitor_id`). Provider metadata (Stripe, Polar, Lemon Squeezy, Paddle,
+Dodo, Creem) is read the same way: `datagoat_visitor_id` / `datagoat_session_id`, or DataFast's
+`datafast_visitor_id` / `datafast_session_id`.
+
 Connect validation failures are **400** with the provider's reason. Connect answers `currency` = the
 website currency (DataFast does the same); the provider account currency is stored separately.
 Server-side helpers other teams may call: `saveConnection()` (W8: Shopify app, WooCommerce plugin),
@@ -363,10 +376,10 @@ Server-side helpers other teams may call: `saveConnection()` (W8: Shopify app, W
 
 | Method | Path | Perm | Notes / response |
 | --- | --- | --- | --- |
-| POST | `/api/ai-crawls` (DF) | `dfbot_` if required | `{websiteId, domain, href, ai: {userAgent, ip?, statusCode?, source}}` ≤16 KB, or DG batch `{events: [...≤50]}` ≤64 KB → `{success: true, tracked, ignored}`; 404 unknown website, 400 foreign hostname/invalid, 401 token required, 413, 429 (`INGEST_SITE_LIMITER`, key `ai-crawls:<siteId>`) |
-| GET | `/api/v1/admin/bot-traffic/usage` (DF) | analytics:read, session or all-sites `dft_` (no `df_`) | `[{usage {usage, dropped, packQuantity, allowance, remaining, percentUsed, periodStartAt, resetAt, isCounting}, websiteStats, billing: null, includedRequests, packRequests: null, packMonthlyPrice: null, canView, canPurchase: false}]`; counting only with `BOT_TRAFFIC_ALLOWANCE` |
-| GET / PATCH | `/api/v1/admin/websites/:id/bot-traffic/settings` (DF) | settings:read / settings:write, owner, no `df_` | `[{websiteId, domain, settings: BotTrafficSettings, crawlerCatalog}]`; PATCH ≤8 KB, strict: `verifiedOnly, requireAuthToken, disableCompanies, enableCompanies, disableCrawlerIds, enableCrawlerIds, excludedCrawlerIds` (not with incremental fields), `hiddenCrawlers, hideDashboardCard, groupBy, pageFilterIds` |
-| GET / POST / PUT / DELETE | `/api/v1/admin/websites/:id/bot-traffic/token` (DF) | settings:read / write, owner, no `df_` | `[BotTokenStatus]`; create/rotate include `requestAuthToken` once; POST with existing token → 409; PUT without → 404; DELETE turns `requireAuthToken` off |
+| POST | `/api/ai-crawls` (DF) | `dgbot_` if required | `{websiteId, domain, href, ai: {userAgent, ip?, statusCode?, source}}` ≤16 KB, or DG batch `{events: [...≤50]}` ≤64 KB → `{success: true, tracked, ignored}`; 404 unknown website, 400 foreign hostname/invalid, 401 token required, 413, 429 (`INGEST_SITE_LIMITER`, key `ai-crawls:<siteId>`) |
+| GET | `/api/v1/admin/bot-traffic/usage` (DF) | analytics:read, session or all-sites `dgt_` (no `dg_`) | `[{usage {usage, dropped, packQuantity, allowance, remaining, percentUsed, periodStartAt, resetAt, isCounting}, websiteStats, billing: null, includedRequests, packRequests: null, packMonthlyPrice: null, canView, canPurchase: false}]`; counting only with `BOT_TRAFFIC_ALLOWANCE` |
+| GET / PATCH | `/api/v1/admin/websites/:id/bot-traffic/settings` (DF) | settings:read / settings:write, owner, no `dg_` | `[{websiteId, domain, settings: BotTrafficSettings, crawlerCatalog}]`; PATCH ≤8 KB, strict: `verifiedOnly, requireAuthToken, disableCompanies, enableCompanies, disableCrawlerIds, enableCrawlerIds, excludedCrawlerIds` (not with incremental fields), `hiddenCrawlers, hideDashboardCard, groupBy, pageFilterIds` |
+| GET / POST / PUT / DELETE | `/api/v1/admin/websites/:id/bot-traffic/token` (DF) | settings:read / write, owner, no `dg_` | `[BotTokenStatus]`; create/rotate include `requestAuthToken` once; POST with existing token → 409; PUT without → 404; DELETE turns `requireAuthToken` off |
 | GET / PUT | `/api/v1/admin/websites/:id/bot-traffic/attack-mode` (DG) | settings:read / settings:write | `[AttackModeState]`; PUT `{enabled?, autoEnable?, multiplier? 2–100, minHits? ≥10, durationMinutes? 15–10080}` |
 | GET / POST | `/api/v1/admin/websites/:id/alerts` (DF) | alerts:read / write | `Alert[]` / `[Alert]`; body `AlertCreateRequest {name 1–100, trigger: {goalName} \| {type: goal\|new_sale\|traffic_spike\|daily_digest\|weekly_digest, goalName?, multiplier?, minSessions?, includeRenewals?, includeFreeTrials?}, template?: {message 10–2000 (required for goal), subject?}, destination?: {type: email\|telegram\|webhook, email?, chatId?, botToken?, url?, rotateSecret?}, isEnabled?}`; max 25; email destinations → 400 when no email provider is configured; webhook create returns `destination.signingSecret` once |
 | GET | `/api/v1/admin/websites/:id/alerts/channels` (DG) | alerts:read | `AlertChannels` (object) |
@@ -412,7 +425,7 @@ Imported data contract for the analytics layer: `src/growth/imports/read.ts` (`i
 | POST            | `/oauth/authorize`                                                                                        | JSON `OAuthDecisionRequest {request, approve, scopes[], websiteIds[]}` with the session cookie, same origin and the consent cookie → `OAuthDecisionResult {redirectTo}` (code or `access_denied`); 401 signed out, 403 other browser                                                          |
 | POST            | `/oauth/token`                                                                                            | form-encoded (JSON accepted). `authorization_code` (+`code_verifier`, `redirect_uri`, `resource`) and `refresh_token` (rotating). Access 1 h (`dgo_…`), refresh 30 d (`dgr_…`), connection 90 d. Replayed code or refresh token revokes the connection.                                      |
 | POST            | `/oauth/revoke`                                                                                           | RFC 7009; revoking a refresh token revokes the connection                                                                                                                                                                                                                                    |
-| GET / DELETE    | `/api/v1/admin/oauth/connections[/:id]` (DG)                                                              | session or `dft_` with api-keys:read/write → `OAuthConnection[]` / `[{message: "Access revoked"}]`; DELETE also revokes credentials minted through the connection                                                                                                                             |
+| GET / DELETE    | `/api/v1/admin/oauth/connections[/:id]` (DG)                                                              | session or `dgt_` with api-keys:read/write → `OAuthConnection[]` / `[{message: "Access revoked"}]`; DELETE also revokes credentials minted through the connection                                                                                                                             |
 
 Finisher: `resources/list` and `resources/read` serve the chart view for UI-capable clients
 (`ui://datagoat/chart.html`, `text/html;profile=mcp-app`, and `ui://datagoat/chart.skybridge.html`,
@@ -431,9 +444,9 @@ wildcard. Write tools return a dry-run preview unless `confirm: true`; OAuth wri
 
 | Method        | Path                                                                                         | Notes                                                                                          |
 | ------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| POST          | `/api/v1/mobile/session` (DG)                                                                | `{email, password, deviceName?}` (login throttling as `/api/auth/login`) → `MobileSession` (object): a read-only `dft_` token with `is_mobile = 1`, 365-day expiry, permissions `analytics:read, websites:read, settings:read, goals:read, payments:read, alerts:read`, no PII, plus `user` and `websites` like `Me`. At the 20-token cap the oldest mobile token is replaced; 400 if the cap is full of non-mobile tokens. 401 `Invalid email or password`, 429 throttled |
+| POST          | `/api/v1/mobile/session` (DG)                                                                | `{email, password, deviceName?}` (login throttling as `/api/auth/login`) → `MobileSession` (object): a read-only `dgt_` token with `is_mobile = 1`, 365-day expiry, permissions `analytics:read, websites:read, settings:read, goals:read, payments:read, alerts:read`, no PII, plus `user` and `websites` like `Me`. At the 20-token cap the oldest mobile token is replaced; 400 if the cap is full of non-mobile tokens. 401 `Invalid email or password`, 429 throttled |
 | DELETE        | `/api/v1/mobile/session` (DG)                                                                | mobile token only (403 otherwise) → `{message}`; revokes the token and its devices             |
-| GET           | `/api/v1/mobile/devices` (DG)                                                                | any non-`df_` credential → `MobileDevice[]` of the caller                                       |
+| GET           | `/api/v1/mobile/devices` (DG)                                                                | any non-`dg_` credential → `MobileDevice[]` of the caller                                       |
 | POST          | `/api/v1/mobile/devices` (DG)                                                                | mobile token only; `RegisterDeviceRequest {pushToken (Expo), platform: ios\|android, name?, notifySales?, notifyAlerts?, mutedSiteIds?}` upserts on `pushToken` (re-owned when another account signs in on the phone) → `[MobileDevice]`, **201** new / 200 update; max 20 devices per user |
 | DELETE        | `/api/v1/mobile/devices/:deviceId` (DG)                                                      | own devices only → `[{deleted: true, id}]`; 404                                                 |
 | POST          | `/api/apps/shopify/connect?websiteId=` (DG)                                                  | session or token with `settings:write`; `ShopifyConnectRequest {shop, clientId, clientSecret, grant?: client_credentials (default) \| authorization_code}`. Client credentials: mints a token, reads the shop, registers webhooks, installs the storefront ScriptTag → `[{status: "active", shop, shopName, currency, scriptTagInstalled, webhooks, warnings}]`; 400 when Shopify rejects. Authorization code: stores a `pending` connection → `[{status: "pending", shop, installUrl, redirectUrl}]` |
@@ -457,11 +470,11 @@ and `webhook_secret_enc` with `encryptString` and the same AAD.
 
 Visitor attribution for these orders:
 
-- **Shopify**: the storefront loader copies the cookies into cart attributes `_datafast_visitor_id`
-  and `_datafast_session_id`; Shopify copies them onto the order's `note_attributes`
+- **Shopify**: the storefront loader copies the cookies into cart attributes `_datagoat_visitor_id`
+  and `_datagoat_session_id` (older `_datafast_*` attributes are still read); Shopify copies them onto the order's `note_attributes`
   (`[{name, value}]`).
 - **WooCommerce**: the WordPress plugin stores order meta `_datagoat_visitor_id` and
-  `_datagoat_session_id` (from the `datafast_visitor_id` / `datafast_session_id` cookies) at
+  `_datagoat_session_id` (from the `datagoat_*` cookies, or DataFast's `datafast_*`) at
   checkout, visible in the REST order's `meta_data`.
 
 ### 13.2 Proxied ingest (for W1)

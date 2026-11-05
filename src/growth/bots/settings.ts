@@ -1,5 +1,6 @@
 /**
- * Bot traffic settings (`bot_settings`) and the optional `dfbot_` request token (`bot_tokens`).
+ * Bot traffic settings (`bot_settings`) and the optional `dgbot_` request token (`bot_tokens`;
+ * tokens made before the rename start with `dfbot_` and keep working).
  * Both are read on every crawler ingest request, so they are cached per isolate for 30 seconds;
  * writers invalidate this isolate's entry (other isolates converge within the TTL).
  */
@@ -121,7 +122,7 @@ export function crawlerCatalog(settings: BotTrafficSettings) {
 // ---------------------------------------------------------------------------
 
 export function newBotToken(): string {
-  return `dfbot_${randomBase62(32)}`;
+  return `dgbot_${randomBase62(32)}`;
 }
 
 export function hashBotToken(token: string): Promise<string> {

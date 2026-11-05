@@ -12,7 +12,7 @@ should create the webhook). Production keys start with `pdl_live_`.
 
 ```sh
 curl -X POST ".../api/v1/admin/websites/$WEBSITE_ID/integrations/paddle" \
-  -H "Authorization: Bearer dft_…" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dgt_…" -H "Content-Type: application/json" \
   -d '{"paddleApiKey":"pdl_live_…"}'
 ```
 
@@ -23,25 +23,25 @@ key may write notification settings, a notification destination is created
 time (DataFast's endpoint):
 
 ```sh
-curl -X PATCH ".../integrations/paddle" -H "Authorization: Bearer dft_…"
+curl -X PATCH ".../integrations/paddle" -H "Authorization: Bearer dgt_…"
 ```
 
 ## 3. Pass the visitor id
 
-Transactions API: `custom_data: { datafast_visitor_id, datafast_session_id }`.
+Transactions API: `custom_data: { datagoat_visitor_id, datagoat_session_id }`.
 Paddle.js overlay / inline checkout:
 
 ```js
 Paddle.Checkout.open({
   items: [{ priceId: "pri_…", quantity: 1 }],
   customData: {
-    datafast_visitor_id: getCookie("datafast_visitor_id"),
-    datafast_session_id: getCookie("datafast_session_id"),
+    datagoat_visitor_id: getCookie("datagoat_visitor_id"),
+    datagoat_session_id: getCookie("datagoat_session_id"),
   },
 });
 ```
 
-**Other flows:** `window.datafast("payment", { email })`.
+**Other flows:** `window.datagoat("payment", { email })`.
 
 ## What is recorded
 

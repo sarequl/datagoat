@@ -12,7 +12,8 @@ Install and configure the [DataGoat WordPress plugin](wordpress.md). Keep **Send
 initiate_checkout goals** checked.
 
 At checkout (classic checkout and the checkout block, HPOS or not) the plugin copies the visitor's
-`datafast_visitor_id` and `datafast_session_id` cookies onto the order as the meta fields
+`datagoat_visitor_id` and `datagoat_session_id` cookies (or DataFast's `datafast_*` cookies) onto
+the order as the meta fields
 `_datagoat_visitor_id` and `_datagoat_session_id`. That is what lets DataGoat attribute the order.
 
 ## 2. Connect the store

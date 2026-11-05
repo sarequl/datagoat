@@ -401,7 +401,7 @@ function VerifyStep({ website }: { website: Website }) {
                 Visits from localhost are ignored unless the tag has data-allow-localhost="true".
               </li>
               <li>
-                An ad blocker or a browser with <code>localStorage.datafast_ignore</code> set does
+                An ad blocker or a browser with <code>localStorage.datagoat_ignore</code> set does
                 not send events. Try a private window.
               </li>
               <li>

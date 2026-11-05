@@ -10,7 +10,7 @@ Add to the `<head>` of every page (for a React/Vite app: `index.html`; Flask/Dja
 template; Express: the layout that renders `<head>`):
 
 ```html
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
 ```
 
 ## With Replit Agent
@@ -19,7 +19,7 @@ template; Express: the layout that renders `<head>`):
 Add DataGoat analytics. Insert this exact tag in the <head> that every page renders (index.html
 for Vite/React, the base template for server-rendered apps), once, without changing attributes:
 
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
 
 Tell me which file you changed.
 ```
@@ -30,13 +30,13 @@ Connect your provider in DataGoat (Integrations), then ask the Agent:
 
 ```text
 When this app creates a Stripe Checkout Session or PaymentIntent on the server, read the
-"datafast_visitor_id" and "datafast_session_id" cookies from the request and add them as
-metadata: { datafast_visitor_id, datafast_session_id }. For Lemon Squeezy put them in
+"datagoat_visitor_id" and "datagoat_session_id" cookies from the request and add them as
+metadata: { datagoat_visitor_id, datagoat_session_id }. For Lemon Squeezy put them in
 checkout_data.custom; for Polar in the checkout metadata. If payments happen some other way, call
-window.datafast("payment", { email }) on the success page. Tell me what you changed.
+window.datagoat("payment", { email }) on the success page. Tell me what you changed.
 ```
 
-Python apps can read the cookies with `request.cookies.get("datafast_visitor_id")` (Flask) or
+Python apps can read the cookies with `request.cookies.get("datagoat_visitor_id")` (Flask) or
 `request.COOKIES.get(...)` (Django); Node apps can use `checkoutMetadata(req)` from
 `@datagoat/sdk/server`.
 

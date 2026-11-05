@@ -148,7 +148,7 @@ describe("Bot traffic page", () => {
       within(screen.getByRole("main")).getByRole("button", { name: "Settings" }),
     );
     await userEvent.click(await screen.findByRole("button", { name: "Create token" }));
-    expect(await screen.findByText("dfbot_mockShownOnce")).toBeInTheDocument();
+    expect(await screen.findByText("dgbot_mockShownOnce")).toBeInTheDocument();
     const meta = await screen.findByLabelText(/^Meta \(/);
     expect(meta).not.toBeChecked();
     await userEvent.click(meta);

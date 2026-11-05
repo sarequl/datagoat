@@ -65,6 +65,8 @@ const CreateBody = z.object({
   currency: z.string(),
   transaction_id: z.union([z.string(), z.number().transform(String)]),
   datafast_visitor_id: z.string().nullish(),
+  /** DataGoat's name for the same field; either is accepted. */
+  datagoat_visitor_id: z.string().nullish(),
   visitorId: z.string().nullish(),
   email: z.string().nullish(),
   customer_email: z.string().nullish(),
@@ -106,7 +108,8 @@ paymentsRoutes.post("/api/v1/payments", requireSiteAccess("payments:write"), asy
   const txn = body.transaction_id.trim();
   if (!txn || txn.length > MAX_TXN)
     return plainError(`Invalid transaction_id: 1-${MAX_TXN} characters`);
-  const rawVisitor = body.datafast_visitor_id ?? body.visitorId ?? undefined;
+  const rawVisitor =
+    body.datagoat_visitor_id ?? body.datafast_visitor_id ?? body.visitorId ?? undefined;
   const visitorId = rawVisitor ? cleanId(rawVisitor) : undefined;
   if (rawVisitor && !visitorId) return plainError("Invalid datafast_visitor_id");
   const rawEmail = body.email ?? body.customer_email ?? undefined;
@@ -230,7 +233,7 @@ paymentsRoutes.delete("/api/v1/payments", requireSiteAccess("payments:write"), a
     if (!n) throw new ApiError(404, "Transaction not found");
     return success(c, [{ message: "Payment deleted successfully", transaction_id: txn }]);
   }
-  const visitorRaw = q.datafast_visitor_id ?? q.visitorId;
+  const visitorRaw = q.datagoat_visitor_id ?? q.datafast_visitor_id ?? q.visitorId;
   const range = rangeOf(q, site.timezone);
   if (visitorRaw !== undefined) {
     const visitor = cleanId(visitorRaw);

@@ -25,7 +25,7 @@ ID that does not match the token.
 
 ```sh
 curl -X POST ".../api/v1/admin/websites/$WEBSITE_ID/integrations/polar" \
-  -H "Authorization: Bearer dft_…" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dgt_…" -H "Content-Type: application/json" \
   -d '{"polarAccessToken":"polar_oat_…","polarOrgId":"…"}'
 ```
 
@@ -45,14 +45,14 @@ Checkout API:
 await polar.checkouts.create({
   products: ["…"],
   metadata: {
-    datafast_visitor_id: cookies.get("datafast_visitor_id"),
-    datafast_session_id: cookies.get("datafast_session_id"),
+    datagoat_visitor_id: cookies.get("datagoat_visitor_id"),
+    datagoat_session_id: cookies.get("datagoat_session_id"),
   },
 });
 ```
 
 **Checkout Links (no code):** set the link's success URL to your site with
-`?checkout_id={CHECKOUT_ID}`. **Other flows:** `window.datafast("payment", { email })`.
+`?checkout_id={CHECKOUT_ID}`. **Other flows:** `window.datagoat("payment", { email })`.
 
 ## What is recorded
 

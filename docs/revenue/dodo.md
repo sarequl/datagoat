@@ -10,7 +10,7 @@ refund, dispute and subscription events; copy its signing secret (`whsec_…`).
 
 ```sh
 curl -X POST ".../api/v1/admin/websites/$WEBSITE_ID/integrations/dodo" \
-  -H "Authorization: Bearer dft_…" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dgt_…" -H "Content-Type: application/json" \
   -d '{"apiKey":"…","webhookSecret":"whsec_…"}'
 ```
 
@@ -23,7 +23,7 @@ polled every 5 minutes and backfilled. Test mode (`"testMode": true`) needs
 ```js
 await dodopayments.checkoutSessions.create({
   product_cart: [{ product_id: productId, quantity: 1 }],
-  metadata: { datafast_visitor_id: cookies.get("datafast_visitor_id") },
+  metadata: { datagoat_visitor_id: cookies.get("datagoat_visitor_id") },
 });
 ```
 

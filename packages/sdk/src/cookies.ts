@@ -1,9 +1,18 @@
-/** Cookie and storage names the DataGoat tracker uses (DataFast's names, plan §3.2). */
-export const VISITOR_COOKIE = "datafast_visitor_id";
-export const SESSION_COOKIE = "datafast_session_id";
-export const FIRST_SEEN_COOKIE = "datafast_visitor_first_seen_at";
-export const SESSION_COUNT_COOKIE = "datafast_visitor_session_count";
-export const IGNORE_KEY = "datafast_ignore";
+/**
+ * Cookie and storage names the DataGoat tracker uses. Readers also accept DataFast's names
+ * (`datafast_*`, see `legacyName`), which the tracker reads too and writes with
+ * `data-compat="datafast"`.
+ */
+export const VISITOR_COOKIE = "datagoat_visitor_id";
+export const SESSION_COOKIE = "datagoat_session_id";
+export const FIRST_SEEN_COOKIE = "datagoat_visitor_first_seen_at";
+export const SESSION_COUNT_COOKIE = "datagoat_visitor_session_count";
+export const IGNORE_KEY = "datagoat_ignore";
+
+/** DataFast's name for one of our cookies: `datagoat_visitor_id` → `datafast_visitor_id`. */
+export function legacyName(name: string): string {
+  return name.replace(/^datagoat_/, "datafast_");
+}
 
 /** Parse a `Cookie` header (or `document.cookie`) into a map. Later duplicates do not override. */
 export function parseCookieHeader(header: string | null | undefined): Record<string, string> {

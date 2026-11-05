@@ -14,7 +14,7 @@ The script tag then uses same-origin paths:
 ```html
 <script
   defer
-  data-website-id="dfid_XXXXXXXXXXXXXXXX"
+  data-website-id="dgid_XXXXXXXXXXXXXXXX"
   data-domain="example.com"
   src="/js/script.js"
 ></script>

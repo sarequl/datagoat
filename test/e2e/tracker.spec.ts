@@ -137,9 +137,9 @@ test("script.js: pageview, goals, identify, SPA, outbound click and payment link
   await p.waitForFunction(
     () => typeof (window as { datafast?: { dg?: number } }).datafast?.dg === "number",
   );
-  const visitorId = (await context.cookies()).find((c) => c.name === "datafast_visitor_id")?.value;
+  const visitorId = (await context.cookies()).find((c) => c.name === "datagoat_visitor_id")?.value;
   expect(visitorId).toMatch(/^[0-9a-f-]{36}$/);
-  const cookie = (await context.cookies()).find((c) => c.name === "datafast_session_id");
+  const cookie = (await context.cookies()).find((c) => c.name === "datagoat_session_id");
   expect(cookie?.sameSite).toBe("Lax");
 
   await p.click("#cta");

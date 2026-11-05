@@ -32,7 +32,7 @@ method, body and user agent, and adds the visitor's address to `X-Forwarded-For`
 Script tag:
 
 ```html
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
 ```
 
 Location data comes from the Netlify edge node Cloudflare sees (see

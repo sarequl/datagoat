@@ -12,6 +12,7 @@
 import {
   FIRST_SEEN_COOKIE,
   IGNORE_KEY,
+  legacyName,
   parseCookieHeader,
   SESSION_COOKIE,
   SESSION_COUNT_COOKIE,
@@ -64,8 +65,8 @@ export interface IdentifyProfile {
 }
 
 export interface TrackingParams {
-  _df_vid?: string;
-  _df_sid?: string;
+  _dg_vid?: string;
+  _dg_sid?: string;
 }
 
 /** The tracker's global function (`window.datafast`, aliased `window.datagoat`). */
@@ -198,10 +199,11 @@ export function consent(granted: boolean): boolean {
 
 function readCookie(name: string): string | undefined {
   if (typeof document === "undefined") return undefined;
-  return parseCookieHeader(document.cookie)[name];
+  const cookies = parseCookieHeader(document.cookie);
+  return cookies[name] ?? cookies[legacyName(name)];
 }
 
-/** The visitor id: the `datafast_visitor_id` cookie, or the cookieless tracker's id. */
+/** The visitor id: the `datagoat_visitor_id` cookie (or DataFast's), or the cookieless id. */
 export function getVisitorId(): string | null {
   const fromCookie = readCookie(VISITOR_COOKIE);
   if (isVisitorId(fromCookie)) return fromCookie;
@@ -215,17 +217,17 @@ export function getSessionId(): string | null {
   return isSessionId(value) ? value : null;
 }
 
-/** Cross-domain parameters (`_df_vid`, `_df_sid`, `_df_vfs`, `_df_vsn`) for a link to another of your domains. */
-export function getTrackingParams(): TrackingParams & { _df_vfs?: string; _df_vsn?: string } {
-  const out: TrackingParams & { _df_vfs?: string; _df_vsn?: string } = {};
+/** Cross-domain parameters (`_dg_vid`, `_dg_sid`, `_dg_vfs`, `_dg_vsn`) for a link to another of your domains. */
+export function getTrackingParams(): TrackingParams & { _dg_vfs?: string; _dg_vsn?: string } {
+  const out: TrackingParams & { _dg_vfs?: string; _dg_vsn?: string } = {};
   const vid = getVisitorId();
   const sid = getSessionId();
-  if (vid) out._df_vid = vid;
-  if (sid) out._df_sid = sid;
+  if (vid) out._dg_vid = vid;
+  if (sid) out._dg_sid = sid;
   const vfs = readCookie(FIRST_SEEN_COOKIE);
   const vsn = readCookie(SESSION_COUNT_COOKIE);
-  if (vid && vfs) out._df_vfs = vfs;
-  if (vid && vsn && /^\d+$/.test(vsn)) out._df_vsn = vsn;
+  if (vid && vfs) out._dg_vfs = vfs;
+  if (vid && vsn && /^\d+$/.test(vsn)) out._dg_vsn = vsn;
   return out;
 }
 
@@ -238,7 +240,7 @@ export function buildCrossDomainUrl(url: string): string {
   return target.toString();
 }
 
-/** Stop tracking this browser (sets `localStorage.datafast_ignore = "true"`). */
+/** Stop tracking this browser (sets `localStorage.datagoat_ignore = "true"`). */
 export function optOut(): void {
   try {
     win()?.localStorage.setItem(IGNORE_KEY, "true");
@@ -250,6 +252,7 @@ export function optOut(): void {
 export function optIn(): void {
   try {
     win()?.localStorage.removeItem(IGNORE_KEY);
+    win()?.localStorage.removeItem(legacyName(IGNORE_KEY));
   } catch {
     // storage blocked: nothing to do
   }

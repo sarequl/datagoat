@@ -15,6 +15,19 @@ const goalCount = async (siteId: string, where = "1=1") =>
     .first<number>("n")) ?? 0;
 
 describe("POST /api/v1/goals", () => {
+  it("accepts DataGoat's datagoat_visitor_id as well as datafast_visitor_id", async () => {
+    const f = await seedFixture();
+    const res = await api("/api/v1/goals", {
+      token: f.key,
+      body: { datagoat_visitor_id: V2, name: "trial_started" },
+    });
+    expect(res.status).toBe(200);
+    const row = await env.DB.prepare("SELECT visitor_id FROM events WHERE id = ?")
+      .bind(Number(res.body.data[0].eventId))
+      .first<{ visitor_id: string }>();
+    expect(row?.visitor_id).toBe(V2);
+  });
+
   it("records a server-side goal on the visitor's latest session", async () => {
     const f = await seedFixture();
     const res = await api("/api/v1/goals", {

@@ -148,7 +148,7 @@ describe("ecosystem.push", () => {
     await createPayment({ siteId: site.id, amountMinor: 100, occurredAt: Date.now() });
     await tick(Date.now());
     expect(sent).toHaveLength(0);
-    expect(token).toMatch(/^dft_/);
+    expect(token).toMatch(/^dgt_/);
   });
 
   it("keeps its cursor when Expo fails so the next run retries", async () => {

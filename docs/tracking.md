@@ -1,14 +1,15 @@
 # Tracking reference
 
 DataGoat's tracker is a small script (about 5 KB gzipped) served by your DataGoat Worker at
-`/js/script.js`. It is compatible with DataFast's script tag: the same attributes, cookies,
-`window.datafast(...)` API and request body. Switching from DataFast? Read
+`/js/script.js`. It uses its own names (`datagoat_*` cookies, `window.datagoat(...)`) and is compatible with
+DataFast's script tag: the same attributes and request body, `window.datafast(...)` as an alias,
+and DataFast's cookies are read. Switching from DataFast? Read
 [switching-from-datafast.md](switching-from-datafast.md) first.
 
 ```html
 <script
   defer
-  data-website-id="dfid_XXXXXXXXXXXXXXXX"
+  data-website-id="dgid_XXXXXXXXXXXXXXXX"
   data-domain="example.com"
   src="https://analytics.example.com/js/script.js"
 ></script>
@@ -37,8 +38,9 @@ Gzip sizes at the time of writing: `script.js` ~5.0 KB, `script.hash.js` ~5.0 KB
 | `data-allow-file-protocol` | `false`        | Track pages opened from `file://`.                                                                                                                                                                   |
 | `data-debug`               | `false`        | Logs every event sent, and allows tracking inside iframes (off otherwise, to avoid double counting).                                                                                                 |
 | `data-disable-console`     | `false`        | Silences every console message.                                                                                                                                                                      |
-| `data-disable-payments`    | `false`        | Turns off [success-page payment detection](#payments). `datafast("payment", {email})` still works.                                                                                                   |
-| `data-require-consent`     | `false`        | DataGoat: no cookies until `datafast("consent", true)`. See [Consent mode](#consent-mode).                                                                                                           |
+| `data-disable-payments`    | `false`        | Turns off [success-page payment detection](#payments). `datagoat("payment", {email})` still works.                                                                                                   |
+| `data-require-consent`     | `false`        | DataGoat: no cookies until `datagoat("consent", true)`. See [Consent mode](#consent-mode).                                                                                                           |
+| `data-compat`              | none           | `datafast`: also write DataFast's `datafast_*` cookies, for sites switching from DataFast. See [Browser storage](#browser-storage).                                                                  |
 | `data-track-engagement`    | `false`        | DataGoat: send active time and scroll depth when the page is hidden. See [Engagement](#engagement-beacon).                                                                                           |
 
 **Default endpoint.** Without `data-api-url` the tracker posts to `/api/events` on the origin the
@@ -49,16 +51,16 @@ are on your origin and nothing else is needed. If the script comes from
 **When the tracker stays off.** On development hosts and `file:` pages (unless allowed above),
 inside iframes (unless `data-debug`), for automated browsers (`navigator.webdriver`, headless and
 automation user agents, PhantomJS/Nightmare/Selenium globals, `webdriver` attributes on `<html>`),
-and when `localStorage.datafast_ignore` is `"true"`. `window.datafast` still exists and logs what it
-ignored. Prerendered pages start tracking when the visitor actually opens them.
+and when `localStorage.datagoat_ignore` (or DataFast's `datafast_ignore`) is `"true"`.
+`window.datagoat` still exists and logs what it ignored. Prerendered pages start tracking when the visitor actually opens them.
 
 ### Exclude your own visits
 
 In the browser console on your site:
 
 ```js
-localStorage.datafast_ignore = true   // stop counting this browser
-delete localStorage.datafast_ignore   // count it again
+localStorage.datagoat_ignore = true   // stop counting this browser
+delete localStorage.datagoat_ignore   // count it again
 ```
 
 Server-side exclusions (IPs and CIDR ranges, paths with `*` wildcards, countries, exact hostnames,
@@ -68,31 +70,37 @@ user agents) are in Settings → Exclusions. Excluded hits are not stored and do
 
 | Key                                       | Where          | Lifetime              |
 | ----------------------------------------- | -------------- | --------------------- |
-| `datafast_visitor_id`                     | cookie         | 365 days (UUID v4)    |
-| `datafast_session_id`                     | cookie         | 30 minutes, sliding   |
-| `datafast_visitor_first_seen_at`          | cookie         | 365 days              |
-| `datafast_visitor_session_count`          | cookie         | 365 days              |
-| `datagoat_consent`                        | cookie         | 365 days, only after `datafast("consent", …)` |
-| `datafast_pageview_state`                 | sessionStorage | tab (60 s same-URL dedup) |
-| `datafast_<provider>_payment_sent_<id>`   | sessionStorage | tab (payment dedup)   |
-| `datafast_visitor_id`, `datafast_session_id` | sessionStorage | tab (cookieless only) |
+| `datagoat_visitor_id`                     | cookie         | 365 days (UUID v4)    |
+| `datagoat_session_id`                     | cookie         | 30 minutes, sliding   |
+| `datagoat_visitor_first_seen_at`          | cookie         | 365 days              |
+| `datagoat_visitor_session_count`          | cookie         | 365 days              |
+| `datagoat_consent`                        | cookie         | 365 days, only after `datagoat("consent", …)` |
+| `datagoat_pageview_state`                 | sessionStorage | tab (60 s same-URL dedup) |
+| `datagoat_<provider>_payment_sent_<id>`   | sessionStorage | tab (payment dedup)   |
+| `datagoat_visitor_id`, `datagoat_session_id` | sessionStorage | tab (cookieless only) |
 
 Cookies use `path=/`, `domain=.<data-domain>` (or the hostname when it is outside `data-domain`),
-`SameSite=Lax`, and `Secure` on https. The names are DataFast's, so server code that reads
-`datafast_visitor_id` (for example to put it into Stripe metadata) keeps working unchanged.
-The current visitor id is also available as `window.datafast.visitorId`.
+`SameSite=Lax`, and `Secure` on https. Read `datagoat_visitor_id` on your server (for example to
+put it into Stripe metadata). The current visitor id is also available as
+`window.datagoat.visitorId`.
+
+**DataFast cookies.** The tracker also reads DataFast's `datafast_visitor_id`, `datafast_session_id`,
+`datafast_visitor_first_seen_at` and `datafast_visitor_session_count` when its own are missing, so
+returning visitors keep their id; the values are copied onto the `datagoat_*` cookies. With
+`data-compat="datafast"` on the tag it also keeps writing the `datafast_*` cookies, so checkout code
+that reads `datafast_visitor_id` keeps working unchanged. Use it when switching from DataFast.
 
 ## JavaScript API
 
-`window.datafast` and its alias `window.datagoat` are the same function. Add the queue snippet to
+`window.datagoat` and its alias `window.datafast` are the same function. Add the queue snippet to
 your `<head>` so calls made before the script loads are kept (they are sent after the first
-pageview, in order; `consent` calls run first):
+pageview, in order; `consent` calls run first). A `window.datafast` queue from DataFast's snippet is
+drained too:
 
 ```html
 <script>
-  window.datafast = window.datafast || function () {
-    window.datafast.q = window.datafast.q || [];
-    window.datafast.q.push(arguments);
+  window.datagoat = window.datagoat || function () {
+    (window.datagoat.q = window.datagoat.q || []).push(arguments);
   };
 </script>
 ```
@@ -100,8 +108,8 @@ pageview, in order; `consent` calls run first):
 ### Goals
 
 ```js
-window.datafast("signup");
-window.datafast("initiate_checkout", { plan: "pro", price: 49 });
+window.datagoat("signup");
+window.datagoat("initiate_checkout", { plan: "pro", price: 49 });
 ```
 
 - Names: lowercase letters, digits, `_`, `-` and `:`, up to 64 characters. They are lowercased and
@@ -141,7 +149,7 @@ Elements added later are picked up at the next SPA navigation.
 ### Identify
 
 ```js
-window.datafast("identify", {
+window.datagoat("identify", {
   user_id: "user_123",          // required
   name: "Jane Doe",             // optional
   image: "https://…/jane.png",  // optional
@@ -176,13 +184,13 @@ on `example.com`, app on `myapp.io`), install the script on both with the **same
 allowed hostnames:
 
 ```html
-<script defer data-website-id="dfid_…" data-domain="example.com"
+<script defer data-website-id="dgid_…" data-domain="example.com"
         data-allowed-hostnames="myapp.io" src="https://analytics.example.com/js/script.js"></script>
 ```
 
-Links between those domains get `_df_vid`, `_df_sid`, `_df_vfs` and `_df_vsn` appended when they are
-clicked; the receiving page adopts the visitor and session and removes the parameters from the
-address bar before its first pageview. Cookieless mode does not link domains.
+Links between those domains get `_dg_vid`, `_dg_sid`, `_dg_vfs` and `_dg_vsn` appended when they are
+clicked (DataFast's `_df_*` parameters are also read on arrival); the receiving page adopts the
+visitor and session and removes the parameters from the address bar before its first pageview. Cookieless mode does not link domains.
 
 ## Payments
 
@@ -202,14 +210,14 @@ the tracker reports it once per tab and the server resolves it with the provider
 **Email.** On any page after a purchase:
 
 ```js
-window.datafast("payment", { email: "customer@example.com" });
+window.datagoat("payment", { email: "customer@example.com" });
 ```
 
 The email is hashed and matched against payments from that customer, including ones that arrived
-before the visitor was known. Checkout metadata (`datafast_visitor_id`, `datafast_session_id` in
-Stripe/Polar metadata, Lemon Squeezy `custom_data`, Paddle `custom_data`/`customData`) remains the
-most reliable method; read the cookies server-side or with `document.cookie` as DataFast's guides
-show. Set `data-disable-payments="true"` if you rely only on metadata and want no success-page
+before the visitor was known. Checkout metadata (`datagoat_visitor_id`, `datagoat_session_id` in
+Stripe/Polar metadata, Lemon Squeezy `custom_data`, Paddle `custom_data`/`customData`; DataFast's
+`datafast_visitor_id` / `datafast_session_id` are also accepted) remains the most reliable method;
+read the cookies server-side or with `document.cookie`. Set `data-disable-payments="true"` if you rely only on metadata and want no success-page
 events.
 
 ## Privacy modes
@@ -220,7 +228,7 @@ Set per website in Settings → General.
 | -------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Cookie (default)     | `script.js` / `script.hash.js`                    | The first-party cookies above.                                                                                                                          |
 | Cookieless           | `script.cookieless.js` (any script works)          | `HMAC-SHA256(daily random salt, website, IP, user agent)`, computed on the server. IP and user agent are never stored. The salt is random, rotates at 00:00 UTC, and is deleted after 48 hours, so the same person is a new visitor each day. |
-| Consent              | `script.js` with `data-require-consent="true"`     | Cookieless until `datafast("consent", true)`, then cookies, continuing the same visitor and session.                                                     |
+| Consent              | `script.js` with `data-require-consent="true"`     | Cookieless until `datagoat("consent", true)`, then cookies, continuing the same visitor and session.                                                     |
 
 **Cookieless trade-offs.** Daily numbers and same-day attribution work; returning-visitor metrics,
 the visit-count filter, multi-day journeys and long sales cycles do not. `identify` is ignored and
@@ -230,8 +238,8 @@ payment emails are not stored for cookieless hits. Sessions spanning midnight UT
 
 ```js
 // your banner's buttons
-window.datafast("consent", true);   // writes the cookies, keeps today's visitor and session
-window.datafast("consent", false);  // deletes the datafast_* cookies; cookieless from now on
+window.datagoat("consent", true);   // writes the cookies, keeps today's visitor and session
+window.datagoat("consent", false);  // deletes the datagoat_* (and datafast_*) cookies; cookieless from now on
 ```
 
 The choice is remembered in the `datagoat_consent` cookie. `consent` is a DataGoat extension:
@@ -275,7 +283,7 @@ and answers their CORS preflight.
 
 ```json
 {
-  "websiteId": "dfid_…", "domain": "example.com", "href": "https://example.com/?utm_source=x",
+  "websiteId": "dgid_…", "domain": "example.com", "href": "https://example.com/?utm_source=x",
   "referrer": null, "viewport": { "width": 1280, "height": 720 },
   "visitorId": "72de85b4-…", "sessionId": "s3457d40-…",
   "visitorFirstSeenAt": "2026-11-04T17:26:33.885Z", "visitorSessionNumber": 1,

@@ -56,7 +56,7 @@ const PRIVACY_OPTIONS = [
     value: "consent",
     label: "Consent-based",
     description:
-      'Cookieless until your consent banner calls window.datafast("consent", true), then cookies. Calling it with false deletes them.',
+      'Cookieless until your consent banner calls window.datagoat("consent", true), then cookies. Calling it with false deletes them.',
   },
 ] as const satisfies ReadonlyArray<{ value: PrivacyMode; label: string; description: string }>;
 

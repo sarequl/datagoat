@@ -27,7 +27,7 @@ Dashboard: **Settings → Integrations → Stripe**, paste the key. Or:
 
 ```sh
 curl -X POST "https://analytics.example.com/api/v1/admin/websites/$WEBSITE_ID/integrations/stripe" \
-  -H "Authorization: Bearer dft_…" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dgt_…" -H "Content-Type: application/json" \
   -d '{"stripeRak":"rk_live_…"}'
 ```
 
@@ -42,15 +42,15 @@ Checkout Sessions (server side):
 const session = await stripe.checkout.sessions.create({
   // …line_items, mode, success_url…
   metadata: {
-    datafast_visitor_id: cookies.get("datafast_visitor_id"),
-    datafast_session_id: cookies.get("datafast_session_id"),
+    datagoat_visitor_id: cookies.get("datagoat_visitor_id"),
+    datagoat_session_id: cookies.get("datagoat_session_id"),
   },
   // Subscriptions: also put it on the subscription so renewals carry it.
-  subscription_data: { metadata: { datafast_visitor_id: cookies.get("datafast_visitor_id") } },
+  subscription_data: { metadata: { datagoat_visitor_id: cookies.get("datagoat_visitor_id") } },
 });
 ```
 
-`datagoat_visitor_id` / `datagoat_session_id` work too. PaymentIntent API (Stripe Elements): put the
+`datafast_visitor_id` / `datafast_session_id` are also accepted. PaymentIntent API (Stripe Elements): put the
 same `metadata` on `stripe.paymentIntents.create`. Pricing Tables and Payment Links can pass the
 visitor id as `client_reference_id`.
 
@@ -58,7 +58,7 @@ visitor id as `client_reference_id`.
 `?session_id={CHECKOUT_SESSION_ID}` appended. The tracker reports the session id and DataGoat looks
 the payment up.
 
-**Anything else:** call `window.datafast("payment", { email })` on your success page; the payment
+**Anything else:** call `window.datagoat("payment", { email })` on your success page; the payment
 is matched by the customer's email.
 
 ## Optional: webhooks (instant sales)
@@ -72,7 +72,7 @@ Webhooks → Add endpoint**) with the URL shown after connecting
 `customer.subscription.deleted`. Then paste the signing secret (`whsec_…`):
 
 ```sh
-curl -X PATCH ".../integrations/stripe" -H "Authorization: Bearer dft_…" \
+curl -X PATCH ".../integrations/stripe" -H "Authorization: Bearer dgt_…" \
   -H "Content-Type: application/json" -d '{"webhookSecret":"whsec_…"}'
 ```
 

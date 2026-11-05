@@ -232,7 +232,7 @@ function KpiCard({ website, disabled }: { website: Website; disabled: boolean })
             {
               value: "goal",
               label: "Goal",
-              description: "A custom goal tracked with window.datafast() or data-fast-goal.",
+              description: "A custom goal tracked with window.datagoat() or data-fast-goal.",
             },
           ]}
         />

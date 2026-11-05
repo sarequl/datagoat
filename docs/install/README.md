@@ -1,8 +1,10 @@
 # Installing DataGoat on your site
 
-DataGoat's tracker uses the same script tag, attributes, cookies and `window.datafast()` API as
-DataFast, so every DataFast installation method works with DataGoat once you point it at your own
-collector. This folder has a guide for each platform and each way of serving the collector.
+DataGoat's tracker uses the same script tag and attributes as DataFast, and its `window.datagoat()`
+API also answers to `window.datafast()`, so every DataFast installation method works with DataGoat
+once you point it at your own collector (add `data-compat="datafast"` to keep DataFast's cookie
+names; see [switching from DataFast](../switching-from-datafast.md)). This folder has a guide for
+each platform and each way of serving the collector.
 
 ## 1. The snippet
 
@@ -12,7 +14,7 @@ Your website's tracking id is in the dashboard under **Settings > Tracking**. Pa
 ```html
 <script
   defer
-  data-website-id="dfid_XXXXXXXXXXXXXXXX"
+  data-website-id="dgid_XXXXXXXXXXXXXXXX"
   data-domain="example.com"
   src="https://a.example.com/js/script.js"
 ></script>
@@ -30,8 +32,8 @@ To call goals or `identify` before the script has loaded, add the queue first:
 
 ```html
 <script>
-  window.datafast = window.datafast || function () {
-    (window.datafast.q = window.datafast.q || []).push(arguments);
+  window.datagoat = window.datagoat || function () {
+    (window.datagoat.q = window.datagoat.q || []).push(arguments);
   };
 </script>
 ```
@@ -86,4 +88,5 @@ drop the visitor's IP. Use a proxy only when your site is not on Cloudflare DNS.
 
 Nothing showing up? Ad blockers block some setups (use setup 1 or 2), a Content Security Policy may
 block the script (allow your collector host in `script-src` and `connect-src`), and visits from your
-own browser are ignored if `localStorage.datafast_ignore` is `"true"`.
+own browser are ignored if `localStorage.datagoat_ignore` (or DataFast's
+`datafast_ignore`) is `"true"`.

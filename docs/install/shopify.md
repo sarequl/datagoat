@@ -35,7 +35,7 @@ Click **Connect Shopify**. (API: `POST /api/apps/shopify/connect?websiteId=<id>`
    `https://<your DataGoat>/apps/shopify.js?id=<tracking id>`.
 
 The loader adds the tracker, copies the visitor into hidden cart attributes
-(`_datafast_visitor_id`, `_datafast_session_id`) that Shopify carries onto the order, and sends the
+(`_datagoat_visitor_id`, `_datagoat_session_id`) that Shopify carries onto the order, and sends the
 `add_to_cart` and `initiate_checkout` goals. It is a static file, so it costs no Worker request.
 
 If the storefront runs on a domain other than the website's domain in DataGoat, the connect

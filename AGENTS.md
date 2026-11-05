@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository. Humans: see [`CONTRIBU
 
 ## What DataGoat is
 
-Open-source, revenue-first web analytics that runs in the operator's own Cloudflare account: one Worker, one D1 database, static assets for the dashboard and tracker, and a cron. It is drop-in compatible with DataFast's tracking script, cookies, `window.datafast()` API and payment metadata. [`docs/PARITY.md`](docs/PARITY.md) tracks every DataFast feature.
+Open-source, revenue-first web analytics that runs in the operator's own Cloudflare account: one Worker, one D1 database, static assets for the dashboard and tracker, and a cron. It is drop-in compatible with DataFast's tracking script, cookies (with `data-compat="datafast"`), `window.datafast()` API and payment metadata; DataGoat's own names are the defaults. [`docs/PARITY.md`](docs/PARITY.md) tracks every DataFast feature.
 
 ## Read before changing code
 
@@ -55,7 +55,7 @@ When several Playwright runs share a machine, set `E2E_MOCK_PORT` and `E2E_WORKE
    - Cron jobs write only rows that changed and do the work in SQL.
    - The write-budget and read-budget tests encode these limits. If a change alters a budget, update the test and explain why in the commit.
 3. **Migrations:** never edit a migration that has shipped. Add a new file in your area's number range, then run `npm run gen:migrations`.
-4. **Compatibility:** keep DataFast's tracker attributes, cookie names, `window.datafast()` calls, `datafast_visitor_id` metadata and API field names working.
+4. **Compatibility:** keep DataFast's tracker attributes, the `window.datafast()` alias, reading of `datafast_*` cookies and `datafast_visitor_id` metadata, the `data-compat="datafast"` mode, legacy key prefixes (`df_`, `dft_`, `dfbot_`) and API field names working. DataGoat's own names (`datagoat_*`, `window.datagoat()`, `dg_`/`dgt_`/`dgbot_`, `dgid_`) are the defaults.
 5. **Tests:** every behaviour change needs a test. Dashboard pages need a component test and, for flows, a Playwright test against the mock API. Test outside services with mocked `fetch`; never call real third-party APIs in tests.
 6. **Secrets:** never commit secrets or real credentials. `.dev.vars.example` holds placeholders only.
 7. **Commits:** small and coherent, with a message that says what changed and why. Do not add `Co-Authored-By` or other AI attribution trailers to commit messages.

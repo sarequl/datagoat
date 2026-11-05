@@ -9,7 +9,7 @@ Custom code needs a Premium plan and a connected domain.
    ```html
    <script
      defer
-     data-website-id="dfid_XXXXXXXXXXXXXXXX"
+     data-website-id="dgid_XXXXXXXXXXXXXXXX"
      data-domain="example.com"
      src="https://a.example.com/js/script.js"
    ></script>
@@ -27,12 +27,12 @@ With Velo (Dev Mode) you can call the tracker from page code:
 
 ```js
 $w("#signupButton").onClick(() => {
-  if (typeof window !== "undefined" && window.datafast) window.datafast("signup");
+  if (typeof window !== "undefined" && window.datagoat) window.datagoat("signup");
 });
 ```
 
 For Wix Stores, add a second Custom code snippet on the **Thank You page** only that calls
-`window.datafast("payment", { email })` with the buyer's email if your template exposes it.
+`window.datagoat("payment", { email })` with the buyer's email if your template exposes it.
 
 ## Verify
 

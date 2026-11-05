@@ -11,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         <DataGoatScript
-          websiteId="dfid_XXXXXXXXXXXXXXXX"
+          websiteId="dgid_XXXXXXXXXXXXXXXX"
           domain="example.com"
           host="https://a.example.com"
         />
@@ -31,7 +31,7 @@ import Script from "next/script";
 
 <Script
   src="https://a.example.com/js/script.js"
-  data-website-id="dfid_XXXXXXXXXXXXXXXX"
+  data-website-id="dgid_XXXXXXXXXXXXXXXX"
   data-domain="example.com"
   strategy="afterInteractive"
 />
@@ -80,7 +80,7 @@ export async function POST() {
 }
 ```
 
-`checkoutMetadata` returns `{datafast_visitor_id, datafast_session_id}` when the visitor has
+`checkoutMetadata` returns `{datagoat_visitor_id, datagoat_session_id}` when the visitor has
 valid tracking cookies, and `{}` otherwise. Use it the same way for PaymentIntents (`metadata`),
 Polar (`metadata`) and Lemon Squeezy (`lemonSqueezyCheckoutData(...)` as `checkout_data`).
 

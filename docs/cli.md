@@ -20,17 +20,17 @@ datagoat login --url https://analytics.example.com
 ```
 
 The CLI opens **Account → API tokens** in your browser (`--no-open` skips that); create an account
-token (`dft_…`) and paste it. It checks the token against the server and saves the URL and token in
+token (`dgt_…`) and paste it. It checks the token against the server and saves the URL and token in
 `~/.config/datagoat/config.json` (mode 0600; `$XDG_CONFIG_HOME/datagoat/` or
 `%APPDATA%\datagoat\` on Windows).
 
 ```sh
 echo "$DATAGOAT_TOKEN" | datagoat login --url https://analytics.example.com   # CI: token on stdin
-datagoat login --url https://analytics.example.com --token dft_…              # visible in shell history
+datagoat login --url https://analytics.example.com --token dgt_…              # visible in shell history
 datagoat logout                                                               # forget the token
 ```
 
-A website key (`df_…`) works too. It is limited to one website, so commands need no `--site`, but
+A website key (`dg_…`) works too. It is limited to one website, so commands need no `--site`, but
 account commands (tokens, website creation, team changes) are refused.
 
 ## Configuration

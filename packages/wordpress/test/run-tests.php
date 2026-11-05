@@ -121,6 +121,7 @@ $order = new WP_Test_Order();
 do_action( 'woocommerce_checkout_create_order', $order );
 check( 'no cookie, no meta', array() === $order->meta );
 
+// DataFast's cookie names (a store that switched) are read too.
 $_COOKIE['datafast_visitor_id'] = strtoupper( VID );
 $_COOKIE['datafast_session_id'] = SID;
 $order                          = new WP_Test_Order();
@@ -136,6 +137,13 @@ $_COOKIE['datafast_visitor_id'] = 'not-a-uuid"><';
 $order                          = new WP_Test_Order();
 do_action( 'woocommerce_checkout_create_order', $order );
 check( 'malformed cookie ignored', array() === $order->meta );
+
+// DataGoat's own cookie wins over DataFast's.
+$_COOKIE['datagoat_visitor_id'] = VID;
+$order                          = new WP_Test_Order();
+do_action( 'woocommerce_checkout_create_order', $order );
+check( 'datagoat_ cookie read first', VID === ( $order->meta['_datagoat_visitor_id'] ?? null ) );
+unset( $_COOKIE['datagoat_visitor_id'], $_COOKIE['datafast_visitor_id'], $_COOKIE['datafast_session_id'] );
 
 // --- WooCommerce goals -----------------------------------------------------------------
 wp_test_reset();

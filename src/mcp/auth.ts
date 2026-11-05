@@ -4,7 +4,7 @@
  * `/api/v1` never resolves them.
  */
 import type { AuthContext } from "../auth/context";
-import { resolveBearer } from "../auth/credentials";
+import { isApiKeySecret, resolveBearer } from "../auth/credentials";
 import { log } from "../lib/log";
 import { permissionsOfScopes } from "./oauth/scopes";
 import {
@@ -130,7 +130,7 @@ export async function resolveMcpCaller(
   now = Date.now(),
 ): Promise<McpCaller | null> {
   if (token.startsWith(ACCESS_PREFIX)) return resolveOAuth(token, env, ctx, origin, now);
-  if (!token.startsWith("df_") && !token.startsWith("dft_")) return null;
+  if (!isApiKeySecret(token)) return null;
   const auth = await resolveBearer(token, env, ctx, now);
   if (!auth) return null;
   return { auth, connection: null, oauthScopes: [] };

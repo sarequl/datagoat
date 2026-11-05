@@ -30,7 +30,7 @@ import {
 
 const MAX_SITE_KEYS = 10;
 
-/** API keys: df_ website keys (create, roll, revoke) and dft_ account tokens with scopes. */
+/** API keys: dg_ website keys (create, roll, revoke) and dgt_ account tokens with scopes. */
 export default function ApiKeysPage() {
   const siteId = useSiteId();
   return (
@@ -46,7 +46,7 @@ export default function ApiKeysPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Website keys (df_)
+// Website keys (dg_)
 // ---------------------------------------------------------------------------
 
 function WebsiteKeysSection({ siteId }: { siteId: string }) {
@@ -81,7 +81,7 @@ function WebsiteKeysSection({ siteId }: { siteId: string }) {
   const pending = confirm?.action === "roll" ? roll : revoke;
 
   return (
-    <Card title="Website API keys (df_)">
+    <Card title="Website API keys (dg_)">
       <div className="space-y-4">
         <p className="text-sm text-muted">
           Scoped to this website with every website permission: analytics, goals, payments,
@@ -209,7 +209,7 @@ function WebsiteKeysSection({ siteId }: { siteId: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Account tokens (dft_)
+// Account tokens (dgt_)
 // ---------------------------------------------------------------------------
 
 const PERMISSION_GROUPS: ReadonlyArray<{ label: string; permissions: Permission[] }> = [
@@ -283,7 +283,7 @@ function AccessTokensSection({ siteId }: { siteId: string }) {
   };
 
   return (
-    <Card title="Account access tokens (dft_)" className="scroll-mt-4">
+    <Card title="Account access tokens (dgt_)" className="scroll-mt-4">
       <div id="tokens" className="space-y-4">
         <p className="text-sm text-muted">
           Belong to you, not a website: they act with your role on each website, limited to the

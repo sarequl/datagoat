@@ -24,8 +24,8 @@ keeps your own admin visits out (optional).
 ```django
 {% if request.user.is_authenticated %}
 <script>
-  window.datafast = window.datafast || function () { (window.datafast.q = window.datafast.q || []).push(arguments); };
-  window.datafast("identify", { user_id: "{{ request.user.pk|escapejs }}", name: "{{ request.user.get_full_name|escapejs }}" });
+  window.datagoat = window.datagoat || function () { (window.datagoat.q = window.datagoat.q || []).push(arguments); };
+  window.datagoat("identify", { user_id: "{{ request.user.pk|escapejs }}", name: "{{ request.user.get_full_name|escapejs }}" });
 </script>
 {% endif %}
 ```
@@ -39,13 +39,13 @@ from django.shortcuts import redirect
 
 
 def visitor_metadata(request):
-    vid = request.COOKIES.get("datafast_visitor_id")
-    sid = request.COOKIES.get("datafast_session_id")
+    vid = request.COOKIES.get("datagoat_visitor_id")
+    sid = request.COOKIES.get("datagoat_session_id")
     meta = {}
     if vid:
-        meta["datafast_visitor_id"] = vid
+        meta["datagoat_visitor_id"] = vid
         if sid:
-            meta["datafast_session_id"] = sid
+            meta["datagoat_session_id"] = sid
     return meta
 
 
@@ -60,6 +60,6 @@ def checkout(request):
     return redirect(session.url)
 ```
 
-Server-side goals: `POST /api/v1/goals` with a `df_` key (see the API docs).
+Server-side goals: `POST /api/v1/goals` with a `dg_` key (see the API docs).
 
 First-party proxy: [proxy-django.md](proxy-django.md).

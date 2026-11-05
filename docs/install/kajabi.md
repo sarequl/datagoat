@@ -10,7 +10,7 @@
    ```html
    <script
      defer
-     data-website-id="dfid_XXXXXXXXXXXXXXXX"
+     data-website-id="dgid_XXXXXXXXXXXXXXXX"
      data-domain="example.com"
      src="https://a.example.com/js/script.js"
    ></script>
@@ -28,13 +28,13 @@ the buyer's email:
 
 ```html
 <script>
-  window.datafast = window.datafast || function () { (window.datafast.q = window.datafast.q || []).push(arguments); };
+  window.datagoat = window.datagoat || function () { (window.datagoat.q = window.datagoat.q || []).push(arguments); };
   try {
     var params = new URLSearchParams(location.search);
     var email = params.get("email") ||
       (document.querySelector("[data-customer-email]") || {}).textContent ||
       (document.querySelector("input[name='email']") || {}).value;
-    if (email) window.datafast("payment", { email: email.trim() });
+    if (email) window.datagoat("payment", { email: email.trim() });
   } catch (e) {}
 </script>
 ```

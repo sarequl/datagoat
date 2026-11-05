@@ -31,7 +31,7 @@ describe("ids", () => {
     const b = newId(1_000_000_100_000);
     expect(isObjectIdLike(a)).toBe(true);
     expect(a < b).toBe(true);
-    expect(newTrackingId()).toMatch(/^dfid_[0-9A-Za-z]{16}$/);
+    expect(newTrackingId()).toMatch(/^dgid_[0-9A-Za-z]{16}$/);
     expect(randomBase62(30)).toMatch(/^[0-9A-Za-z]{30}$/);
     expect(randomToken(32)).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });

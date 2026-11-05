@@ -487,7 +487,7 @@ function Goals({
           </div>
         ) : !visible.length ? (
           <EmptyState>
-            No goals yet. Track one with <code>window.datafast("signup")</code> or a{" "}
+            No goals yet. Track one with <code>window.datagoat("signup")</code> or a{" "}
             <code>data-fast-goal</code> attribute.
           </EmptyState>
         ) : (

@@ -40,7 +40,7 @@ something else, use a [custom subdomain](custom-domain.md) instead of a route.
 ```html
 <script
   defer
-  data-website-id="dfid_XXXXXXXXXXXXXXXX"
+  data-website-id="dgid_XXXXXXXXXXXXXXXX"
   data-domain="example.com"
   src="/js/script.js"
 ></script>

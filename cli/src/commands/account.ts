@@ -39,14 +39,14 @@ const login: Command = {
     if (!url) throw new UsageError("Pass --url <your DataGoat URL> (or set DATAGOAT_URL).");
     url = normaliseUrl(url);
     const token = await readToken(ctx, url);
-    if (!/^dft?_[A-Za-z0-9]+$/.test(token)) {
-      throw new UsageError("That does not look like a DataGoat token (dft_… or df_…).");
+    if (!/^d[gf]t?_[A-Za-z0-9]+$/.test(token)) {
+      throw new UsageError("That does not look like a DataGoat token (dgt_… or dg_…).");
     }
     const client = new Client({ baseUrl: url, token, fetch: ctx.io.fetch });
     const me = await client.me();
     const file = await readConfig(ctx.io);
     await writeConfig(ctx.io, { ...file, url, token });
-    const kind = token.startsWith("df_") ? "website key" : "account token";
+    const kind = /^d[gf]_/.test(token) ? "website key" : "account token";
     ctx.done(`Logged in to ${url} as ${me.user.email} (${kind}).`, {
       url,
       email: me.user.email,

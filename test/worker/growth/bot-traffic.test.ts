@@ -264,7 +264,7 @@ describe("POST /api/ai-crawls", () => {
     expect(google.body.tracked).toBe(0);
   });
 
-  it("requires the dfbot_ token only once enforcement is on", async () => {
+  it("requires the dgbot_ token only once enforcement is on", async () => {
     const { site, cookie } = await setupSite();
     const tokenPath = `/api/v1/admin/websites/${site.id}/bot-traffic/token`;
     const settings = `/api/v1/admin/websites/${site.id}/bot-traffic/settings`;
@@ -273,7 +273,7 @@ describe("POST /api/ai-crawls", () => {
     ).toBe(400);
     const created = await api(tokenPath, { cookie, method: "POST" });
     const secret = created.body.data[0].requestAuthToken as string;
-    expect(secret).toMatch(/^dfbot_[0-9A-Za-z]{32}$/);
+    expect(secret).toMatch(/^dgbot_[0-9A-Za-z]{32}$/);
     expect((await api(tokenPath, { cookie, method: "POST" })).status).toBe(409);
     // Not enforced yet: requests without the token still count.
     expect(

@@ -19,7 +19,7 @@ signs webhooks).
 
 ```sh
 curl -X POST ".../api/v1/admin/websites/$WEBSITE_ID/integrations/shopify" \
-  -H "Authorization: Bearer dft_…" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dgt_…" -H "Content-Type: application/json" \
   -d '{"shopDomain":"your-store.myshopify.com","webhookSecret":"<API secret key>","accessToken":"shpat_…"}'
 ```
 
@@ -41,9 +41,9 @@ Add the DataGoat (or DataFast) tracking script to your theme, then this snippet 
       return m ? decodeURIComponent(m[1]) : null;
     }
     function sync(tries) {
-      var vid = cookie("datafast_visitor_id");
+      var vid = cookie("datagoat_visitor_id") || cookie("datafast_visitor_id");
       if (!vid) return tries > 0 && setTimeout(function () { sync(tries - 1); }, 500);
-      var sid = cookie("datafast_session_id") || "";
+      var sid = cookie("datagoat_session_id") || cookie("datafast_session_id") || "";
       var key = "datagoat_cart_" + vid + "_" + sid;
       try { if (sessionStorage.getItem(key)) return; } catch (e) {}
       fetch("/cart/update.js", {

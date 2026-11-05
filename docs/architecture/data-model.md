@@ -54,7 +54,7 @@ scanning the site. Queries must repeat the predicate (`type <> 'pageview'`) for 
 | `auth_sessions`     | Dashboard sessions (SHA-256 of the cookie token), 30-day expiry                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `id_hash`; index `user_id`                                   | F0                                                                 |
 | `invites`           | Team invites (hashed token, 7 days)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `id`; unique `token_hash`; unique pending `(site_id, email)` | F0                                                                 |
 | `password_resets`   | One-time reset links from `npm run reset-password`                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `token_hash`                                                 | F0                                                                 |
-| `api_keys`          | `df_` website keys and `dft_` account tokens: hash, prefix, masked display, permissions, website allowlist, `include_pii`, `is_mobile`, `oauth_connection_id`, expiry, lazy usage counters                                                                                                                                                                                                                                                                                                                             | `id`; unique `key_hash`; indexes `site_id`, `user_id`        | F0; W7 (keys minted via OAuth); W8 (`is_mobile` keys)              |
+| `api_keys`          | `dg_` website keys and `dgt_` account tokens: hash, prefix, masked display, permissions, website allowlist, `include_pii`, `is_mobile`, `oauth_connection_id`, expiry, lazy usage counters                                                                                                                                                                                                                                                                                                                             | `id`; unique `key_hash`; indexes `site_id`, `user_id`        | F0; W7 (keys minted via OAuth); W8 (`is_mobile` keys)              |
 
 ### MCP OAuth (W7)
 
@@ -93,7 +93,7 @@ last session before it, and `props` JSON `{"origin": "payment_provider", "type":
 W1 writes into two revenue tables from ingest: it inserts `payment_hints` rows for success-page
 references the tracker reports (`?session_id=cs_…`, `?checkout_id=`, `?order_id=`,
 `?transaction_id=txn_…`; providers `stripe`, `polar`, `lemonsqueezy`, `paddle`), and when a visitor
-sends an email (`datafast("payment", {email})` or `identify` with an email) it attributes that site's
+sends an email (`datagoat("payment", {email})` or `identify` with an email) it attributes that site's
 unattributed `payments` with the same `email_hash` (`attributed_via = 'email'`, visitor, first/last/
 last-non-direct sessions). Ingest write costs per path are in `src/ingest/write.ts` and asserted by
 `test/worker/ingest/write-budget.test.ts`.
@@ -160,7 +160,7 @@ a snapshot at rollup time; analytics revenue is always read from `payments`.
 | --- | --- | --- |
 | `bot_traffic` | Accepted crawler requests per UTC hour, crawler, page, status, verification (one upsert per distinct key: 1 written row) | full composite primary key |
 | `bot_settings` | Bot traffic settings JSON | `site_id` |
-| `bot_tokens` | `dfbot_` request token (SHA-256 of `dfbot:<token>`) | `site_id`; unique `token_hash` |
+| `bot_tokens` | `dgbot_` request token (SHA-256 of `dfbot:<token>`) | `site_id`; unique `token_hash` |
 | `crawler_ip_ranges` (0600) | Published crawler IP ranges per source, refreshed daily, rewritten only on change | `source` |
 | `bot_usage` (0600) | Accepted/dropped bot requests per UTC month while `BOT_TRAFFIC_ALLOWANCE` is set (flushed ≤ once a minute per isolate) | `period` |
 | `attack_mode` (0600) | Auto attack-mode settings and the active automatic period (`active_until`, `previous_level`) | `site_id` |
@@ -188,9 +188,9 @@ visitors are sums of daily uniques. Helpers: `src/growth/imports/read.ts`.
 
 | Table            | Purpose                                                                                                                                                                                                    | Key / indexes                              |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `mobile_devices` | Mobile app push devices (migration 0800): user, the mobile `dft_` token (`token_id` = `api_keys.id`), platform, Expo push token, sale/alert switches, muted site ids. User-scoped, no `site_id`; pushes stop when the token is revoked | `id`; unique `push_token`; index `user_id` |
+| `mobile_devices` | Mobile app push devices (migration 0800): user, the mobile `dgt_` token (`token_id` = `api_keys.id`), platform, Expo push token, sale/alert switches, muted site ids. User-scoped, no `site_id`; pushes stop when the token is revoked | `id`; unique `push_token`; index `user_id` |
 
-W8 also writes `api_keys` (mobile `dft_` tokens, `is_mobile = 1`), `provider_connections` rows for
+W8 also writes `api_keys` (mobile `dgt_` tokens, `is_mobile = 1`), `provider_connections` rows for
 `shopify` and `woocommerce` (shapes in [contract §13.1](../api/contract.md)), and, for Shopify's
 `customers/redact` and `shop/redact` compliance webhooks only, nulls `customer_email`,
 `customer_name` and `email_hash` on `payments` rows with `provider = 'shopify'`.

@@ -6,7 +6,7 @@
  * Works with anything that carries cookies: a `Cookie` header string, a Fetch `Request` or
  * `Headers`, Next.js `cookies()`, Express `req` (with or without cookie-parser), or a plain object.
  */
-import { parseCookieHeader, SESSION_COOKIE, VISITOR_COOKIE } from "./cookies.js";
+import { legacyName, parseCookieHeader, SESSION_COOKIE, VISITOR_COOKIE } from "./cookies.js";
 import { isSessionId, isVisitorId } from "./rules.js";
 
 export { parseCookieHeader, SESSION_COOKIE, VISITOR_COOKIE } from "./cookies.js";
@@ -35,8 +35,15 @@ function isHeadersLike(value: unknown): value is HeadersLike {
   return typeof (value as HeadersLike)?.get === "function";
 }
 
-/** Read one cookie from any supported source. */
+/** Read one cookie from any supported source; DataGoat's name first, then DataFast's. */
 export function readCookie(source: CookieSource, name: string): string | undefined {
+  return (
+    readOne(source, name) ??
+    (name.startsWith("datagoat_") ? readOne(source, legacyName(name)) : undefined)
+  );
+}
+
+function readOne(source: CookieSource, name: string): string | undefined {
   if (source === null || source === undefined) return undefined;
   if (typeof source === "string") return parseCookieHeader(source)[name];
   // Next.js cookies() / RequestCookies: get(name) → {name, value}
@@ -63,21 +70,21 @@ export function readCookie(source: CookieSource, name: string): string | undefin
   return typeof plain === "string" ? plain : undefined;
 }
 
-/** The `datafast_visitor_id` cookie when it is a valid visitor id, else null. */
+/** The `datagoat_visitor_id` (or DataFast's) cookie when it is a valid visitor id, else null. */
 export function getVisitorId(source: CookieSource): string | null {
   const value = readCookie(source, VISITOR_COOKIE);
   return isVisitorId(value) ? value : null;
 }
 
-/** The `datafast_session_id` cookie when valid, else null. */
+/** The `datagoat_session_id` (or DataFast's) cookie when valid, else null. */
 export function getSessionId(source: CookieSource): string | null {
   const value = readCookie(source, SESSION_COOKIE);
   return isSessionId(value) ? value : null;
 }
 
 export interface CheckoutMetadata {
-  datafast_visitor_id?: string;
-  datafast_session_id?: string;
+  datagoat_visitor_id?: string;
+  datagoat_session_id?: string;
 }
 
 /**
@@ -92,8 +99,8 @@ export function checkoutMetadata(source: CookieSource): CheckoutMetadata {
   const out: CheckoutMetadata = {};
   const vid = getVisitorId(source);
   const sid = getSessionId(source);
-  if (vid) out.datafast_visitor_id = vid;
-  if (vid && sid) out.datafast_session_id = sid;
+  if (vid) out.datagoat_visitor_id = vid;
+  if (vid && sid) out.datagoat_session_id = sid;
   return out;
 }
 
@@ -109,7 +116,7 @@ export function lemonSqueezyCheckoutData(source: CookieSource): { custom: Checko
 export interface ServerClientOptions {
   /** Origin of your DataGoat instance, e.g. https://analytics.example.com. */
   baseUrl: string;
-  /** A `df_` website key (or a `dft_` token plus `websiteId`). */
+  /** A `dg_` website key (or a `dgt_` account token plus `websiteId`). */
   apiKey: string;
   websiteId?: string;
   fetch?: typeof fetch;
@@ -130,6 +137,8 @@ export interface PaymentInput {
   amount: number;
   currency: string;
   transaction_id: string;
+  datagoat_visitor_id?: string;
+  /** DataFast's name for `datagoat_visitor_id`; still accepted. */
   datafast_visitor_id?: string;
   email?: string;
   name?: string;
@@ -175,13 +184,13 @@ export function createServerClient(options: ServerClientOptions) {
   return {
     /** POST /api/v1/goals: a goal for a visitor seen on your site. */
     goal(visitorId: string, name: string, metadata?: Record<string, string>) {
-      return send("POST", "goals", { datafast_visitor_id: visitorId, name, metadata });
+      return send("POST", "goals", { datagoat_visitor_id: visitorId, name, metadata });
     },
     /** POST /api/v1/identify */
     identify(visitorId: string, userId: string, profile: Record<string, unknown> = {}) {
       return send("POST", "identify", {
         ...profile,
-        datafast_visitor_id: visitorId,
+        datagoat_visitor_id: visitorId,
         user_id: userId,
       });
     },

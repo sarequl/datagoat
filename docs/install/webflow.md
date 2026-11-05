@@ -8,7 +8,7 @@ Custom code needs a paid Site plan (or a Workspace plan that allows it).
    ```html
    <script
      defer
-     data-website-id="dfid_XXXXXXXXXXXXXXXX"
+     data-website-id="dgid_XXXXXXXXXXXXXXXX"
      data-domain="example.com"
      src="https://a.example.com/js/script.js"
    ></script>
@@ -34,9 +34,9 @@ email in Webflow's default confirmation layout, adjust it if your template diffe
 
 ```html
 <script>
-  window.datafast = window.datafast || function () { (window.datafast.q = window.datafast.q || []).push(arguments); };
+  window.datagoat = window.datagoat || function () { (window.datagoat.q = window.datagoat.q || []).push(arguments); };
   var email = document.querySelector(".w-commerce-commerceorderconfirmationcontainer [href^='mailto:']");
-  if (email) window.datafast("payment", { email: (email.textContent || "").trim() });
+  if (email) window.datagoat("payment", { email: (email.textContent || "").trim() });
 </script>
 ```
 

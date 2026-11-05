@@ -8,7 +8,7 @@ changes such as adding chart notes or creating funnels.
 - **Transport:** Streamable HTTP, stateless, JSON responses. No sessions and no server-sent events,
   so it runs on the Workers Free plan.
 - **Authentication:** OAuth sign-in (recommended where the client supports it) or a Bearer token: a
-  `dft_` account token or a `df_` website key.
+  `dgt_` account token or a `dg_` website key.
 
 Every MCP tool calls the same handler as the matching `/api/v1` REST endpoint, inside the Worker.
 Validation, permissions, website access, roles and rate limits are therefore identical to the API.
@@ -66,9 +66,9 @@ Cursor offers to sign in:
 Use this for clients that ask for a Bearer token, for CI agents, or if you prefer to manage the
 credential yourself.
 
-1. In the dashboard, open **Account → API tokens** and create an account token (`dft_…`). Give it
+1. In the dashboard, open **Account → API tokens** and create an account token (`dgt_…`). Give it
    only what the agent needs, for example `websites:read` and `analytics:read`, and restrict it to
-   specific websites if you can. A website key (`df_…`, **Website → API keys**) also works and is
+   specific websites if you can. A website key (`dg_…`, **Website → API keys**) also works and is
    limited to its website.
 2. Configure the client with the URL and an `Authorization: Bearer <token>` header. Keep the token
    in the client's secret store or an environment variable, never in a repository.
@@ -101,7 +101,7 @@ claude mcp add --transport http datagoat https://<your-datagoat>/mcp \
     "datagoat": {
       "command": "npx",
       "args": ["mcp-remote", "https://<your-datagoat>/mcp", "--header", "Authorization:Bearer ${DATAGOAT_TOKEN}"],
-      "env": { "DATAGOAT_TOKEN": "dft_…" }
+      "env": { "DATAGOAT_TOKEN": "dgt_…" }
     }
   }
 }
@@ -162,7 +162,7 @@ Every tool's input schema is published in `tools/list`, with its REST permission
 in `_meta` (`datagoat/permission`, `datagoat/oauthScopes`).
 
 **Common arguments.** Website tools take `websiteId` (the `_id` from `websites_list`, or the
-tracking id); it can be omitted with a `df_` key or a credential limited to one website. Ranges are
+tracking id); it can be omitted with a `dg_` key or a credential limited to one website. Ranges are
 `period` (`today`, `yesterday`, `last24h`, `last7d`, `last30d`, `last90d`, `last12m`, `week`,
 `month`, `year`, `all`, resolved in the website timezone) or `startAt` + `endAt` (`YYYY-MM-DD` or an
 ISO instant with `Z` or an offset), plus an optional `timezone`. Analytics tools take `filters`, the
@@ -198,9 +198,9 @@ API's `filter_*` parameters as an object: `{"country": "US", "page": "contains:/
 | `team:read`, `team:write` | Team members; invite, remove, change roles (owners only) |
 | `account:read`, `account:write` | Your profile; change your display name |
 | `websites:write` | Create websites; new websites join the connection |
-| `api-keys:read`, `api-keys:write` | Website `df_` keys (owners only for changes); new keys expire with the connection |
-| `access-tokens:read`, `access-tokens:write` | Account `dft_` tokens limited to the connection's websites and permissions; they expire with it |
-| `bot-credentials:read`, `bot-credentials:write` | Bot traffic `dfbot_` ingestion tokens (owners only) |
+| `api-keys:read`, `api-keys:write` | Website `dg_` keys (owners only for changes); new keys expire with the connection |
+| `access-tokens:read`, `access-tokens:write` | Account `dgt_` tokens limited to the connection's websites and permissions; they expire with it |
+| `bot-credentials:read`, `bot-credentials:write` | Bot traffic `dgbot_` ingestion tokens (owners only) |
 | `account-usage:read` | Account-wide bot traffic usage (every website you own must be selected) |
 | `payments:read`, `payments:write`, `identify:write` | Passed on to credentials minted through the connection |
 

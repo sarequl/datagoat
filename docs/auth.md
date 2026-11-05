@@ -33,11 +33,15 @@ invite link (7 days) lets a new person create an account or an existing user joi
 
 DataGoat uses DataFast's two token types, so DataFast integrations work by changing the base URL:
 
-- `df_…` **website key** (Website settings → API keys): one website, every website-level permission,
-  acting at most as a member. Send `Authorization: Bearer df_…`; no `websiteId` needed.
-- `dft_…` **account token** (Account → API tokens): chosen permissions (`analytics:read`,
+- `dg_…` **website key** (Website settings → API keys): one website, every website-level permission,
+  acting at most as a member. Send `Authorization: Bearer dg_…`; no `websiteId` needed.
+- `dgt_…` **account token** (Account → API tokens): chosen permissions (`analytics:read`,
   `settings:write`, … or `*`) and optionally a website allowlist; pass `?websiteId=` on website
   endpoints. A token can never exceed the permissions or websites of whoever creates it.
+
+Bot-traffic request tokens start with `dgbot_`. Keys created before the rename (`df_`, `dft_`,
+`dfbot_`) keep working. Request bodies and queries take `datagoat_visitor_id`; DataFast's
+`datafast_visitor_id` is also accepted.
 
 Keys are shown once and stored as SHA-256 hashes. Keys without the PII option never see customer
 names or emails. Each credential is limited to 60 requests per minute (`X-RateLimit-*` headers).

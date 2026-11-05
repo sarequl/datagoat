@@ -9,7 +9,7 @@ Code Injection needs a Core, Plus, Advanced (or legacy Business/Commerce) plan.
    ```html
    <script
      defer
-     data-website-id="dfid_XXXXXXXXXXXXXXXX"
+     data-website-id="dgid_XXXXXXXXXXXXXXXX"
      data-domain="example.com"
      src="https://a.example.com/js/script.js"
    ></script>
@@ -27,8 +27,8 @@ Payments in DataGoat, or send orders with the Payments API):
 
 ```html
 <script>
-  window.datafast = window.datafast || function () { (window.datafast.q = window.datafast.q || []).push(arguments); };
-  window.datafast("payment", { email: "{customerEmailAddress}" });
+  window.datagoat = window.datagoat || function () { (window.datagoat.q = window.datagoat.q || []).push(arguments); };
+  window.datagoat("payment", { email: "{customerEmailAddress}" });
 </script>
 ```
 

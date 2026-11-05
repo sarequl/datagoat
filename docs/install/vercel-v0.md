@@ -10,9 +10,9 @@ exporting. Have your **website id**, **domain** and **collector URL** ready
 Add DataGoat analytics to app/layout.tsx. Inside <head> render exactly:
 
 <script
-  dangerouslySetInnerHTML={{ __html: "window.datafast=window.datafast||function(){(window.datafast.q=window.datafast.q||[]).push(arguments)};" }}
+  dangerouslySetInnerHTML={{ __html: "window.datagoat=window.datagoat||function(){(window.datagoat.q=window.datagoat.q||[]).push(arguments)};" }}
 />
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
 
 Do not load it in a client component or useEffect. Keep the attributes exactly as written.
 ```
@@ -22,7 +22,7 @@ Or install the SDK and use its component (works in a server component):
 ```tsx
 import { DataGoatScript } from "@datagoat/sdk/next";
 // in <head>:
-<DataGoatScript websiteId="dfid_XXXXXXXXXXXXXXXX" domain="example.com" host="https://a.example.com" />
+<DataGoatScript websiteId="dgid_XXXXXXXXXXXXXXXX" domain="example.com" host="https://a.example.com" />
 ```
 
 To serve DataGoat from your own Vercel domain, add the rewrites from
@@ -43,7 +43,7 @@ metadata: { ...checkoutMetadata(await cookies()) }
 
 If the project uses Stripe Payment Links instead, tell me to set the success URL to end with
 ?session_id={CHECKOUT_SESSION_ID}. If payments happen another way, call
-window.datafast("payment", { email }) on the success page.
+window.datagoat("payment", { email }) on the success page.
 ```
 
 ## Verify

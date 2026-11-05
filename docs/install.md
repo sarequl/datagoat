@@ -17,7 +17,7 @@ settings tabs. It has four steps.
 ```html
 <script
   defer
-  data-website-id="dfid_…"
+  data-website-id="dgid_…"
   data-domain="example.com"
   data-api-url="https://<your DataGoat host>/api/events"
   src="https://<your DataGoat host>/js/script.js"
@@ -35,14 +35,16 @@ whichever host serves the script.
   in production.
 - **Other domains**: hostnames listed under Tracking & privacy > Allowed hostnames are added as
   `data-allowed-hostnames`, so visitor IDs carry across them.
-- **Consent mode**: add the queue stub before the tag, then call `window.datafast("consent", true)`
+- **Consent mode**: add the queue stub before the tag, then call `window.datagoat("consent", true)`
   after the visitor accepts, or `false` if they decline. The page shows both snippets.
 
 ### Switching from DataFast
 
-Keep your tag and change three things: `src` (to this instance's `/js/script.js`), `data-website-id`
-(to the new ID) and a new `data-api-url`. `window.datafast(...)` calls, `data-fast-goal` attributes,
-the `datafast_visitor_id` cookie and checkout metadata keep working. Server code that uses
+Keep your tag and change four things: `src` (to this instance's `/js/script.js`), `data-website-id`
+(to the new ID), a new `data-api-url`, and add `data-compat="datafast"`. With that attribute the
+tracker also writes the `datafast_visitor_id` cookie, so `window.datafast(...)` calls,
+`data-fast-goal` attributes and checkout code that reads `datafast_*` cookies keep working. New
+sites use DataGoat's own names (`datagoat_visitor_id`, `window.datagoat(...)`). Server code that uses
 DataFast's API needs this instance's `/api/v1` base URL and a DataGoat API key.
 
 ## First-party script domain
@@ -64,14 +66,15 @@ server to the Worker, then set Script host to your site's origin.
 
 - `data-domain` and `data-website-id` must match the values in the snippet.
 - Visits from localhost are ignored unless `data-allow-localhost="true"` is set.
-- Ad blockers, and browsers where `localStorage.datafast_ignore` is set, send nothing.
+- Ad blockers, and browsers where `localStorage.datagoat_ignore` is set, send nothing.
 - A Content-Security-Policy must allow the DataGoat host in `script-src` and `connect-src`.
 - Hostnames other than the domain and its subdomains must be in Allowed hostnames.
 - Check that your IP, country or page is not listed under Exclusions.
 
 ## Excluding your own visits
 
-Open your site, open the browser console and run `localStorage.datafast_ignore = 'true'`. Run
-`delete localStorage.datafast_ignore` to be counted again. Do this for each browser and subdomain.
+Open your site, open the browser console and run `localStorage.datagoat_ignore = 'true'`. Run
+`delete localStorage.datagoat_ignore` to be counted again (DataFast's `datafast_ignore` is also
+respected). Do this for each browser and subdomain.
 To exclude an office or VPN, add its IP addresses under **Exclusions**. "Add my current IP" reads
 your public IP from Cloudflare's `/cdn-cgi/trace` on the dashboard's own host.

@@ -21,7 +21,7 @@ script, writes the order meta and registers the order webhook; the connection ap
 
 ```sh
 curl -X POST ".../api/v1/admin/websites/$WEBSITE_ID/integrations/woocommerce" \
-  -H "Authorization: Bearer dft_…" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dgt_…" -H "Content-Type: application/json" \
   -d '{"storeUrl":"https://shop.example.com","webhookSecret":"…","consumerKey":"ck_…","consumerSecret":"cs_…"}'
 ```
 
@@ -30,11 +30,14 @@ curl -X POST ".../api/v1/admin/websites/$WEBSITE_ID/integrations/woocommerce" \
 
 ```php
 add_action('woocommerce_checkout_create_order', function ($order) {
-  if (!empty($_COOKIE['datafast_visitor_id'])) {
-    $order->update_meta_data('_datagoat_visitor_id', sanitize_text_field($_COOKIE['datafast_visitor_id']));
+  // DataGoat's cookies first, then DataFast's.
+  $vid = $_COOKIE['datagoat_visitor_id'] ?? $_COOKIE['datafast_visitor_id'] ?? '';
+  $sid = $_COOKIE['datagoat_session_id'] ?? $_COOKIE['datafast_session_id'] ?? '';
+  if ($vid !== '') {
+    $order->update_meta_data('_datagoat_visitor_id', sanitize_text_field($vid));
   }
-  if (!empty($_COOKIE['datafast_session_id'])) {
-    $order->update_meta_data('_datagoat_session_id', sanitize_text_field($_COOKIE['datafast_session_id']));
+  if ($sid !== '') {
+    $order->update_meta_data('_datagoat_session_id', sanitize_text_field($sid));
   }
 });
 ```

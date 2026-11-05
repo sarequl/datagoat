@@ -142,7 +142,9 @@ export class Ctx {
   }
 
   get isSiteKey(): boolean {
-    return this.settings.token?.startsWith("df_") === true;
+    // Website keys: `dg_…`, or `df_…` from before the rename.
+    const t = this.settings.token ?? "";
+    return t.startsWith("dg_") || t.startsWith("df_");
   }
 
   /** The website for path-scoped endpoints (`/admin/websites/:id/...`). */

@@ -12,7 +12,7 @@ What works with DataGoat:
    ```html
    <script
      defer
-     data-website-id="dfid_XXXXXXXXXXXXXXXX"
+     data-website-id="dgid_XXXXXXXXXXXXXXXX"
      data-domain="example.com"
      src="https://a.example.com/js/script.js"
    ></script>
@@ -25,15 +25,15 @@ What works with DataGoat:
 
    ```http
    POST https://a.example.com/api/v1/payments
-   Authorization: Bearer df_your_website_key
+   Authorization: Bearer dg_your_website_key
    Content-Type: application/json
 
    {"amount": 49, "currency": "USD", "transaction_id": "<easytool order id>", "email": "<buyer email>"}
    ```
 
    With the buyer's email, DataGoat attributes the sale to the visitor who reported the same email
-   (`window.datafast("payment", {email})` on the thank-you page, or `identify`). With the visitor
-   id in your checkout's custom fields, pass it as `datafast_visitor_id` instead.
+   (`window.datagoat("payment", {email})` on the thank-you page, or `identify`). With the visitor
+   id in your checkout's custom fields, pass it as `datagoat_visitor_id` instead.
 
 If Easytool's checkout is also paid out through Stripe, connecting that Stripe account in DataGoat
 records the payments automatically; the email or visitor id still links them to the visit.

@@ -94,7 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <DataGoatScript websiteId="dfid_XXXXXXXXXXXXXXXX" domain="example.com" />
+        <DataGoatScript websiteId="dgid_XXXXXXXXXXXXXXXX" domain="example.com" />
       </head>
       <body>{children}</body>
     </html>

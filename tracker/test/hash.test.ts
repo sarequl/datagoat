@@ -13,7 +13,7 @@ describe("hash build", () => {
     expect(__DG_HASH__).toBe(true);
     const t = setup({ url: "https://www.example.com/#/home" });
     expect(t.last()).toMatchObject({ href: "https://www.example.com/#/home", trackHash: true });
-    expect(t.cookie("datafast_visitor_id")).toBeDefined();
+    expect(t.cookie("datagoat_visitor_id")).toBeDefined();
   });
 
   it("tracks hash changes", () => {

@@ -91,15 +91,15 @@ describe("API keys", () => {
   it("creates a website key, shows it once, rolls and revokes it", async () => {
     const log = recordRequests();
     openPage(`/app/${SITE}/keys`);
-    const keys = await card("Website API keys (df_)");
+    const keys = await card("Website API keys (dg_)");
     await userEvent.type(within(keys).getByLabelText("Key name"), "Backend");
     await userEvent.click(within(keys).getByLabelText(/Include customer names and emails/));
     await userEvent.click(within(keys).getByRole("button", { name: "Create key" }));
     const secret = await within(keys).findByRole("textbox", { name: "New secret" });
-    expect((secret as HTMLInputElement).value).toMatch(/^df_mock/);
+    expect((secret as HTMLInputElement).value).toMatch(/^dg_mock/);
     expect(writes(log, "POST", "/apikeys")[0]?.body).toEqual({ name: "Backend", includePii: true });
     expect(within(keys).getByRole("figure", { name: "example request" })).toHaveTextContent(
-      "Authorization: Bearer df_mock",
+      "Authorization: Bearer dg_mock",
     );
     await userEvent.click(within(keys).getByRole("button", { name: "Done" }));
     expect(within(keys).queryByRole("textbox", { name: "New secret" })).not.toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("API keys", () => {
     expect(
       ((await within(keys).findByRole("textbox", { name: "New secret" })) as HTMLInputElement)
         .value,
-    ).toMatch(/^df_mockRolled/);
+    ).toMatch(/^dg_mockRolled/);
 
     await userEvent.click(within(keys).getByRole("button", { name: "Revoke Backend" }));
     await userEvent.click(
@@ -130,7 +130,7 @@ describe("API keys", () => {
 
   it("disables creation at the 10-key limit", async () => {
     openPage(`/app/${SITE}/keys`);
-    const keys = await card("Website API keys (df_)");
+    const keys = await card("Website API keys (dg_)");
     await within(keys).findByText("Production backend");
     for (let i = 0; i < 9; i++) {
       await userEvent.click(within(keys).getByRole("button", { name: "Create key" }));
@@ -146,7 +146,7 @@ describe("API keys", () => {
   it("creates a scoped account token and revokes it", async () => {
     const log = recordRequests();
     openPage(`/app/${SITE}/keys`);
-    const tokens = await card("Account access tokens (dft_)");
+    const tokens = await card("Account access tokens (dgt_)");
     await userEvent.type(within(tokens).getByLabelText("Token name"), "Agent");
     await userEvent.click(within(tokens).getByRole("radio", { name: "Custom" }));
     await userEvent.click(within(tokens).getByRole("checkbox", { name: "goals:write" }));
@@ -156,7 +156,7 @@ describe("API keys", () => {
     expect(
       ((await within(tokens).findByRole("textbox", { name: "New secret" })) as HTMLInputElement)
         .value,
-    ).toMatch(/^dft_mock/);
+    ).toMatch(/^dgt_mock/);
     expect(writes(log, "POST", "/access-tokens")[0]?.body).toEqual({
       name: "Agent",
       permissions: ["analytics:read", "goals:write"],
@@ -178,7 +178,7 @@ describe("API keys", () => {
 
   it("requires a permission and a website for custom tokens", async () => {
     openPage(`/app/${SITE}/keys`);
-    const tokens = await card("Account access tokens (dft_)");
+    const tokens = await card("Account access tokens (dgt_)");
     await userEvent.click(within(tokens).getByRole("radio", { name: "Custom" }));
     await userEvent.click(within(tokens).getByRole("checkbox", { name: "analytics:read" }));
     await userEvent.click(within(tokens).getByRole("button", { name: "Create token" }));
@@ -187,7 +187,7 @@ describe("API keys", () => {
 
   it("lets viewers see but not change website keys", async () => {
     openPage(`/app/${SITE}/keys`, { role: "viewer" });
-    const keys = await card("Website API keys (df_)");
+    const keys = await card("Website API keys (dg_)");
     expect(await within(keys).findByText("Production backend")).toBeInTheDocument();
     expect(within(keys).queryByRole("button", { name: "Create key" })).not.toBeInTheDocument();
     expect(within(keys).queryByRole("button", { name: /^Roll/ })).not.toBeInTheDocument();

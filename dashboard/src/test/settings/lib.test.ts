@@ -66,6 +66,13 @@ describe("tracking snippets", () => {
     expect(platformGuide("vue", base).code).toContain('"data-website-id": "dfid_abc"');
   });
 
+  it('adds data-compat="datafast" only to the switch-from-DataFast snippet', () => {
+    expect(platformGuide("html", base).code).not.toContain("data-compat");
+    const after = platformGuide("datafast", base).code.split("<!-- After (DataGoat) -->")[1] ?? "";
+    expect(after).toContain('data-compat="datafast"');
+    expect(platformGuide("datafast", base).steps.join(" ")).toContain("datafast_visitor_id");
+  });
+
   it("builds an injector for tag managers that keeps the data attributes", () => {
     const code = injectorSnippet(base);
     expect(code).toContain('s.setAttribute("data-website-id", "dfid_abc");');

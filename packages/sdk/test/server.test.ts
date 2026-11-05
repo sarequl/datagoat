@@ -36,14 +36,20 @@ describe("reading the visitor on the server", () => {
   });
 
   it("returns checkout metadata only for valid ids", () => {
+    // DataFast's cookies (HEADER) are read; the metadata uses DataGoat's names.
     expect(checkoutMetadata(HEADER)).toEqual({
-      datafast_visitor_id: VID,
-      datafast_session_id: SID,
+      datagoat_visitor_id: VID,
+      datagoat_session_id: SID,
     });
+    expect(
+      checkoutMetadata(
+        `datagoat_visitor_id=${VID}; datafast_visitor_id=00000000-0000-4000-8000-000000000000`,
+      ),
+    ).toEqual({ datagoat_visitor_id: VID });
     expect(checkoutMetadata("datafast_visitor_id=evil'); DROP")).toEqual({});
     expect(checkoutMetadata(`datafast_session_id=${SID}`)).toEqual({});
     expect(lemonSqueezyCheckoutData(HEADER)).toEqual({
-      custom: { datafast_visitor_id: VID, datafast_session_id: SID },
+      custom: { datagoat_visitor_id: VID, datagoat_session_id: SID },
     });
   });
 });
@@ -72,13 +78,13 @@ describe("createServerClient", () => {
     ]);
     expect(new Headers(calls[0]?.[1].headers).get("authorization")).toBe("Bearer df_secret");
     expect(JSON.parse(String(calls[0]?.[1].body))).toEqual({
-      datafast_visitor_id: VID,
+      datagoat_visitor_id: VID,
       name: "signup",
       metadata: { plan: "pro" },
     });
     expect(JSON.parse(String(calls[1]?.[1].body))).toEqual({
       name: "Ada",
-      datafast_visitor_id: VID,
+      datagoat_visitor_id: VID,
       user_id: "user_1",
     });
   });

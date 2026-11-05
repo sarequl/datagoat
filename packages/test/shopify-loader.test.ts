@@ -15,6 +15,7 @@ const SID = "s0a1b2c3d-4e5f-4a6b-9c7d-8e9f0a1b2c3d";
 type Fn = ((...args: unknown[]) => void) & { q?: unknown[][] };
 type W = Window & {
   datafast?: Fn;
+  datagoat?: Fn;
   __datagoatShopify?: boolean;
   __datagoatNativeFetch?: typeof fetch;
 };
@@ -38,6 +39,7 @@ beforeEach(() => {
   }
   sessionStorage.clear();
   delete w().datafast;
+  delete w().datagoat;
   delete w().__datagoatShopify;
   delete w().__datagoatNativeFetch;
   fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
@@ -70,14 +72,14 @@ describe("Shopify storefront loader", () => {
   });
 
   it("copies the visitor and session into hidden cart attributes once per session", async () => {
-    setCookie(`datafast_visitor_id=${VID}; path=/`);
-    setCookie(`datafast_session_id=${SID}; path=/`);
+    setCookie(`datagoat_visitor_id=${VID}; path=/`);
+    setCookie(`datagoat_session_id=${SID}; path=/`);
     run("https://dg.example.com/apps/shopify.js?id=dfid_shop");
     await flush();
     const update = fetchMock.mock.calls.find((c) => c[0] === "/cart/update.js");
     expect(update).toBeTruthy();
     expect(JSON.parse(String((update?.[1] as RequestInit | undefined)?.body ?? "{}"))).toEqual({
-      attributes: { _datafast_visitor_id: VID, _datafast_session_id: SID },
+      attributes: { _datagoat_visitor_id: VID, _datagoat_session_id: SID },
     });
     expect(sessionStorage.getItem("datagoat_cart_attributes")).toBe(`${VID}|${SID}`);
     delete w().__datagoatShopify;
@@ -89,6 +91,7 @@ describe("Shopify storefront loader", () => {
   });
 
   it("sends add_to_cart for AJAX adds (and re-syncs the cart) and initiate_checkout on checkout clicks", async () => {
+    // DataFast's cookie (a store that switched) is read too.
     setCookie(`datafast_visitor_id=${VID}; path=/`);
     run("https://dg.example.com/apps/shopify.js?id=dfid_shop");
     await flush();

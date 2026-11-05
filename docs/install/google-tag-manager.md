@@ -9,12 +9,12 @@
    ```html
    <script>
      (function () {
-       window.datafast = window.datafast || function () {
-         (window.datafast.q = window.datafast.q || []).push(arguments);
+       window.datagoat = window.datagoat || function () {
+         (window.datagoat.q = window.datagoat.q || []).push(arguments);
        };
        var s = document.createElement("script");
        s.defer = true;
-       s.setAttribute("data-website-id", "dfid_XXXXXXXXXXXXXXXX");
+       s.setAttribute("data-website-id", "dgid_XXXXXXXXXXXXXXXX");
        s.setAttribute("data-domain", "example.com");
        s.src = "https://a.example.com/js/script.js";
        document.head.appendChild(s);
@@ -32,7 +32,7 @@
 Create Custom HTML tags fired by your existing triggers:
 
 ```html
-<script>window.datafast("newsletter_signup", { form: "{{Form ID}}" });</script>
+<script>window.datagoat("newsletter_signup", { form: "{{Form ID}}" });</script>
 ```
 
 ## Consent

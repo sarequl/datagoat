@@ -32,8 +32,8 @@ are tracked automatically.
 ```blade
 @auth
 <script>
-  window.datafast = window.datafast || function () { (window.datafast.q = window.datafast.q || []).push(arguments); };
-  window.datafast("identify", @json(['user_id' => (string) auth()->id(), 'name' => auth()->user()->name]));
+  window.datagoat = window.datagoat || function () { (window.datagoat.q = window.datagoat.q || []).push(arguments); };
+  window.datagoat("identify", @json(['user_id' => (string) auth()->id(), 'name' => auth()->user()->name]));
 </script>
 @endauth
 ```
@@ -42,8 +42,8 @@ are tracked automatically.
 
 ```php
 $metadata = array_filter([
-    'datafast_visitor_id' => $request->cookie('datafast_visitor_id'),
-    'datafast_session_id' => $request->cookie('datafast_session_id'),
+    'datagoat_visitor_id' => $request->cookie('datagoat_visitor_id'),
+    'datagoat_session_id' => $request->cookie('datagoat_session_id'),
 ]);
 
 return $request->user()->checkout(['price_xxx' => 1], [
@@ -55,7 +55,7 @@ return $request->user()->checkout(['price_xxx' => 1], [
 
 The tracker's cookies are set by JavaScript and are not encrypted, so exclude them from Laravel's
 cookie encryption or `$request->cookie()` returns null: in `bootstrap/app.php` (Laravel 11+)
-`$middleware->encryptCookies(except: ['datafast_visitor_id', 'datafast_session_id']);`, or add them
+`$middleware->encryptCookies(except: ['datagoat_visitor_id', 'datagoat_session_id']);`, or add them
 to `$except` in `App\Http\Middleware\EncryptCookies`.
 
 First-party proxy: [proxy-laravel.md](proxy-laravel.md).

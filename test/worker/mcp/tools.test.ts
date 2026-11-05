@@ -153,7 +153,7 @@ describe("write tools", () => {
     expect(preview.structuredContent.warning).toContain("irreversible");
     const key = await callTool(token, "apikeys_create", { websiteId, name: "CI", confirm: true });
     const { id, key: secret } = key.structuredContent.data[0];
-    expect(secret).toMatch(/^df_/);
+    expect(secret).toMatch(/^dg_/);
     expect((await api("/api/v1/admin/account", { token: secret })).status).toBe(200);
 
     const list = await callTool(token, "apikeys_list", { websiteId });
@@ -234,7 +234,7 @@ describe("write tools", () => {
       confirm: true,
     });
     const { id, key } = created.structuredContent.data[0];
-    expect(key).toMatch(/^dft_/);
+    expect(key).toMatch(/^dgt_/);
     const list = await callTool(token, "access_tokens_list");
     expect(list.structuredContent.data.some((t: { id: string }) => t.id === id)).toBe(true);
     const deleted = await callTool(token, "access_tokens_delete", { tokenId: id, confirm: true });
@@ -294,7 +294,7 @@ describe("idempotency", () => {
       idempotencyKey: "mint-key-0001",
     };
     const first = await callTool(token, "apikeys_create", args);
-    expect(first.structuredContent.data[0].key).toMatch(/^df_/);
+    expect(first.structuredContent.data[0].key).toMatch(/^dg_/);
     const stored = await env.DB.prepare("SELECT response FROM idempotency_keys").first<{
       response: string;
     }>();

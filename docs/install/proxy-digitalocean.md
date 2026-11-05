@@ -38,5 +38,5 @@ Follow [proxy-caddy.md](proxy-caddy.md); behind a load balancer add
 Script tag in all cases:
 
 ```html
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
 ```

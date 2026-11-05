@@ -94,7 +94,7 @@ test("team invite, API key shown once, and integrations", async ({ page }) => {
   await nav.getByRole("link", { name: "API keys" }).click();
   await page.getByLabel("Key name").fill("Backend");
   await page.getByRole("button", { name: "Create key" }).click();
-  await expect(page.getByRole("textbox", { name: "New secret" })).toHaveValue(/^df_mock/);
+  await expect(page.getByRole("textbox", { name: "New secret" })).toHaveValue(/^dg_mock/);
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("textbox", { name: "New secret" })).toBeHidden();
 

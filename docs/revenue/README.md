@@ -25,16 +25,18 @@ Connect providers in the dashboard (**Settings → Integrations**) or with the A
 
 DataGoat tries these in order and records which one worked (`attributedVia`):
 
-1. **metadata**: the visitor id travels with the payment. Put the `datafast_visitor_id` cookie
-   (and `datafast_session_id`) in your checkout's metadata / custom data under
-   `datafast_visitor_id` or `datagoat_visitor_id`. Code written for DataFast works unchanged.
+1. **metadata**: the visitor id travels with the payment. Put the `datagoat_visitor_id` cookie
+   (and `datagoat_session_id`) in your checkout's metadata / custom data under
+   `datagoat_visitor_id`. `datafast_visitor_id` is also accepted, so code written for DataFast
+   works unchanged (with `data-compat="datafast"` on the tag, the `datafast_*` cookies it reads
+   are still written).
 2. **link**: the customer lands on your success page with the provider's reference in the URL
    (`?session_id=` for Stripe Payment Links, `?checkout_id=` for Polar, `?order_id=` for Lemon
    Squeezy). The tracker reports it and a cron job looks the payment up.
 3. **customer**: the provider customer (or subscription) already paid once from a known visitor, so
    renewals and later purchases attribute without metadata.
-4. **email**: the customer's email matches a visitor who called `datafast("identify", …)` or
-   `datafast("payment", {email})`. Matching uses a SHA-256 hash.
+4. **email**: the customer's email matches a visitor who called `datagoat("identify", …)` or
+   `datagoat("payment", {email})`. Matching uses a SHA-256 hash.
 5. **api**: the visitor id you sent to `POST /api/v1/payments`.
 6. **none**: stored and shown as **Unattributed**, so the coverage figure stays honest.
 

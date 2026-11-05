@@ -58,7 +58,7 @@ describe("access tokens", () => {
     });
     expect(created.status).toBe(200);
     const token = created.body.data[0];
-    expect(token.key).toMatch(/^dft_[0-9A-Za-z]{40}$/);
+    expect(token.key).toMatch(/^dgt_[0-9A-Za-z]{40}$/);
     expect(token).toMatchObject({
       name: "Read only agent",
       scope: "user",
@@ -66,7 +66,7 @@ describe("access tokens", () => {
       websiteIds: [site.id],
       usageCount: 0,
     });
-    expect(token.displayKey).toMatch(/^dft_.{3}\.\.\..{4}$/);
+    expect(token.displayKey).toMatch(/^dgt_.{3}\.\.\..{4}$/);
     const stored = await env.DB.prepare("SELECT key_hash FROM api_keys WHERE id = ?")
       .bind(token.id)
       .first<{ key_hash: string }>();
@@ -263,14 +263,14 @@ describe("websites", () => {
 });
 
 describe("website API keys", () => {
-  it("creates, lists, rolls and deletes df_ keys", async () => {
+  it("creates, lists, rolls and deletes dg_ keys", async () => {
     const owner = await createUser();
     const site = await createSite(owner.id);
     const cookie = await sessionCookie(owner.id);
     const base = `/api/v1/admin/websites/${site.id}/apikeys`;
     const created = await api(base, { cookie, body: { name: "Production key" } });
     const key = created.body.data[0];
-    expect(key.key).toMatch(/^df_[0-9A-Za-z]{40}$/);
+    expect(key.key).toMatch(/^dg_[0-9A-Za-z]{40}$/);
     expect(key).toMatchObject({
       name: "Production key",
       websiteId: site.id,

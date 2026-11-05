@@ -2,8 +2,8 @@
 
 A typed ESM wrapper around the tracker. `init()` adds the tracker `<script>` with the same
 attributes as a hand-written tag, and every call goes through the tracker's public
-`window.datafast()` API, so the SDK behaves exactly like the script tag (and also works with
-DataFast's own script). Source: [`packages/sdk`](../../packages/sdk).
+`window.datagoat()` API (`window.datafast()` is an alias), so the SDK behaves exactly like the
+script tag (and also works with DataFast's own script). Source: [`packages/sdk`](../../packages/sdk).
 
 ```bash
 npm install @datagoat/sdk
@@ -22,7 +22,7 @@ npm install @datagoat/sdk
 import { init, track, identify } from "@datagoat/sdk";
 
 init({
-  websiteId: "dfid_XXXXXXXXXXXXXXXX",
+  websiteId: "dgid_XXXXXXXXXXXXXXXX",
   domain: "example.com",
   host: "https://a.example.com", // your collector; omit when you proxy /js/script.js and /api/events
 });
@@ -56,13 +56,13 @@ tracker tag, it does not add another. It is safe to import during server renderi
 
 | Function                                  | Does                                                                      |
 | ----------------------------------------- | ------------------------------------------------------------------------- |
-| `track(goal, params?)`                    | `window.datafast(goal, params)`. Goal names are lowercased and must be `a-z 0-9 _ - :`, at most 64 characters; up to 10 parameters, names `a-z 0-9 _ -` (kebab-case becomes snake_case), values cut to 255 characters. Returns `false` (and warns with `debug`) when rejected. |
-| `identify(userId, profile?)`              | `window.datafast("identify", {user_id, ...profile})`                      |
-| `payment(email)`                          | `window.datafast("payment", {email})` for success pages                   |
+| `track(goal, params?)`                    | `window.datagoat(goal, params)`. Goal names are lowercased and must be `a-z 0-9 _ - :`, at most 64 characters; up to 10 parameters, names `a-z 0-9 _ -` (kebab-case becomes snake_case), values cut to 255 characters. Returns `false` (and warns with `debug`) when rejected. |
+| `identify(userId, profile?)`              | `window.datagoat("identify", {user_id, ...profile})`                      |
+| `payment(email)`                          | `window.datagoat("payment", {email})` for success pages                   |
 | `consent(granted)`                        | consent mode: `true` switches to cookies, `false` deletes them            |
-| `getVisitorId()` / `getSessionId()`       | the `datafast_visitor_id` / `datafast_session_id` cookie, or the cookieless id |
-| `getTrackingParams()`, `buildCrossDomainUrl(url)` | `_df_vid`, `_df_sid`, `_df_vfs`, `_df_vsn` for links to your other domains (the tracker decorates links to `allowedHostnames` automatically) |
-| `optOut()` / `optIn()`                    | sets / clears `localStorage.datafast_ignore`                              |
+| `getVisitorId()` / `getSessionId()`       | the `datagoat_visitor_id` / `datagoat_session_id` cookie (falls back to `datafast_*`), or the cookieless id |
+| `getTrackingParams()`, `buildCrossDomainUrl(url)` | `_dg_vid`, `_dg_sid`, `_dg_vfs`, `_dg_vsn` for links to your other domains (the tracker decorates links to `allowedHostnames` automatically) |
+| `optOut()` / `optIn()`                    | sets / clears `localStorage.datagoat_ignore`                              |
 | `client.ready`                            | promise that resolves when the script has loaded                          |
 
 ## React
@@ -70,7 +70,7 @@ tracker tag, it does not add another. It is safe to import during server renderi
 ```tsx
 import { DataGoatProvider, useDataGoat, useIdentify } from "@datagoat/sdk/react";
 
-<DataGoatProvider websiteId="dfid_XXXXXXXXXXXXXXXX" domain="example.com" host="https://a.example.com">
+<DataGoatProvider websiteId="dgid_XXXXXXXXXXXXXXXX" domain="example.com" host="https://a.example.com">
   <App />
 </DataGoatProvider>
 
@@ -100,7 +100,7 @@ await stripe.checkout.sessions.create({ ..., metadata: checkoutMetadata(req) });
 await polar.checkouts.create({ ..., metadata: checkoutMetadata(req) });
 
 // Lemon Squeezy
-checkout_data: lemonSqueezyCheckoutData(req) // → { custom: { datafast_visitor_id, datafast_session_id } }
+checkout_data: lemonSqueezyCheckoutData(req) // → { custom: { datagoat_visitor_id, datagoat_session_id } }
 ```
 
 `req` can be a `Cookie` header string, a Fetch `Request` or `Headers`, Next.js `cookies()`, an
@@ -115,10 +115,10 @@ import { createServerClient } from "@datagoat/sdk/server";
 const dg = createServerClient({ baseUrl: "https://a.example.com", apiKey: process.env.DATAGOAT_KEY! });
 await dg.goal(visitorId, "trial_started", { plan: "pro" });   // POST /api/v1/goals
 await dg.identify(visitorId, "user_123", { name: "Ada" });    // POST /api/v1/identify
-await dg.payment({ amount: 29, currency: "USD", transaction_id: "inv_1", datafast_visitor_id: visitorId });
+await dg.payment({ amount: 29, currency: "USD", transaction_id: "inv_1", datagoat_visitor_id: visitorId });
 ```
 
-With a `dft_` account token, also pass `websiteId`. Errors throw `DataGoatApiError` with the
+With a `dgt_` account token, also pass `websiteId`. Errors throw `DataGoatApiError` with the
 server's message and status.
 
 ## Moving from the `datafast` package

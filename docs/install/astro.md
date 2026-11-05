@@ -12,7 +12,7 @@ Add the tag to the layout every page uses:
     <script
       is:inline
       defer
-      data-website-id="dfid_XXXXXXXXXXXXXXXX"
+      data-website-id="dgid_XXXXXXXXXXXXXXXX"
       data-domain="example.com"
       src="https://a.example.com/js/script.js"
     ></script>
@@ -38,6 +38,6 @@ tag in the shared `<head>` (do not add `transition:persist` duplicates on other 
 <button data-fast-goal="newsletter_signup" data-fast-goal-source="footer">Subscribe</button>
 ```
 
-or from a script: `window.datafast("newsletter_signup", { source: "footer" })`.
+or from a script: `window.datagoat("newsletter_signup", { source: "footer" })`.
 
 First-party proxy for server or hybrid output: [proxy-astro.md](proxy-astro.md).

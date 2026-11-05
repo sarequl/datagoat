@@ -20,8 +20,8 @@ class DataGoat_WooCommerce {
 
 	const META_VISITOR   = '_datagoat_visitor_id';
 	const META_SESSION   = '_datagoat_session_id';
-	const COOKIE_VISITOR = 'datafast_visitor_id';
-	const COOKIE_SESSION = 'datafast_session_id';
+	const COOKIE_VISITOR = 'datagoat_visitor_id';
+	const COOKIE_SESSION = 'datagoat_session_id';
 	const SESSION_GOALS  = 'datagoat_pending_goals';
 	const UUID_V4        = '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i';
 
@@ -45,7 +45,12 @@ class DataGoat_WooCommerce {
 	 */
 	public static function cookie( $name ) {
 		if ( ! isset( $_COOKIE[ $name ] ) ) {
-			return '';
+			// DataFast's cookie name (sites that switched, or data-compat="datafast").
+			$legacy = preg_replace( '/^datagoat_/', 'datafast_', $name );
+			if ( $legacy === $name || ! isset( $_COOKIE[ $legacy ] ) ) {
+				return '';
+			}
+			$name = $legacy;
 		}
 		return sanitize_text_field( wp_unslash( $_COOKIE[ $name ] ) );
 	}

@@ -67,7 +67,7 @@ firebase deploy --only hosting,functions
 ```
 
 ```html
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
 ```
 
 Hosting caches function responses only when they send `Cache-Control: public`, so the script is

@@ -27,13 +27,13 @@ the Exclusions tab shows them only once the server reports the field.
 Owners invite by email with the **viewer** or **member** role. DataGoat does not need an email
 provider for this: the page shows a one-time invite link (valid 7 days) to send yourself. Owners can
 change roles (including making someone an owner), remove members and revoke pending invites. A
-website always keeps at least one owner. Removing a member also stops the `df_` keys they created.
+website always keeps at least one owner. Removing a member also stops the `dg_` keys they created.
 
 ## API keys
 
-- **Website keys (`df_`)**: one website, every website permission, at most 10. Optionally include
+- **Website keys (`dg_`)**: one website, every website permission, at most 10. Optionally include
   customer names and emails (PII). Roll replaces the secret at once; revoke deletes the key.
-- **Account tokens (`dft_`)**: yours, across websites. Choose read-only, full access or custom
+- **Account tokens (`dgt_`)**: yours, across websites. Choose read-only, full access or custom
   permissions (DataFast's names), all or selected websites, PII, and an expiry. Pass `websiteId`
   on every call. Use them for the CLI, MCP clients and agents.
 
@@ -45,7 +45,7 @@ only see them.
 *API playground* (Website section of the sidebar) tries any analytics, revenue, visitors or
 mentions endpoint on the current website without code, like DataFast's docs playground: choose the
 endpoint, the dates and extra parameters (`fields`, `interval`, `limit`, `filter_*` …), send it with
-your dashboard session and read the JSON, then copy the matching `curl` command for a `df_` key.
+your dashboard session and read the JSON, then copy the matching `curl` command for a `dg_` key.
 
 ## Integrations
 
@@ -54,7 +54,7 @@ your dashboard session and read the JSON, then copy the matching `curl` command 
 | Provider      | What you paste                                    | Notes                                                                                                                                     |
 | ------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Stripe        | Restricted key `rk_…`                             | Read access to Charges, Checkout Sessions, Customers, Events, Invoices, Payment Intents, Subscriptions. `sk_` and `pk_` keys are refused. |
-| Lemon Squeezy | API key and store ID                              | Pass `checkout[custom][datafast_visitor_id]`.                                                                                             |
+| Lemon Squeezy | API key and store ID                              | Pass `checkout[custom][datagoat_visitor_id]`.                                                                                             |
 | Polar         | Organization access token and organization ID     | Read scopes for orders, subscriptions, customers, checkouts.                                                                              |
 | Paddle        | API key `pdl_live_…`                              | The key's expiry date is shown.                                                                                                           |
 | Dodo, Creem   | API key, optional webhook signing secret          | The page shows the webhook URL `https://<host>/webhooks/<provider>/<websiteId>`.                                                          |

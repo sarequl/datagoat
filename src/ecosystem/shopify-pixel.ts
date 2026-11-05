@@ -26,12 +26,17 @@ export function shopifyPixelCode(options: PixelOptions): string {
   return `// DataGoat custom pixel for Shopify. Paste into Settings > Customer events > Add custom pixel.
 const DATAGOAT = ${config};
 
+// Our cookie first, then DataFast's (stores that switched keep their visitors).
+async function cookie(key) {
+  return (await browser.cookie.get("datagoat_" + key)) || (await browser.cookie.get("datafast_" + key));
+}
+
 async function datagoatSend(name, params, event) {
   const [visitorId, sessionId, firstSeen, sessionCount] = await Promise.all([
-    browser.cookie.get("datafast_visitor_id"),
-    browser.cookie.get("datafast_session_id"),
-    browser.cookie.get("datafast_visitor_first_seen_at"),
-    browser.cookie.get("datafast_visitor_session_count"),
+    cookie("visitor_id"),
+    cookie("session_id"),
+    cookie("visitor_first_seen_at"),
+    cookie("visitor_session_count"),
   ]);
   if (!visitorId || !sessionId) return;
   const ctx = (event && event.context) || {};

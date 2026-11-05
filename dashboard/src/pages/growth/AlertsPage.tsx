@@ -176,7 +176,7 @@ function AlertForm({
           options={TRIGGERS}
         />
         {f.type === "goal" ? (
-          <Field label="Goal name" hint="The goal sent with window.datafast(…) or data-fast-goal">
+          <Field label="Goal name" hint="The goal sent with window.datagoat(…) or data-fast-goal">
             <Input
               required
               value={f.goalName}

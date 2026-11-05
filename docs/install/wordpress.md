@@ -7,7 +7,7 @@ The plugin is in this repository at [`packages/wordpress/datagoat`](../../packag
 1. Zip the `datagoat` folder (`cd packages/wordpress && zip -r datagoat.zip datagoat`), then in
    WordPress go to **Plugins > Add New > Upload Plugin**, upload it and activate it.
 2. Open **Settings > DataGoat** and fill in:
-   - **Website ID**: from the DataGoat dashboard, Settings > Tracking (`dfid_...`).
+   - **Website ID**: from the DataGoat dashboard, Settings > Tracking (`dgid_...`).
    - **Script URL**: your collector followed by `/js/script.js`, e.g.
      `https://a.example.com/js/script.js` ([where the collector lives](README.md#2-where-the-collector-lives)).
      A path such as `/js/script.js` works if you [proxy](proxy.md) DataGoat through your server or
@@ -39,7 +39,7 @@ add_action( 'wp_head', function () {
     if ( current_user_can( 'manage_options' ) ) {
         return; // do not track administrators
     }
-    echo '<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>';
+    echo '<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>';
 }, 1 );
 ```
 

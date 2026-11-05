@@ -14,7 +14,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
         <script
           defer
-          data-website-id="dfid_XXXXXXXXXXXXXXXX"
+          data-website-id="dgid_XXXXXXXXXXXXXXXX"
           data-domain="example.com"
           src="https://a.example.com/js/script.js"
         />
@@ -38,7 +38,7 @@ Put the tag in `index.html`, or let the SDK add it once:
 import { DataGoatProvider } from "@datagoat/sdk/react";
 
 createRoot(document.getElementById("root")!).render(
-  <DataGoatProvider websiteId="dfid_XXXXXXXXXXXXXXXX" domain="example.com" host="https://a.example.com">
+  <DataGoatProvider websiteId="dgid_XXXXXXXXXXXXXXXX" domain="example.com" host="https://a.example.com">
     <RouterProvider router={router} />
   </DataGoatProvider>,
 );

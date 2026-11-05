@@ -16,7 +16,7 @@ import { withAICrawlerTracking } from "@datagoat/ai-crawl";
 
 export default {
   fetch: withAICrawlerTracking(handler, {
-    websiteId: "dfid_…",                     // the site's tracking id
+    websiteId: "dgid_…",                     // the site's tracking id
     apiUrl: "https://analytics.example.com", // your DataGoat
   }),
 };
@@ -27,9 +27,9 @@ Or POST from any backend (DataFast's format, ≤ 16 KB):
 ```http
 POST /api/ai-crawls
 Content-Type: application/json
-Authorization: Bearer dfbot_…   (optional)
+Authorization: Bearer dgbot_…   (optional)
 
-{"websiteId": "dfid_…", "domain": "example.com", "href": "https://example.com/docs",
+{"websiteId": "dgid_…", "domain": "example.com", "href": "https://example.com/docs",
  "ai": {"userAgent": "<full User-Agent>", "ip": "203.0.113.10", "statusCode": 200, "source": "server_middleware"}}
 ```
 
@@ -60,9 +60,9 @@ The Bot traffic page and DataFast's API (`/api/v1/analytics/bot-traffic`, `/bot-
 `/api/v1/admin/bot-traffic/usage`, `/api/v1/admin/websites/:id/bot-traffic/{settings,token}`) offer:
 
 - turning companies or single agents off (skipped before storage), verified-only, display options;
-- a `dfbot_` request token: create it, deploy it as `authToken`, then turn on "Reject
+- a `dgbot_` request token: create it, deploy it as `authToken`, then turn on "Reject
   unauthenticated requests". Rotation kills the old token immediately; deleting it turns
-  enforcement off. Settings and tokens are owner-only and not available to `df_` keys.
+  enforcement off. Settings and tokens are owner-only and not available to `dg_` keys.
 
 ## Allowance and cost
 

@@ -16,6 +16,23 @@ async function setup(overrides: Parameters<typeof ownerWithSite>[0] = {}) {
 }
 
 describe("POST /api/v1/payments", () => {
+  it("attributes a payment sent with datagoat_visitor_id", async () => {
+    const { site, key } = await setup();
+    const v = await visitorWithSessions(site.id, [{ at: NOW - 3_600_000, channel: "Direct" }]);
+    const res = await api("/api/v1/payments", {
+      token: key,
+      body: {
+        amount: 9,
+        currency: "USD",
+        transaction_id: "payment_dg",
+        datagoat_visitor_id: v.visitorId,
+      },
+    });
+    expect(res.status).toBe(200);
+    const [row] = await paymentRows(site.id);
+    expect(row).toMatchObject({ provider_txn_id: "payment_dg", visitor_id: v.visitorId });
+  });
+
   it("records and attributes a payment with DataFast's exact response", async () => {
     const { site, key } = await setup();
     const v = await visitorWithSessions(site.id, [

@@ -4,8 +4,9 @@
  * - `newId()`: 24 lowercase hex characters (4-byte seconds timestamp + 8 random bytes), the same
  *   shape as DataFast's MongoDB ObjectIds, so clients that validate `_id`/`websiteId` keep working.
  *   Ids sort roughly by creation time.
- * - `newTrackingId()`: public `data-website-id` value, `dfid_` + 16 base62 characters. Sites created
- *   by import may keep any opaque tracking id (plan §3.1).
+ * - `newTrackingId()`: public `data-website-id` value, `dgid_` + 16 base62 characters. Sites made
+ *   before the rename keep their `dfid_` ids; sites created by import may keep any opaque tracking
+ *   id (plan §3.1).
  * - `randomToken()`: URL-safe secret material for sessions, invites, share links.
  */
 import { randomBytes } from "./crypto";
@@ -35,7 +36,7 @@ export function randomBase62(length: number): string {
 }
 
 export function newTrackingId(): string {
-  return `dfid_${randomBase62(16)}`;
+  return `dgid_${randomBase62(16)}`;
 }
 
 /** URL-safe random token with `bytes` bytes of entropy (default 32 = 256 bits). */

@@ -85,5 +85,5 @@ Behind a load balancer, configure trusted proxies (`bootstrap/app.php` →
 Script tag in your layout (see [laravel.md](laravel.md)):
 
 ```blade
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
 ```

@@ -13,10 +13,10 @@ Add DataGoat analytics to the whole site.
   strategy="afterInteractive" and the same attributes.
 - Astro: put it in the base layout's <head> with is:inline.
 
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
 
 Add this before it so early calls are queued:
-<script>window.datafast=window.datafast||function(){(window.datafast.q=window.datafast.q||[]).push(arguments)};</script>
+<script>window.datagoat=window.datagoat||function(){(window.datagoat.q=window.datagoat.q||[]).push(arguments)};</script>
 
 Keep the attributes exactly as written. Tell me which file you changed.
 ```
@@ -27,14 +27,14 @@ Connect your payment provider in DataGoat first (Integrations).
 
 ```text
 Link payments to DataGoat visitors.
-- Stripe Checkout or PaymentIntents: read the "datafast_visitor_id" and "datafast_session_id"
+- Stripe Checkout or PaymentIntents: read the "datagoat_visitor_id" and "datagoat_session_id"
   cookies on the server that creates the session (or send document.cookie values from the client)
-  and add them as metadata: { datafast_visitor_id, datafast_session_id }.
+  and add them as metadata: { datagoat_visitor_id, datagoat_session_id }.
   In Node you can use: import { checkoutMetadata } from "@datagoat/sdk/server";
   metadata: checkoutMetadata(request)
 - Lemon Squeezy: add them as checkout_data.custom.
 - Polar: add them as checkout metadata.
-- Anything else: on the success page call window.datafast("payment", { email }).
+- Anything else: on the success page call window.datagoat("payment", { email }).
 Tell me what you found and changed.
 ```
 

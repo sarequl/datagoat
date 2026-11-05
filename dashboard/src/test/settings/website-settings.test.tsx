@@ -151,7 +151,7 @@ describe("exclusions", () => {
     await userEvent.click(within(hosts).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(site().excludedHostnames).toEqual(["staging.example.com"]));
     expect(screen.getByRole("figure", { name: "ignore command" })).toHaveTextContent(
-      "localStorage.datafast_ignore = 'true'",
+      "localStorage.datagoat_ignore = 'true'",
     );
     expect(screen.queryByRole("heading", { name: "User agents" })).not.toBeInTheDocument();
   });

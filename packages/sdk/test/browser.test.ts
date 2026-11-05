@@ -174,21 +174,21 @@ describe("visitor helpers", () => {
     setCookie("datafast_visitor_first_seen_at=2026-11-01T10:00:00.000Z; path=/");
     setCookie("datafast_visitor_session_count=4; path=/");
     expect(getTrackingParams()).toEqual({
-      _df_vid: VID,
-      _df_sid: SID,
-      _df_vfs: "2026-11-01T10:00:00.000Z",
-      _df_vsn: "4",
+      _dg_vid: VID,
+      _dg_sid: SID,
+      _dg_vfs: "2026-11-01T10:00:00.000Z",
+      _dg_vsn: "4",
     });
     const url = new URL(buildCrossDomainUrl("https://app.example.io/signup?ref=x"));
     expect(url.searchParams.get("ref")).toBe("x");
-    expect(url.searchParams.get("_df_vid")).toBe(VID);
-    expect(url.searchParams.get("_df_vsn")).toBe("4");
+    expect(url.searchParams.get("_dg_vid")).toBe(VID);
+    expect(url.searchParams.get("_dg_vsn")).toBe("4");
   });
 
-  it("opts this browser out and back in with datafast_ignore", () => {
+  it("opts this browser out and back in with datagoat_ignore", () => {
     optOut();
-    expect(localStorage.getItem("datafast_ignore")).toBe("true");
+    expect(localStorage.getItem("datagoat_ignore")).toBe("true");
     optIn();
-    expect(localStorage.getItem("datafast_ignore")).toBeNull();
+    expect(localStorage.getItem("datagoat_ignore")).toBeNull();
   });
 });

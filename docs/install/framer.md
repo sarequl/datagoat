@@ -6,7 +6,7 @@
    ```html
    <script
      defer
-     data-website-id="dfid_XXXXXXXXXXXXXXXX"
+     data-website-id="dgid_XXXXXXXXXXXXXXXX"
      data-domain="example.com"
      src="https://a.example.com/js/script.js"
    ></script>
@@ -26,7 +26,7 @@ override or an Embed:
 <script>
   document.addEventListener("click", function (e) {
     var el = e.target.closest && e.target.closest("a[href*='signup']");
-    if (el && window.datafast) window.datafast("signup_click");
+    if (el && window.datagoat) window.datagoat("signup_click");
   });
 </script>
 ```

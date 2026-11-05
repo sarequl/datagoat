@@ -96,12 +96,14 @@ export interface KeyOptions {
   websiteIds?: string[];
   includePii?: boolean;
   expiresAt?: number | null;
+  /** Use this secret instead of a new one (e.g. a `df_` key made before the rename). */
+  secret?: string;
 }
 
-/** Create a df_ (when siteId is set) or dft_ credential. Returns the raw secret. */
+/** Create a website key (when siteId is set) or account token. Returns the raw secret. */
 export async function createApiKey(options: KeyOptions): Promise<{ id: string; secret: string }> {
   const kind = options.siteId ? "df" : "dft";
-  const secret = generateSecret(kind);
+  const secret = options.secret ?? generateSecret(kind);
   const id = newId();
   const now = Date.now();
   await env.DB.prepare(

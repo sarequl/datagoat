@@ -75,5 +75,5 @@ location = /api/events   { rewrite ^ /datagoat-proxy.php last; }
 cURL sets `Host` and SNI from the URL. Script tag:
 
 ```html
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
 ```

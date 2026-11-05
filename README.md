@@ -20,7 +20,7 @@ One Worker, one D1 database, one script tag. MIT licensed.
 - **Revenue attribution is the point.** DataGoat joins a first-party visitor id to your payments, so every breakdown row shows visitors, revenue and payments together: which referrer, landing page, UTM campaign, country or device actually makes money.
 - **Your data stays in your Cloudflare account.** No third-party analytics servers. You pick where it runs, and you can export or delete everything.
 - **Cheap to run.** Most small sites fit Cloudflare's free plan. Larger ones need the $5/month Workers Paid plan, billed by Cloudflare, not by us.
-- **Drop-in for DataFast users.** DataGoat accepts DataFast's tracking script attributes, `window.datafast()` calls and `datafast_visitor_id` payment metadata, so switching is a snippet swap.
+- **Drop-in for DataFast users.** DataGoat accepts DataFast's tracking script attributes, `window.datafast()` calls and `datafast_visitor_id` payment metadata, so switching is a snippet swap: add `data-compat="datafast"` and DataFast's cookies keep being written too.
 - **No dashboard lock-outs.** There are no event quotas, so going viral never locks you out of your own analytics.
 - **MIT, no licence keys, no activation limits.**
 
@@ -166,8 +166,8 @@ Serve DataGoat from a subdomain such as `analytics.example.com`, or from a path 
 ## Switching from DataFast
 
 1. Deploy DataGoat and add your site.
-2. Replace DataFast's `src` with your DataGoat script URL, and its `data-website-id` with your DataGoat site id. Every other attribute keeps working.
-3. Leave your checkout code alone: DataGoat reads `datafast_visitor_id` from Stripe, Polar and Lemon Squeezy metadata, and `window.datafast("goal")` calls still work.
+2. Replace DataFast's `src` with your DataGoat script URL, and its `data-website-id` with your DataGoat site id, and add `data-compat="datafast"`. Every other attribute keeps working.
+3. Leave your checkout code alone: with `data-compat="datafast"` the `datafast_visitor_id` cookie is still written, DataGoat reads `datafast_visitor_id` from Stripe, Polar and Lemon Squeezy metadata, and `window.datafast("goal")` calls still work. New sites use DataGoat's own names (`datagoat_visitor_id`, `window.datagoat()`).
 4. Optionally import history from Plausible.
 
 [`docs/PARITY.md`](docs/PARITY.md) lists every DataFast feature with its status in DataGoat

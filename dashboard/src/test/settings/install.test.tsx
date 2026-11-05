@@ -155,7 +155,7 @@ describe("installation guide", () => {
     if (w) w.privacyMode = "consent";
     renderApp(`/app/${SITE}/settings/install`);
     expect(await screen.findByRole("figure", { name: "consent snippet" })).toHaveTextContent(
-      'window.datafast("consent", true)',
+      'window.datagoat("consent", true)',
     );
   });
 

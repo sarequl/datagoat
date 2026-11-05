@@ -55,7 +55,7 @@ export const PROVIDERS: readonly ProviderDef[] = [
       "In Stripe, open Developers > API keys and choose Create restricted key.",
       "Name it DataGoat. Give Read access to Charges, Checkout Sessions, Customers, Events, Invoices, Payment Intents and Subscriptions. Leave everything else at None.",
       "Create the key, copy it and paste it below. DataGoat checks Stripe for new payments every minute and imports past payments in the background.",
-      "For exact attribution, put the visitor's datafast_visitor_id cookie in the Checkout Session metadata. Payment Links work when the success URL includes ?session_id={CHECKOUT_SESSION_ID}.",
+      "For exact attribution, put the visitor's datagoat_visitor_id cookie in the Checkout Session metadata as datagoat_visitor_id. Payment Links work when the success URL includes ?session_id={CHECKOUT_SESSION_ID}.",
     ],
   },
   {
@@ -81,7 +81,7 @@ export const PROVIDERS: readonly ProviderDef[] = [
     steps: [
       "In Lemon Squeezy, open Settings > API and create an API key named DataGoat.",
       "Find the store ID under Settings > Stores (the number next to the store name).",
-      "Pass checkout[custom][datafast_visitor_id] when you create checkouts; payment links work when the redirect URL includes ?order_id=[order_id].",
+      "Pass checkout[custom][datagoat_visitor_id] when you create checkouts; payment links work when the redirect URL includes ?order_id=[order_id].",
     ],
   },
   {
@@ -107,7 +107,7 @@ export const PROVIDERS: readonly ProviderDef[] = [
     steps: [
       "In Polar, open Settings > Access Tokens and create a token with the orders:read and subscriptions:read scopes. Add checkouts:read for checkout links, organizations:read to show the organization name, and webhooks:write so DataGoat can create the webhook for you.",
       "Copy the organization ID from Settings > General.",
-      "Add datafast_visitor_id to checkout metadata, or use checkout links whose success URL includes ?checkout_id={CHECKOUT_ID}.",
+      "Add datagoat_visitor_id to checkout metadata, or use checkout links whose success URL includes ?checkout_id={CHECKOUT_ID}.",
     ],
   },
   {
@@ -129,7 +129,7 @@ export const PROVIDERS: readonly ProviderDef[] = [
     steps: [
       "In Paddle, open Developer tools > Authentication and create an API key with read access to transactions, customers and subscriptions.",
       "Paste it below. Paddle API keys can expire; DataGoat shows the expiry date so you can replace the key in time.",
-      "Pass datafast_visitor_id in the checkout's customData for exact attribution.",
+      "Pass datagoat_visitor_id in the checkout's customData for exact attribution.",
     ],
   },
   {
@@ -152,7 +152,7 @@ export const PROVIDERS: readonly ProviderDef[] = [
     steps: [
       "In Dodo Payments, open Developer > API keys and create a key.",
       "Optional: add a webhook endpoint with the URL below and paste its signing secret.",
-      "Put datafast_visitor_id in the payment or subscription metadata for exact attribution.",
+      "Put datagoat_visitor_id in the payment or subscription metadata for exact attribution.",
     ],
   },
   {
@@ -175,7 +175,7 @@ export const PROVIDERS: readonly ProviderDef[] = [
     steps: [
       "In Creem, open Developers and copy your API key.",
       "Optional: add a webhook with the URL below and paste its signing secret.",
-      "Pass datafast_visitor_id in the checkout metadata for exact attribution.",
+      "Pass datagoat_visitor_id in the checkout metadata for exact attribution.",
     ],
   },
   {

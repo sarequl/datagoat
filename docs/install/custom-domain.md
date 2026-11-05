@@ -37,7 +37,7 @@ the page's host, not the collector's.
 ```html
 <script
   defer
-  data-website-id="dfid_XXXXXXXXXXXXXXXX"
+  data-website-id="dgid_XXXXXXXXXXXXXXXX"
   data-domain="example.com"
   data-api-url="https://a.example.com/api/events"
   src="https://a.example.com/js/script.js"

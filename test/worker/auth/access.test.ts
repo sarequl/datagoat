@@ -36,6 +36,23 @@ describe("Bearer credentials", () => {
     expect((await api("/api/v1/admin/account")).status).toBe(401);
   });
 
+  it("issues dg_ / dgt_ secrets and still accepts df_ / dft_ ones made before the rename", async () => {
+    const { owner, site } = await world();
+    const fresh = await createApiKey({ userId: owner.id, siteId: site.id });
+    expect(fresh.secret).toMatch(/^dg_/);
+    expect((await createApiKey({ userId: owner.id })).secret).toMatch(/^dgt_/);
+    const legacyKey = await createApiKey({
+      userId: owner.id,
+      siteId: site.id,
+      secret: `df_${"a".repeat(40)}`,
+    });
+    const own = await api(`/api/v1/admin/websites/${site.id}`, { token: legacyKey.secret });
+    expect(own.status).toBe(200);
+    expect(own.body.data[0]).toMatchObject({ _id: site.id, role: "member" });
+    const legacyToken = await createApiKey({ userId: owner.id, secret: `dft_${"b".repeat(40)}` });
+    expect((await api("/api/v1/admin/account", { token: legacyToken.secret })).status).toBe(200);
+  });
+
   it("df_ keys infer their website and cannot reach another one", async () => {
     const { owner, site, other } = await world();
     const key = await createApiKey({ userId: owner.id, siteId: site.id });

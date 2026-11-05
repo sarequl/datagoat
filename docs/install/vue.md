@@ -8,7 +8,7 @@ Add the tag to `index.html`:
 <head>
   <script
     defer
-    data-website-id="dfid_XXXXXXXXXXXXXXXX"
+    data-website-id="dgid_XXXXXXXXXXXXXXXX"
     data-domain="example.com"
     src="https://a.example.com/js/script.js"
   ></script>
@@ -19,7 +19,7 @@ or initialise it from `main.ts` with the SDK:
 
 ```ts
 import { init } from "@datagoat/sdk";
-init({ websiteId: "dfid_XXXXXXXXXXXXXXXX", domain: "example.com", host: "https://a.example.com" });
+init({ websiteId: "dgid_XXXXXXXXXXXXXXXX", domain: "example.com", host: "https://a.example.com" });
 ```
 
 Vue Router's history mode is tracked automatically. With `createWebHashHistory()`, use the hash
@@ -36,7 +36,7 @@ export default defineNuxtConfig({
         {
           src: "https://a.example.com/js/script.js",
           defer: true,
-          "data-website-id": "dfid_XXXXXXXXXXXXXXXX",
+          "data-website-id": "dgid_XXXXXXXXXXXXXXXX",
           "data-domain": "example.com",
         },
       ],

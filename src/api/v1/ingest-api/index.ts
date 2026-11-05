@@ -42,6 +42,8 @@ const zMetadata = z
 
 const GoalBody = z.object({
   datafast_visitor_id: z.string().optional(),
+  /** DataGoat's name for the same field; either is accepted. */
+  datagoat_visitor_id: z.string().optional(),
   visitorId: z.string().optional(),
   name: zGoalName,
   description: z.string().max(1000).optional(),
@@ -49,10 +51,10 @@ const GoalBody = z.object({
 });
 
 function visitorIdOf(
-  body: { datafast_visitor_id?: string; visitorId?: string },
+  body: { datagoat_visitor_id?: string; datafast_visitor_id?: string; visitorId?: string },
   site: Site,
 ): string {
-  const id = body.datafast_visitor_id ?? body.visitorId;
+  const id = body.datagoat_visitor_id ?? body.datafast_visitor_id ?? body.visitorId;
   if (!id) throw new ApiError(400, "datafast_visitor_id is required");
   try {
     assertVisitorId(id, site.privacyMode);
@@ -117,7 +119,7 @@ function resolveDeleteRange(q: Record<string, string>, site: Site) {
 ingestApiRoutes.delete("/api/v1/goals", requireSiteAccess("goals:write"), async (c) => {
   const { site } = getAccess(c);
   const q = c.req.query();
-  const visitorRaw = q.datafast_visitor_id ?? q.visitorId;
+  const visitorRaw = q.datagoat_visitor_id ?? q.datafast_visitor_id ?? q.visitorId;
   let visitorId: string | null = null;
   if (visitorRaw !== undefined) visitorId = visitorIdOf({ datafast_visitor_id: visitorRaw }, site);
   let name: string | null = null;
@@ -224,6 +226,7 @@ const IdentifyBody = z
       .refine((v) => v.length >= 1, { message: "user_id is required" })
       .refine((v) => v.length <= 255, { message: "user_id must be at most 255 characters" }),
     datafast_visitor_id: z.string().optional(),
+    datagoat_visitor_id: z.string().optional(),
     visitorId: z.string().optional(),
   })
   .passthrough();
@@ -242,7 +245,7 @@ interface VisitorRow {
 ingestApiRoutes.post("/api/v1/identify", requireSiteAccess("identify:write"), async (c) => {
   const { site } = getAccess(c);
   const body = await parseJsonBody(c, IdentifyBody, { maxBytes: 16_384 });
-  if (!body.datafast_visitor_id && !body.visitorId) {
+  if (!body.datagoat_visitor_id && !body.datafast_visitor_id && !body.visitorId) {
     throw new ApiError(400, "datafast_visitor_id is required");
   }
   const visitorId = visitorIdOf(body, site);
@@ -259,7 +262,13 @@ ingestApiRoutes.post("/api/v1/identify", requireSiteAccess("identify:write"), as
     .first<VisitorRow>();
   if (!visitor) throw new ApiError(404, "Visitor has no pageviews on this website");
 
-  const { user_id: userId, datafast_visitor_id: _a, visitorId: _b, ...extra } = body;
+  const {
+    user_id: userId,
+    datafast_visitor_id: _a,
+    datagoat_visitor_id: _c,
+    visitorId: _b,
+    ...extra
+  } = body;
   const fields: Record<string, unknown> = { ...extra };
   let name = visitor.name;
   if (typeof fields.name === "string") {

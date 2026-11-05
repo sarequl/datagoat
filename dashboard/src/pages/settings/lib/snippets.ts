@@ -1,6 +1,6 @@
 /**
  * Tracking-snippet builder for the install guide and the tracking settings. The attributes are
- * DataFast's (plan §3.1). `data-api-url` is always set to the DataGoat Worker so events reach it
+ * the same as DataFast's (plan §3.1), so a DataFast tag only needs a new src and id. `data-api-url` is always set to the DataGoat Worker so events reach it
  * whatever host serves the script (a first-party custom domain, or the Worker itself).
  */
 import type { PrivacyMode } from "../../../../../shared/api-types";
@@ -16,6 +16,8 @@ export interface SnippetOptions {
   allowLocalhost?: boolean;
   /** Extra root domains for cross-domain linking (`data-allowed-hostnames`). */
   allowedHostnames?: string[];
+  /** Also write DataFast's `datafast_*` cookies (sites switching from DataFast). */
+  datafastCompat?: boolean;
 }
 
 export const SCRIPT_FILES: Record<ScriptVariant, string> = {
@@ -51,6 +53,7 @@ export function dataAttributes(o: SnippetOptions): Array<[string, string]> {
   if (o.allowedHostnames?.length)
     attrs.push(["data-allowed-hostnames", o.allowedHostnames.join(",")]);
   if (o.allowLocalhost) attrs.push(["data-allow-localhost", "true"]);
+  if (o.datafastCompat) attrs.push(["data-compat", "datafast"]);
   attrs.push(["data-api-url", apiUrl(o)]);
   return attrs;
 }
@@ -70,10 +73,10 @@ export function htmlSnippet(o: SnippetOptions, multiline = true): string {
   return `<script\n  ${parts.join("\n  ")}\n></script>`;
 }
 
-/** Queue stub so calls made before the script loads are kept (DataFast's pattern). */
+/** Queue stub so calls made before the script loads are kept. */
 export const QUEUE_SNIPPET = `<script>
-  window.datafast = window.datafast || function () {
-    (window.datafast.q = window.datafast.q || []).push(arguments);
+  window.datagoat = window.datagoat || function () {
+    (window.datagoat.q = window.datagoat.q || []).push(arguments);
   };
 </script>`;
 
@@ -291,31 +294,31 @@ ${tag}`,
         label,
         language: "html",
         steps: [
-          "Keep your existing DataFast tag and change three things: the src URL, the data-website-id and a new data-api-url, as below.",
-          "window.datafast(...) calls, data-fast-goal attributes, the datafast_visitor_id cookie and your checkout metadata keep working unchanged.",
+          'Keep your existing DataFast tag and change the src URL and data-website-id, and add data-api-url and data-compat="datafast", as below.',
+          'data-compat="datafast" keeps the datafast_visitor_id cookie, so window.datafast(...) calls, data-fast-goal attributes and checkout code that reads datafast_visitor_id keep working unchanged. Returning visitors keep their id.',
           "Server code that calls DataFast's API: change the base URL to this instance's /api/v1 and use a DataGoat API key (API keys page).",
         ],
         code: `<!-- Before (DataFast) -->
 <script
   defer
-  data-website-id="dfid_your_old_id"
+  data-website-id="your_datafast_id"
   data-domain="${escapeAttr(o.domain)}"
   src="https://datafa.st/js/${SCRIPT_FILES[o.variant]}"
 ></script>
 
 <!-- After (DataGoat) -->
-${tag}`,
+${htmlSnippet({ ...o, datafastCompat: true })}`,
       };
   }
 }
 
 /** Consent-mode calls (our extension; DataFast's script would treat them as goals). */
 export const CONSENT_SNIPPET = `// After the visitor accepts analytics cookies:
-window.datafast("consent", true);
+window.datagoat("consent", true);
 
 // If they decline or withdraw consent (cookies are deleted):
-window.datafast("consent", false);`;
+window.datagoat("consent", false);`;
 
 /** Browser-console commands that stop counting your own visits on a site. */
-export const IGNORE_ON = "localStorage.datafast_ignore = 'true'";
-export const IGNORE_OFF = "delete localStorage.datafast_ignore";
+export const IGNORE_ON = "localStorage.datagoat_ignore = 'true'";
+export const IGNORE_OFF = "delete localStorage.datagoat_ignore";

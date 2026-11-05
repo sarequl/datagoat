@@ -116,7 +116,7 @@ export default function ApiPlaygroundPage() {
   const q = buildQuery(def, { startAt, endAt }, extra);
   const publicQuery = q.toString();
   const origin = window.location.origin;
-  const curl = `curl "${origin}${def.path}${publicQuery ? `?${publicQuery}` : ""}" \\\n  -H "Authorization: Bearer df_YOUR_WEBSITE_KEY"`;
+  const curl = `curl "${origin}${def.path}${publicQuery ? `?${publicQuery}` : ""}" \\\n  -H "Authorization: Bearer dg_YOUR_WEBSITE_KEY"`;
 
   const send = async () => {
     setPending(true);
@@ -147,7 +147,7 @@ export default function ApiPlaygroundPage() {
     <div className="space-y-5">
       <PageHeader
         title="API playground"
-        description="Try the analytics API on this website without writing code. Requests use your dashboard session; scripts use a df_ website key or a dft_ account token (API keys page)."
+        description="Try the analytics API on this website without writing code. Requests use your dashboard session; scripts use a dg_ website key or a dgt_ account token (API keys page)."
       />
       <Card title="Request">
         <div className="space-y-3 text-sm">

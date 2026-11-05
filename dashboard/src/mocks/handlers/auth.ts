@@ -107,7 +107,7 @@ export const authHandlers = [
   http.post("/api/v1/admin/access-tokens", async ({ request }) => {
     const body = (await request.json()) as CreateAccessTokenRequest;
     const id = `6728f0a0a1b2c3d4e5f6b${String(state.accessTokens.length + 100).padStart(3, "0")}`;
-    const secret = `dft_mock${id.slice(-6)}SecretShownOnce000000000000`;
+    const secret = `dgt_mock${id.slice(-6)}SecretShownOnce000000000000`;
     const token: AccessToken = {
       ...(accessTokens[0] as AccessToken),
       id,
@@ -207,7 +207,7 @@ export const authHandlers = [
     const keys = keysOf(siteId);
     if (keys.length >= 10) return fail(400, "A website can have at most 10 API keys");
     const id = `6728f0a0a1b2c3d4e5f6c${String(keys.length + 100).padStart(3, "0")}`;
-    const secret = `df_mock${id.slice(-6)}SecretShownOnce0000000000000`;
+    const secret = `dg_mock${id.slice(-6)}SecretShownOnce0000000000000`;
     const key: WebsiteKey = {
       id,
       userId: state.user.id,
@@ -228,7 +228,7 @@ export const authHandlers = [
   http.put("/api/v1/admin/websites/:websiteId/apikeys/:id", ({ params }) => {
     const key = keysOf(String(params.websiteId)).find((k) => k.id === params.id);
     if (!key) return fail(404, "API key not found");
-    const secret = `df_mockRolled${Date.now().toString(36)}000000000000000`;
+    const secret = `dg_mockRolled${Date.now().toString(36)}000000000000000`;
     Object.assign(key, {
       displayKey: `${secret.slice(0, 6)}...${secret.slice(-4)}`,
       updatedAt: new Date().toISOString(),

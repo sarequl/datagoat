@@ -132,7 +132,7 @@ describe("where tracking is off", () => {
     const t = setup({ url: "http://localhost:3000/", attrs: { "data-allow-localhost": "true" } });
     expect(t.types()).toEqual(["pageview"]);
     // No domain attribute on localhost cookies.
-    expect(t.cookie("datafast_visitor_id")).toMatch(UUID);
+    expect(t.cookie("datagoat_visitor_id")).toMatch(UUID);
   });
 
   it("file: pages only with data-allow-file-protocol=true", () => {
@@ -156,11 +156,11 @@ describe("where tracking is off", () => {
     expect(dbg.types()).toEqual(["pageview"]);
   });
 
-  it("when localStorage.datafast_ignore is 'true'", () => {
-    const t = setup({ before: (w) => w.localStorage.setItem("datafast_ignore", "true") });
+  it.each(["datagoat_ignore", "datafast_ignore"])("when localStorage.%s is 'true'", (key) => {
+    const t = setup({ before: (w) => w.localStorage.setItem(key, "true") });
     expect(t.sent).toEqual([]);
     expect(t.console.warn).toHaveBeenCalledWith(
-      "DataGoat: Tracking disabled - datafast_ignore is set",
+      "DataGoat: Tracking disabled - datagoat_ignore is set",
     );
   });
 
@@ -200,19 +200,19 @@ describe("where tracking is off", () => {
 });
 
 describe("cookies", () => {
-  it("writes DataFast's four cookies with SameSite=Lax and Secure on https", () => {
+  it("writes the four datagoat_ cookies with SameSite=Lax and Secure on https", () => {
     const writes: string[] = [];
     const t = setup({ before: (w) => captureCookieWrites(w, writes) });
     const body = t.last();
-    expect(t.cookie("datafast_visitor_id")).toBe(body.visitorId);
-    expect(t.cookie("datafast_session_id")).toBe(body.sessionId);
-    expect(t.cookie("datafast_visitor_first_seen_at")).toBe(body.visitorFirstSeenAt);
-    expect(t.cookie("datafast_visitor_session_count")).toBe("1");
-    const visitor = writes.find((c) => c.startsWith("datafast_visitor_id="));
+    expect(t.cookie("datagoat_visitor_id")).toBe(body.visitorId);
+    expect(t.cookie("datagoat_session_id")).toBe(body.sessionId);
+    expect(t.cookie("datagoat_visitor_first_seen_at")).toBe(body.visitorFirstSeenAt);
+    expect(t.cookie("datagoat_visitor_session_count")).toBe("1");
+    const visitor = writes.find((c) => c.startsWith("datagoat_visitor_id="));
     expect(visitor).toMatch(/; path=\/; domain=\.example\.com; SameSite=Lax; Secure$/);
     const days = (Date.parse(visitor?.match(/expires=([^;]+)/)?.[1] ?? "") - Date.now()) / 864e5;
     expect(Math.round(days)).toBe(365);
-    const sessionCookie = writes.find((c) => c.startsWith("datafast_session_id="));
+    const sessionCookie = writes.find((c) => c.startsWith("datagoat_session_id="));
     const minutes =
       (Date.parse(sessionCookie?.match(/expires=([^;]+)/)?.[1] ?? "") - Date.now()) / 6e4;
     expect(Math.round(minutes)).toBe(30);
@@ -225,7 +225,7 @@ describe("cookies", () => {
       before: (w) => captureCookieWrites(w, writes),
       attrs: { "data-allowed-hostnames": "shop.other.org" },
     });
-    expect(writes.find((c) => c.startsWith("datafast_visitor_id="))).toMatch(
+    expect(writes.find((c) => c.startsWith("datagoat_visitor_id="))).toMatch(
       /; domain=\.shop\.other\.org; SameSite=Lax$/,
     );
   });
@@ -243,7 +243,7 @@ describe("cookies", () => {
     // Session expired (cookie gone): a new session, number 2, same visitor.
     const withoutSession = cookies
       .split("; ")
-      .filter((c: string) => !c.startsWith("datafast_session_id="))
+      .filter((c: string) => !c.startsWith("datagoat_session_id="))
       .join("; ");
     const third = setup({
       url: "https://www.example.com/later",
@@ -269,6 +269,37 @@ describe("cookies", () => {
       visitorFirstSeenAt: "2026-11-04T17:26:33.885Z",
       visitorSessionNumber: 4,
     });
+  });
+
+  it("moves a DataFast visitor onto datagoat_ cookies, and writes datafast_ ones only in compat mode", () => {
+    const legacy = "datafast_visitor_id=72de85b4-8d8a-48d6-a920-c50470a86a1a";
+    const plain = setup({ before: (w) => restore(w, legacy) });
+    expect(plain.cookie("datagoat_visitor_id")).toBe("72de85b4-8d8a-48d6-a920-c50470a86a1a");
+    const fresh = setup();
+    expect(fresh.cookie("datagoat_visitor_id")).toMatch(UUID);
+    expect(fresh.cookie("datafast_visitor_id")).toBeUndefined();
+    // data-compat="datafast": checkout code reading datafast_visitor_id keeps working.
+    const compat = setup({ attrs: { "data-compat": "datafast" } });
+    const id = compat.last().visitorId;
+    for (const prefix of ["datagoat_", "datafast_"]) {
+      expect(compat.cookie(`${prefix}visitor_id`)).toBe(id);
+      expect(compat.cookie(`${prefix}session_id`)).toBe(compat.last().sessionId);
+    }
+  });
+
+  it("adopts DataFast's _df_ cross-domain parameters too", () => {
+    const vid = "0d6b2c1e-8a8e-4f5b-9b0a-6c8d1e2f3a4b";
+    const t = setup({ url: `https://www.example.com/?_df_vid=${vid}&_df_sid=s${vid}` });
+    expect(t.cookie("datagoat_visitor_id")).toBe(vid);
+    expect(t.win.location.search).toBe("");
+  });
+
+  it("consent(false) also deletes DataFast's cookies", () => {
+    const t = setup({ attrs: { "data-compat": "datafast" } });
+    expect(t.cookie("datafast_visitor_id")).toBeDefined();
+    t.api("consent", false);
+    expect(t.cookie("datafast_visitor_id")).toBeUndefined();
+    expect(t.cookie("datagoat_visitor_id")).toBeUndefined();
   });
 
   it("exposes the visitor id on window.datafast and window.datagoat", () => {
@@ -308,10 +339,10 @@ describe("pageview dedup and SPA navigation", () => {
 
   it("ignores a second pageview of the same URL within 60 seconds (survives reloads)", () => {
     const first = setup();
-    const state = first.win.sessionStorage.getItem("datafast_pageview_state");
+    const state = first.win.sessionStorage.getItem("datagoat_pageview_state");
     expect(JSON.parse(state ?? "{}")).toMatchObject({ url: "https://www.example.com/" });
     const reload = setup({
-      before: (w) => w.sessionStorage.setItem("datafast_pageview_state", state ?? ""),
+      before: (w) => w.sessionStorage.setItem("datagoat_pageview_state", state ?? ""),
     });
     expect(reload.sent).toEqual([]);
     expect(reload.console.log).toHaveBeenCalledWith(
@@ -319,7 +350,7 @@ describe("pageview dedup and SPA navigation", () => {
     );
     const old = JSON.stringify({ time: Date.now() - 61_000, url: "https://www.example.com/" });
     expect(
-      setup({ before: (w) => w.sessionStorage.setItem("datafast_pageview_state", old) }).types(),
+      setup({ before: (w) => w.sessionStorage.setItem("datagoat_pageview_state", old) }).types(),
     ).toEqual(["pageview"]);
   });
 
@@ -620,16 +651,16 @@ describe("outbound links (external_link)", () => {
 describe("cross-domain linking", () => {
   const html = `<a id="app" href="https://myapp.io/signup?plan=pro#top">App</a><a id="other" href="https://other.dev/">Other</a>`;
 
-  it("appends _df_vid, _df_sid, _df_vfs and _df_vsn to links to allowed hostnames", () => {
+  it("appends _dg_vid, _dg_sid, _dg_vfs and _dg_vsn to links to allowed hostnames", () => {
     const t = setup({ html, attrs: { "data-allowed-hostnames": "myapp.io, shop.example.net" } });
     const a = t.win.document.getElementById("app") as unknown as HTMLAnchorElement;
     a.dispatchEvent(new t.win.MouseEvent("mousedown", { bubbles: true }) as unknown as Event);
     const url = new URL(a.href);
     const body = t.last();
-    expect(url.searchParams.get("_df_vid")).toBe(body.visitorId);
-    expect(url.searchParams.get("_df_sid")).toBe(body.sessionId);
-    expect(url.searchParams.get("_df_vfs")).toBe(body.visitorFirstSeenAt);
-    expect(url.searchParams.get("_df_vsn")).toBe("1");
+    expect(url.searchParams.get("_dg_vid")).toBe(body.visitorId);
+    expect(url.searchParams.get("_dg_sid")).toBe(body.sessionId);
+    expect(url.searchParams.get("_dg_vfs")).toBe(body.visitorFirstSeenAt);
+    expect(url.searchParams.get("_dg_vsn")).toBe("1");
     expect(url.searchParams.get("plan")).toBe("pro");
     expect(url.hash).toBe("#top");
     const other = t.win.document.getElementById("other") as unknown as HTMLAnchorElement;
@@ -645,14 +676,14 @@ describe("cross-domain linking", () => {
     });
     const a = t.win.document.getElementById("home") as unknown as HTMLAnchorElement;
     a.dispatchEvent(new t.win.MouseEvent("mousedown", { bubbles: true }) as unknown as Event);
-    expect(new URL(a.href).searchParams.get("_df_vid")).toBe(t.last().visitorId);
+    expect(new URL(a.href).searchParams.get("_dg_vid")).toBe(t.last().visitorId);
   });
 
   it("adopts the ids on arrival and strips them from the address bar before the pageview", () => {
     const vid = "72de85b4-8d8a-48d6-a920-c50470a86a1a";
     const sid = "s3457d400-1b6c-4565-b487-f1cf45306cc1";
     const t = setup({
-      url: `https://www.example.com/welcome?x=1&_df_vid=${vid}&_df_sid=${sid}&_df_vfs=2026-11-01T10%3A00%3A00.000Z&_df_vsn=3#h`,
+      url: `https://www.example.com/welcome?x=1&_dg_vid=${vid}&_dg_sid=${sid}&_dg_vfs=2026-11-01T10%3A00%3A00.000Z&_dg_vsn=3#h`,
     });
     expect(t.win.location.href).toBe("https://www.example.com/welcome?x=1#h");
     expect(t.last()).toMatchObject({
@@ -662,11 +693,11 @@ describe("cross-domain linking", () => {
       visitorFirstSeenAt: "2026-11-01T10:00:00.000Z",
       visitorSessionNumber: 3,
     });
-    expect(t.cookie("datafast_visitor_id")).toBe(vid);
+    expect(t.cookie("datagoat_visitor_id")).toBe(vid);
   });
 
   it("ignores malformed arrival ids but still cleans the URL", () => {
-    const t = setup({ url: "https://www.example.com/?_df_vid=evil&_df_sid=x" });
+    const t = setup({ url: "https://www.example.com/?_dg_vid=evil&_dg_sid=x" });
     expect(t.win.location.search).toBe("");
     expect(t.last().visitorId).not.toBe("evil");
   });
@@ -678,31 +709,31 @@ describe("payment success pages", () => {
       "Stripe",
       "?session_id=cs_test_a1b2c3",
       { stripe_session_id: "cs_test_a1b2c3" },
-      "datafast_stripe_payment_sent_cs_test_a1b2c3",
+      "datagoat_stripe_payment_sent_cs_test_a1b2c3",
     ],
     [
       "Polar",
       "?checkout_id=9f5e3c5e",
       { polar_checkout_id: "9f5e3c5e" },
-      "datafast_polar_payment_sent_9f5e3c5e",
+      "datagoat_polar_payment_sent_9f5e3c5e",
     ],
     [
       "Lemon Squeezy",
       "?order_id=123456",
       { lemonsqueezy_order_id: "123456" },
-      "datafast_lemonsqueezy_payment_sent_123456",
+      "datagoat_lemonsqueezy_payment_sent_123456",
     ],
     [
       "Paddle",
       "?transaction_id=txn_01h8bxq3m4",
       { paddle_transaction_id: "txn_01h8bxq3m4" },
-      "datafast_paddle_payment_sent_txn_01h8bxq3m4",
+      "datagoat_paddle_payment_sent_txn_01h8bxq3m4",
     ],
     [
       "Paddle (explicit)",
       "?paddle_transaction_id=txn_99",
       { paddle_transaction_id: "txn_99" },
-      "datafast_paddle_payment_sent_txn_99",
+      "datagoat_paddle_payment_sent_txn_99",
     ],
   ])("%s", (_label, search, extraData, key) => {
     const t = setup({ url: `https://www.example.com/thanks${search}` });
@@ -809,8 +840,8 @@ describe("consent (DataGoat extension)", () => {
     t.api("consent", true);
     expect(t.cookie("datagoat_consent")).toBe("1");
     // The server's ids continue as cookie ids: same visitor and session.
-    expect(t.cookie("datafast_visitor_id")).toBe("0d6b2c1e-8a8e-4f5b-9b0a-6c8d1e2f3a4b");
-    expect(t.cookie("datafast_session_id")).toBe("s0d6b2c1e-8a8e-4f5b-9b0a-6c8d1e2f3a4c");
+    expect(t.cookie("datagoat_visitor_id")).toBe("0d6b2c1e-8a8e-4f5b-9b0a-6c8d1e2f3a4b");
+    expect(t.cookie("datagoat_session_id")).toBe("s0d6b2c1e-8a8e-4f5b-9b0a-6c8d1e2f3a4c");
     t.api("signup");
     expect(t.last()).toMatchObject({
       visitorId: "0d6b2c1e-8a8e-4f5b-9b0a-6c8d1e2f3a4b",
@@ -825,25 +856,25 @@ describe("consent (DataGoat extension)", () => {
       before: (w) => restore(w, "datagoat_consent=1"),
     });
     expect(t.last()).not.toHaveProperty("cookieless");
-    expect(t.cookie("datafast_visitor_id")).toMatch(UUID);
+    expect(t.cookie("datagoat_visitor_id")).toMatch(UUID);
   });
 
   it("consent(false) deletes the cookies and switches to cookieless", () => {
     const t = setup();
-    expect(t.cookie("datafast_visitor_id")).toBeDefined();
+    expect(t.cookie("datagoat_visitor_id")).toBeDefined();
     t.api("consent", false);
     for (const name of [
-      "datafast_visitor_id",
-      "datafast_session_id",
-      "datafast_visitor_first_seen_at",
-      "datafast_visitor_session_count",
+      "datagoat_visitor_id",
+      "datagoat_session_id",
+      "datagoat_visitor_first_seen_at",
+      "datagoat_visitor_session_count",
     ]) {
       expect(t.cookie(name)).toBeUndefined();
     }
     expect(t.cookie("datagoat_consent")).toBe("0");
     t.api("after_refusal");
     expect(t.last()).toMatchObject({ cookieless: true });
-    expect(t.cookie("datafast_visitor_id")).toBeUndefined();
+    expect(t.cookie("datagoat_visitor_id")).toBeUndefined();
     // And the refusal holds on the next load, even without data-require-consent.
     const next = setup({ before: (w) => restore(w, "datagoat_consent=0") });
     expect(next.last()).toMatchObject({ cookieless: true });

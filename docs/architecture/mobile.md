@@ -48,7 +48,7 @@ apps/mobile
 ### Sign-in
 
 `POST /api/v1/mobile/session {email, password, deviceName}` on the instance the user typed in
-(`https://analytics.example.com`). It answers a read-only `dft_` token (`is_mobile = 1`;
+(`https://analytics.example.com`). It answers a read-only `dgt_` token (`is_mobile = 1`;
 `analytics:read, websites:read, settings:read, goals:read, payments:read, alerts:read`, no PII, one
 year) plus the user's websites. The token is kept in the device keychain (`expo-secure-store`) and
 sent as `Authorization: Bearer`. It shows up in the dashboard's access-token list, so a lost phone is

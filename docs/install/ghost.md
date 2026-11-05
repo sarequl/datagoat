@@ -6,7 +6,7 @@
    ```html
    <script
      defer
-     data-website-id="dfid_XXXXXXXXXXXXXXXX"
+     data-website-id="dgid_XXXXXXXXXXXXXXXX"
      data-domain="example.com"
      src="https://a.example.com/js/script.js"
    ></script>
@@ -24,7 +24,7 @@ injection read it from the Portal-rendered page:
 
 ```html
 <script>
-  window.datafast = window.datafast || function () { (window.datafast.q = window.datafast.q || []).push(arguments); };
+  window.datagoat = window.datagoat || function () { (window.datagoat.q = window.datagoat.q || []).push(arguments); };
   // Remember the email a visitor signs up with...
   document.addEventListener("submit", function (e) {
     var input = e.target.querySelector && e.target.querySelector("[data-members-email], input[type=email]");
@@ -33,14 +33,14 @@ injection read it from the Portal-rendered page:
   // ...and report it when Ghost lands them back after Stripe checkout (?stripe=success).
   if (/[?&]stripe=success/.test(location.search)) {
     var email = localStorage.getItem("dg_member_email");
-    if (email) window.datafast("payment", { email: email });
+    if (email) window.datagoat("payment", { email: email });
   }
 </script>
 ```
 
 DataGoat matches the email with the Stripe payment and attributes the revenue to the visit. In a
 custom theme you can instead render `{{#if @member}}` and call
-`window.datafast("identify", {user_id: "{{@member.uuid}}", name: "{{@member.name}}"})`.
+`window.datagoat("identify", {user_id: "{{@member.uuid}}", name: "{{@member.name}}"})`.
 
 ## Verify
 

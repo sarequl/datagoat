@@ -23,7 +23,7 @@ describe("POST /api/v1/mobile/session", () => {
     const res = await signIn(user.email, user.password);
     expect(res.status).toBe(200);
     const data = res.body.data;
-    expect(data.token).toMatch(/^dft_/);
+    expect(data.token).toMatch(/^dgt_/);
     expect(data.permissions).toEqual(MOBILE_PERMISSIONS);
     expect(data.user.email).toBe(user.email);
     expect(data.websites.map((w: { _id: string }) => w._id)).toEqual([site.id]);

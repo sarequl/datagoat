@@ -54,5 +54,5 @@ platform's edge does the proxying and sets it).
 `index.html` (Vite) or `app.head` in `nuxt.config.ts` (see [vue.md](vue.md)):
 
 ```html
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
 ```

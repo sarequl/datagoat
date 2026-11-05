@@ -109,7 +109,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createNativeClient } from "@datagoat/react-native";
 
 const { client, dispose } = createNativeClient(
-  { websiteId: "dfid_XXXXXXXXXXXXXXXX", domain: "example.com", host: "https://a.example.com" },
+  { websiteId: "dgid_XXXXXXXXXXXXXXXX", domain: "example.com", host: "https://a.example.com" },
   { storage: AsyncStorage },
 );
 await client.trackScreen("Onboarding");

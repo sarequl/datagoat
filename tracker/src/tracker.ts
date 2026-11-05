@@ -1,8 +1,12 @@
 /**
- * DataGoat tracker. Drop-in compatible with DataFast's script tag (plan §3): same attributes,
- * cookies, `window.datafast(...)` API, goal and scroll attributes, outbound clicks, cross-domain
- * linking, SPA and hash routing, payment success-page detection and request body. Original code,
- * MIT licensed.
+ * DataGoat tracker. Original code, MIT licensed.
+ *
+ * Its own names: `datagoat_*` cookies, `window.datagoat(...)`, `_dg_*` cross-domain parameters.
+ * It also accepts DataFast's script tag (plan §3): the same attributes, `window.datafast(...)`
+ * (always an alias), goal and scroll attributes, request body and payment success pages, and it
+ * reads existing `datafast_*` cookies so returning visitors keep their id. With
+ * `data-compat="datafast"` (sites switching from DataFast) it also writes the `datafast_*` cookies,
+ * so checkout code that reads `datafast_visitor_id` keeps working.
  *
  * Three builds from this file (tracker/build.mjs sets __DG_COOKIELESS__ and __DG_HASH__):
  * - `default`    → script.js: first-party cookies.
@@ -10,8 +14,8 @@
  *                  visitor from a daily salt and returns it.
  * - `hash`       → script.hash.js: like default, and `#hash` routes count as pages.
  *
- * DataGoat extensions (all opt-in or invisible to DataFast users): `window.datagoat` alias,
- * `datafast("consent", true|false)`, `data-require-consent`, `data-track-engagement`, Paddle
+ * DataGoat extensions (all opt-in or invisible to DataFast users):
+ * `datagoat("consent", true|false)`, `data-require-consent`, `data-track-engagement`, Paddle
  * success pages, sendBeacon/fetch transport, `SameSite=Lax` and `Secure` cookies.
  */
 import { clean, goalName, type Params, params } from "./validate";
@@ -20,14 +24,18 @@ import { clean, goalName, type Params, params } from "./validate";
 declare const __DG_COOKIELESS__: boolean;
 declare const __DG_HASH__: boolean;
 
-const P = "datafast_";
-const VID = `${P}visitor_id`;
-const SID = `${P}session_id`;
-const VFS = `${P}visitor_first_seen_at`;
-const VSN = `${P}visitor_session_count`;
-const CONSENT = "datagoat_consent";
-const PV_STATE = `${P}pageview_state`;
-const DF_PARAMS = ["_df_vid", "_df_sid", "_df_vfs", "_df_vsn"];
+/** Cookie names are `datagoat_<key>`; DataFast's `datafast_<key>` are read too (see top). */
+const DG = "datagoat_";
+const DF = "datafast_";
+const VID = "visitor_id";
+const SID = "session_id";
+const VFS = "visitor_first_seen_at";
+const VSN = "visitor_session_count";
+const CONSENT = `${DG}consent`;
+const PV_STATE = `${DG}pageview_state`;
+/** Cross-domain link parameters: written as `_dg_*`, read as `_dg_*` or DataFast's `_df_*`. */
+const XD = ["vid", "sid", "vfs", "vsn"];
+const XD_PARAMS = [...XD.map((k) => `_dg_${k}`), ...XD.map((k) => `_df_${k}`)];
 const CLICK_IDS = [
   "gclid",
   "gclsrc",
@@ -161,8 +169,15 @@ export function init(w: TrackerWindow): Api | undefined {
       cookieDomain ? `; domain=.${cookieDomain}` : ""
     }; SameSite=Lax${l.protocol === "https:" ? "; Secure" : ""}`;
   };
+  // Identity cookies: ours first, then DataFast's (a visitor from before the switch keeps their id).
+  const compat = attr("compat") === "datafast";
+  const getId = (key: string) => getCookie(DG + key) || getCookie(DF + key);
+  const setId = (key: string, value: string, days: number) => {
+    setCookie(DG + key, value, days);
+    if (compat) setCookie(DF + key, value, days);
+  };
 
-  // Consent: cookies only when not required, or after datafast("consent", true).
+  // Consent: cookies only when not required, or after datagoat("consent", true).
   let cookies = false;
   if (!__DG_COOKIELESS__) {
     const consent = getCookie(CONSENT);
@@ -180,12 +195,13 @@ export function init(w: TrackerWindow): Api | undefined {
   let disabled = "";
   let ignored = false;
   try {
-    ignored = storage("localStorage")?.getItem(`${P}ignore`) === "true";
+    const local = storage("localStorage");
+    ignored = [DG, DF].some((p) => local?.getItem(`${p}ignore`) === "true");
   } catch {
     // blocked storage: not ignored
   }
   if (!websiteId) disabled = "missing data-website-id";
-  else if (ignored) disabled = "datafast_ignore is set";
+  else if (ignored) disabled = "datagoat_ignore is set";
   else if (isBot()) disabled = "bot detected";
   else if (l.protocol === "file:" && !flag("allow-file-protocol")) disabled = "file protocol";
   else if (isLocalHost(host) && !flag("allow-localhost")) disabled = "localhost";
@@ -198,43 +214,43 @@ export function init(w: TrackerWindow): Api | undefined {
   };
 
   const cookieIds = () => {
-    let visitorId = getCookie(VID) || memory.visitorId;
+    let visitorId = getId(VID) || memory.visitorId;
     if (!visitorId) {
       visitorId = uuid();
-      setCookie(VFS, new Date().toISOString(), 365);
-      setCookie(VSN, "0", 365);
+      setId(VFS, new Date().toISOString(), 365);
+      setId(VSN, "0", 365);
     }
-    let sessionId = getCookie(SID) || memory.sessionId;
+    let sessionId = getId(SID) || memory.sessionId;
     if (!sessionId) {
       sessionId = `s${uuid()}`;
-      setCookie(VSN, String(Math.min((Number(getCookie(VSN)) || 0) + 1, 1e6)), 365);
+      setId(VSN, String(Math.min((Number(getId(VSN)) || 0) + 1, 1e6)), 365);
     }
     memory.visitorId = visitorId;
     memory.sessionId = sessionId;
-    setCookie(VID, visitorId, 365);
-    setCookie(SID, sessionId, 1 / 48); // 30 minutes, sliding
+    setId(VID, visitorId, 365);
+    setId(SID, sessionId, 1 / 48); // 30 minutes, sliding
     exposed(visitorId);
     return {
       visitorId,
       sessionId,
-      visitorFirstSeenAt: getCookie(VFS) || new Date().toISOString(),
-      visitorSessionNumber: Number(getCookie(VSN)) || 1,
+      visitorFirstSeenAt: getId(VFS) || new Date().toISOString(),
+      visitorSessionNumber: Number(getId(VSN)) || 1,
     };
   };
 
   /** Cookieless ids: the server's, from the last response, kept for this tab only. */
   const tabIds = () => {
-    let sessionId = sget(SID);
+    let sessionId = sget(DG + SID);
     if (!sessionId) {
       sessionId = `s${uuid()}`;
-      sset(SID, sessionId);
+      sset(DG + SID, sessionId);
     }
-    return { visitorId: sget(VID) || uuid(), sessionId };
+    return { visitorId: sget(DG + VID) || uuid(), sessionId };
   };
 
   const learn = (res: Ids) => {
-    if (res.visitorId) sset(VID, res.visitorId);
-    if (res.sessionId) sset(SID, res.sessionId);
+    if (res.visitorId) sset(DG + VID, res.visitorId);
+    if (res.sessionId) sset(DG + SID, res.sessionId);
     exposed(res.visitorId);
   };
 
@@ -330,7 +346,7 @@ export function init(w: TrackerWindow): Api | undefined {
     track("identify", extra);
   };
 
-  const sentKey = (provider: string, id: string) => `${P}${provider}_payment_sent_${id}`;
+  const sentKey = (provider: string, id: string) => `${DG}${provider}_payment_sent_${id}`;
   const payment = (provider: string, key: string, id: string) => {
     if (!disabled && sget(sentKey(provider, id))) return log("Payment already sent");
     if (!disabled) sset(sentKey(provider, id), "true");
@@ -357,22 +373,22 @@ export function init(w: TrackerWindow): Api | undefined {
       setCookie(CONSENT, "1", 365);
       if (!cookies) {
         // Continue the visitor and session the server already knows (cookieless until now).
-        const visitorId = sget(VID);
-        const sessionId = sget(SID);
+        const visitorId = sget(DG + VID);
+        const sessionId = sget(DG + SID);
         if (visitorId && UUID_RE.test(visitorId)) {
           memory.visitorId = visitorId;
-          setCookie(VID, visitorId, 365);
-          setCookie(VFS, new Date().toISOString(), 365);
-          setCookie(VSN, "1", 365);
+          setId(VID, visitorId, 365);
+          setId(VFS, new Date().toISOString(), 365);
+          setId(VSN, "1", 365);
           if (sessionId) {
             memory.sessionId = sessionId;
-            setCookie(SID, sessionId, 1 / 48);
+            setId(SID, sessionId, 1 / 48);
           }
         }
       }
       cookies = true;
     } else if (granted === false) {
-      for (const key of [VID, SID, VFS, VSN]) setCookie(key, "", -1);
+      for (const key of [VID, SID, VFS, VSN]) for (const p of [DG, DF]) setCookie(p + key, "", -1);
       setCookie(CONSENT, "0", 365);
       memory.visitorId = memory.sessionId = undefined;
       cookies = false;
@@ -488,7 +504,7 @@ export function init(w: TrackerWindow): Api | undefined {
     if (!ours || target === host || (within(target) && within(host))) return;
     const ids = cookieIds();
     const values = [ids.visitorId, ids.sessionId, ids.visitorFirstSeenAt, ids.visitorSessionNumber];
-    for (let i = 0; i < 4; i++) url.searchParams.set(DF_PARAMS[i] as string, String(values[i]));
+    for (let i = 0; i < 4; i++) url.searchParams.set(XD_PARAMS[i] as string, String(values[i]));
     a.href = url.href;
   };
 
@@ -512,7 +528,7 @@ export function init(w: TrackerWindow): Api | undefined {
     const opens = e.type === "click" || (e.type === "auxclick" && (e as MouseEvent).button === 1);
     if (opens && to !== host && !(within(to) && within(host))) {
       const link = new URL(url.href);
-      for (const k of DF_PARAMS) link.searchParams.delete(k);
+      for (const k of XD_PARAMS) link.searchParams.delete(k);
       track("external_link", { url: link.href, text: clean(a.textContent || "") });
     }
     decorate(a, url);
@@ -566,18 +582,19 @@ export function init(w: TrackerWindow): Api | undefined {
     if (!__DG_COOKIELESS__) {
       // Cross-domain arrival: adopt the ids from the link, then clean the address bar.
       const q = new URLSearchParams(l.search);
-      const vid = q.get("_df_vid");
+      const pre = q.has("_dg_vid") ? "_dg_" : "_df_";
+      const vid = q.get(`${pre}vid`);
       if (vid !== null) {
-        const sid = q.get("_df_sid");
+        const sid = q.get(`${pre}sid`);
         if (cookies && UUID_RE.test(vid)) {
-          setCookie(VID, vid, 365);
-          if (sid && /^s[0-9a-f-]{36}$/i.test(sid)) setCookie(SID, sid, 1 / 48);
-          const fs = q.get("_df_vfs");
-          if (fs && !Number.isNaN(Date.parse(fs))) setCookie(VFS, fs, 365);
-          const sn = Number(q.get("_df_vsn"));
-          if (sn >= 1) setCookie(VSN, String(Math.min(sn, 1e6)), 365);
+          setId(VID, vid, 365);
+          if (sid && /^s[0-9a-f-]{36}$/i.test(sid)) setId(SID, sid, 1 / 48);
+          const fs = q.get(`${pre}vfs`);
+          if (fs && !Number.isNaN(Date.parse(fs))) setId(VFS, fs, 365);
+          const sn = Number(q.get(`${pre}vsn`));
+          if (sn >= 1) setId(VSN, String(Math.min(sn, 1e6)), 365);
         }
-        for (const k of DF_PARAMS) q.delete(k);
+        for (const k of XD_PARAMS) q.delete(k);
         const search = q.toString();
         try {
           h.replaceState(h.state, "", `${l.pathname}${search ? `?${search}` : ""}${l.hash}`);

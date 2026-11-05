@@ -272,7 +272,7 @@ export const w6Handlers = [
         ...g.botToken(site, domainOf(site)),
         hasToken: true,
         displayToken: "dfbot_abcd...wxyz",
-        requestAuthToken: "dfbot_mockShownOnce",
+        requestAuthToken: "dgbot_mockShownOnce",
       },
     ]);
   }),
@@ -282,7 +282,7 @@ export const w6Handlers = [
         ...g.botToken(String(params.websiteId), domainOf(params.websiteId)),
         hasToken: true,
         displayToken: "dfbot_efgh...wxyz",
-        requestAuthToken: "dfbot_mockRotated",
+        requestAuthToken: "dgbot_mockRotated",
       },
     ]),
   ),

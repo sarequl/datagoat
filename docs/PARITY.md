@@ -5,7 +5,7 @@ pages, the 60 changelog entries and the feature sections of the research report.
 checked in the merged code, not in the docs: by reading the implementation, by the test suites
 (Worker, dashboard, tracker, CLI, ecosystem, Playwright), and by running the real Worker with the
 demo data (`npm run seed:demo`), where a script opened every dashboard page and called every
-DataFast API endpoint with a `df_` key and a `dft_` token. Every page and endpoint answered without
+DataFast API endpoint with a website key and an account token. Every page and endpoint answered without
 an error.
 
 **Status**
@@ -43,18 +43,18 @@ Rows marked "finisher" were added or fixed in this audit.
 | DataFast feature | Status | Where | Notes |
 | --- | --- | --- | --- |
 | One `<script defer data-website-id data-domain src=/js/script.js>` install | Done | `tracker/src/tracker.ts`, `public/js/script.js` | ~5 KB gzip (`tracker/size-budget.json`) |
-| `dfid_` tracking ids; old ids keep working | Done | `src/lib/ids.ts` (`newTrackingId`), `src/lib/site-cache.ts` | the collector accepts any opaque id, so imported `dfid_` ids need no tag change |
-| `data-allowed-hostnames` cross-domain tracking with `_df_vid` `_df_sid` `_df_vfs` `_df_vsn` link handoff | Done | `tracker/src/tracker.ts` | parameters stripped with `history.replaceState` |
+| Tracking ids; old `dfid_` ids keep working | Done | `src/lib/ids.ts` (`newTrackingId`), `src/lib/site-cache.ts` | new ids are `dgid_` + 16 base62 characters; the collector accepts any opaque id, so existing and imported `dfid_` ids need no tag change |
+| `data-allowed-hostnames` cross-domain tracking with `_df_vid` `_df_sid` `_df_vfs` `_df_vsn` link handoff | Done | `tracker/src/tracker.ts` | DataGoat writes `_dg_*` and reads both; parameters stripped with `history.replaceState` |
 | Subdomain tracking (cookie on `.data-domain`) | Done | `tracker/src/tracker.ts` | |
 | `data-api-url` (relative or absolute) | Done | `tracker/src/tracker.ts` | |
 | `data-allow-localhost`, `data-allow-file-protocol` | Done | `tracker/src/tracker.ts` | |
 | `data-debug`, `data-disable-console` | Done | `tracker/src/tracker.ts` | |
 | `data-disable-payments` (fix duplicate payments) | Done | `tracker/src/tracker.ts` | |
-| Cookies `datafast_visitor_id` (1 year), `datafast_session_id` (30 min), first-seen and session count | Done | `tracker/src/tracker.ts`, `docs/tracking.md` | same names and formats, so DataFast visitors keep their ids |
+| Cookies `datafast_visitor_id` (1 year), `datafast_session_id` (30 min), first-seen and session count | Done | `tracker/src/tracker.ts`, `docs/tracking.md` | DataGoat writes `datagoat_*` cookies and reads `datafast_*` too, so DataFast visitors keep their ids; `data-compat="datafast"` also writes the `datafast_*` cookies |
 | SPA navigation (`pushState`/`popstate`, 100 ms debounce) and 60 s same-URL throttle | Done | `tracker/src/tracker.ts` (`pageview`) | throttle state in sessionStorage |
 | Hash routing build `script.hash.js` | Done | `tracker/build.mjs` | |
 | Cookieless build `script.cookieless.js` with a daily rotating salt | Done | `src/ingest/salts.ts`, `src/ingest/identity.ts` | salts are random per day and deleted after two days |
-| Goals `window.datafast("name", {…})`, name rules, ≤ 10 parameters | Done | `tracker/src/validate.ts`, `src/ingest/events.ts` | parameter names up to 64 characters (DataFast's docs; its script stops at 32) |
+| Goals `window.datafast("name", {…})`, name rules, ≤ 10 parameters | Done | `tracker/src/validate.ts`, `src/ingest/events.ts` | `window.datafast` is an alias of `window.datagoat`; parameter names up to 64 characters (DataFast's docs; its script stops at 32) |
 | Queue snippet: goals before the script loads | Done | `tracker/src/tracker.ts` | `window.datagoat` alias |
 | `data-fast-goal` and `data-fast-goal-*` (click, form) | Done | `tracker/src/tracker.ts` | Enter and Space too |
 | `data-fast-scroll`, `-threshold`, `-delay`, `-*` | Done | `tracker/src/tracker.ts` | |
@@ -72,7 +72,7 @@ Rows marked "finisher" were added or fixed in this audit.
 | Exclude paths with `*` wildcards | Done | `src/ingest/exclusions.ts` | |
 | Exclude countries | Done | `src/ingest/exclusions.ts` | names or codes |
 | Exclude hostnames | Done | `src/ingest/exclusions.ts` | |
-| Exclude your own visits (`localStorage.datafast_ignore`) | Done | `tracker/src/tracker.ts` | console commands shown in Settings |
+| Exclude your own visits (`localStorage.datafast_ignore`) | Done | `tracker/src/tracker.ts` | DataGoat's key is `datagoat_ignore`; both are respected; console commands shown in Settings |
 | DataFast's own unmodified script can send to DataGoat | Done | `test/fixtures/datafast/captured.ts`, `test/worker/ingest/protocol.test.ts` | captured request bodies |
 | Content-Security-Policy guidance | Done | `docs/tracking.md#content-security-policy` | |
 | npm package (`datafast` → `@datagoat/sdk`) for browser, React, Next.js and server | Done | `packages/sdk` | |
@@ -141,7 +141,7 @@ Rows marked "finisher" were added or fixed in this audit.
 | DataFast feature | Status | Where | Notes |
 | --- | --- | --- | --- |
 | Stripe: connect with a restricted key (secret, publishable and test keys rejected) | Done (untested against the real service) | `src/providers/adapters/stripe.ts`, `POST …/integrations/stripe` | |
-| Stripe: Checkout metadata `datafast_visitor_id` / `datafast_session_id` | Done (untested against the real service) | `stripe.ts`, `src/providers/attribution.ts` | |
+| Stripe: Checkout metadata `datafast_visitor_id` / `datafast_session_id` | Done (untested against the real service) | `stripe.ts`, `src/providers/attribution.ts` | `datagoat_visitor_id` / `datagoat_session_id` are the documented names |
 | Stripe: PaymentIntent API metadata | Done (untested against the real service) | `stripe.ts` | |
 | Stripe: Payment Links via the success page | Done (untested against the real service) | `src/providers/jobs.ts` (`providers.resolve-hints`) | resolution tested end to end with a mocked Stripe API (finisher) |
 | Stripe: backfill, renewals (invoices), refunds and disputes, events polling with optional webhooks | Done (untested against the real service) | `stripe.ts`, `providers.sync` | |
@@ -195,7 +195,7 @@ Every DataFast endpoint was called on the running Worker with demo data and answ
 
 | DataFast feature | Status | Where | Notes |
 | --- | --- | --- | --- |
-| `df_` website keys and `dft_` account tokens with DataFast's permission names | Done | `src/auth/credentials.ts`, `shared/permissions.ts` | |
+| `df_` website keys and `dft_` account tokens with DataFast's permission names | Done | `src/auth/credentials.ts`, `shared/permissions.ts` | new keys are `dg_` / `dgt_`; `df_` / `dft_` keys keep working |
 | 60 requests per minute with `X-RateLimit-*` headers | Done | `src/auth/rate-limit.ts` | Workers Rate Limiting binding (no KV writes) |
 | Account: retrieve / update | Done | `src/api/v1/account/tokens.ts` | |
 | Access tokens: list / create / delete | Done | `tokens.ts` | |

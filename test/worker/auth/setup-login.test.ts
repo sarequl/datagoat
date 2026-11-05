@@ -31,7 +31,7 @@ describe("first-run setup", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.user).toMatchObject({ email: "owner@example.com", name: "Owner" });
     expect(res.body.data.website).toMatchObject({ domain: "www.example.com" });
-    expect(res.body.data.website.trackingId).toMatch(/^dfid_/);
+    expect(res.body.data.website.trackingId).toMatch(/^dgid_/);
     expect(res.body.data.websites).toHaveLength(1);
     expect(res.body.data.websites[0].role).toBe("owner");
     const setCookie = res.cookies.find((c) => c.startsWith("dg_session="));

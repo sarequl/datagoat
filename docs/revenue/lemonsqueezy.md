@@ -9,7 +9,7 @@ Lemon Squeezy → **Settings → API → New API key**. Find your numeric store 
 
 ```sh
 curl -X POST ".../api/v1/admin/websites/$WEBSITE_ID/integrations/lemonsqueezy" \
-  -H "Authorization: Bearer dft_…" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dgt_…" -H "Content-Type: application/json" \
   -d '{"lemonsqueezyApiKey":"…","lemonsqueezyStoreId":"12345"}'
 ```
 
@@ -27,19 +27,19 @@ Checkout API: add it to the checkout's custom data.
 await createCheckout(storeId, variantId, {
   checkoutData: {
     custom: {
-      datafast_visitor_id: cookies.get("datafast_visitor_id"),
-      datafast_session_id: cookies.get("datafast_session_id"),
+      datagoat_visitor_id: cookies.get("datagoat_visitor_id"),
+      datagoat_session_id: cookies.get("datagoat_session_id"),
     },
   },
 });
 ```
 
-Checkout URLs take it as `?checkout[custom][datafast_visitor_id]=…`. It comes back in webhooks as
+Checkout URLs take it as `?checkout[custom][datagoat_visitor_id]=…`. It comes back in webhooks as
 `meta.custom_data` (the Lemon Squeezy API does not return custom data, which is why the webhook
 matters).
 
 **Payment Links (no code):** set the confirmation button link to your site with
-`?order_id=[order_id]`. **Other flows:** `window.datafast("payment", { email })`.
+`?order_id=[order_id]`. **Other flows:** `window.datagoat("payment", { email })`.
 
 ## What is recorded
 

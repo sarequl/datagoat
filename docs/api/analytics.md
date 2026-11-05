@@ -8,11 +8,11 @@ its base URL from `https://datafa.st` to your DataGoat URL. The full endpoint li
 ## Authenticate
 
 ```bash
-# A website key (df_...) picks its website automatically.
-curl -H "Authorization: Bearer df_xxx" "https://analytics.example.com/api/v1/analytics/overview"
+# A website key (dg_...) picks its website automatically.
+curl -H "Authorization: Bearer dg_xxx" "https://analytics.example.com/api/v1/analytics/overview"
 
-# An account token (dft_...) needs ?websiteId= (the website id or its tracking id).
-curl -H "Authorization: Bearer dft_xxx" \
+# An account token (dgt_...) needs ?websiteId= (the website id or its tracking id).
+curl -H "Authorization: Bearer dgt_xxx" \
   "https://analytics.example.com/api/v1/analytics/overview?websiteId=665f0b3c4d2e1a0012345678"
 ```
 
@@ -112,17 +112,17 @@ expectedValue, confidence}`. `expectedValue` is in the website currency.
 
 ```bash
 # Record a goal from your backend (the visitor needs at least one pageview).
-curl -X POST -H "Authorization: Bearer df_xxx" -H "Content-Type: application/json" \
-  -d '{"datafast_visitor_id":"a3ab2331-989f-4cfa-91c6-2461c9e3c6bd","name":"newsletter_signup","metadata":{"plan":"pro"}}' \
+curl -X POST -H "Authorization: Bearer dg_xxx" -H "Content-Type: application/json" \
+  -d '{"datagoat_visitor_id":"a3ab2331-989f-4cfa-91c6-2461c9e3c6bd","name":"newsletter_signup","metadata":{"plan":"pro"}}' \
   https://analytics.example.com/api/v1/goals
 
 # Link a visitor to your user (extra fields are merged into the profile).
-curl -X POST -H "Authorization: Bearer df_xxx" -H "Content-Type: application/json" \
-  -d '{"user_id":"user_123","datafast_visitor_id":"a3ab2331-989f-4cfa-91c6-2461c9e3c6bd","email":"jane@example.com","plan":"pro"}' \
+curl -X POST -H "Authorization: Bearer dg_xxx" -H "Content-Type: application/json" \
+  -d '{"user_id":"user_123","datagoat_visitor_id":"a3ab2331-989f-4cfa-91c6-2461c9e3c6bd","email":"jane@example.com","plan":"pro"}' \
   https://analytics.example.com/api/v1/identify
 
 # Delete test goals (a range is required when no visitor or name is given).
-curl -X DELETE -H "Authorization: Bearer df_xxx" \
+curl -X DELETE -H "Authorization: Bearer dg_xxx" \
   "https://analytics.example.com/api/v1/goals?name=signup&startAt=2026-05-01T00:00:00Z&endAt=2026-05-19T23:59:59Z"
 ```
 

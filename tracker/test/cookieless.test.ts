@@ -48,8 +48,8 @@ describe("cookieless build", () => {
     const t = setup({ response: SERVER });
     expect(t.sent[0]?.transport).toBe("fetch");
     await t.flush();
-    expect(t.win.sessionStorage.getItem("datafast_visitor_id")).toBe(SERVER.visitorId);
-    expect(t.win.sessionStorage.getItem("datafast_session_id")).toBe(SERVER.sessionId);
+    expect(t.win.sessionStorage.getItem("datagoat_visitor_id")).toBe(SERVER.visitorId);
+    expect(t.win.sessionStorage.getItem("datagoat_session_id")).toBe(SERVER.sessionId);
     expect((t.w.datafast as { visitorId?: string }).visitorId).toBe(SERVER.visitorId);
     expect((t.w.datagoat as { visitorId?: string }).visitorId).toBe(SERVER.visitorId);
     t.api("signup");

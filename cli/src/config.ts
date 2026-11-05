@@ -101,6 +101,6 @@ export function resolveSettings(
 
 export function maskToken(token: string | undefined): string {
   if (!token) return "(none)";
-  const head = token.startsWith("dft_") ? 7 : 5;
+  const head = token.startsWith("dgt_") || token.startsWith("dft_") ? 7 : 5;
   return `${token.slice(0, head)}...${token.slice(-4)}`;
 }

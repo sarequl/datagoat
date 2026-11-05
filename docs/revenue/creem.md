@@ -9,7 +9,7 @@ Creem → **Developers**: copy the API key and create a webhook pointing at
 
 ```sh
 curl -X POST ".../api/v1/admin/websites/$WEBSITE_ID/integrations/creem" \
-  -H "Authorization: Bearer dft_…" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer dgt_…" -H "Content-Type: application/json" \
   -d '{"apiKey":"creem_…","webhookSecret":"…"}'
 ```
 
@@ -22,7 +22,7 @@ every 5 minutes and backfilled. `creem_test_` keys use Creem's test API and need
 ```js
 await creem.checkouts.create({
   product_id: "prod_…",
-  metadata: { datafast_visitor_id: cookies.get("datafast_visitor_id") },
+  metadata: { datagoat_visitor_id: cookies.get("datagoat_visitor_id") },
 });
 ```
 

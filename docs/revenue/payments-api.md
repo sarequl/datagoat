@@ -12,19 +12,19 @@ await fetch("https://analytics.example.com/api/v1/payments", {
     amount: 29.99, // major units
     currency: "USD",
     transaction_id: "txn_98hj", // idempotency key
-    datafast_visitor_id: req.cookies.datafast_visitor_id,
+    datagoat_visitor_id: req.cookies.datagoat_visitor_id,
     email: "customer@example.com",
     customer_id: "cus_42",
   }),
 });
 ```
 
-Use a `df_` website key, or a `dft_` token with `payments:write` and `?websiteId=`.
+Use a `dg_` website key, or a `dgt_` token with `payments:write` and `?websiteId=`.
 
 | Field                               | Notes                                                                 |
 | ----------------------------------- | --------------------------------------------------------------------- |
 | `amount`, `currency`, `transaction_id` | required; amount ≥ 0                                               |
-| `datafast_visitor_id` / `visitorId` | strongly recommended                                                  |
+| `datagoat_visitor_id` / `visitorId` | strongly recommended (`datafast_visitor_id` is also accepted)         |
 | `email` / `customer_email`          | matches identified visitors; links trials to later payments          |
 | `name` / `customer_name`            | stored when the website stores customer emails                       |
 | `customer_id`                       | renewals with the same id attribute to the first visitor             |
@@ -43,11 +43,11 @@ A repeated `transaction_id` answers `{"message": "Payment already recorded …"}
 nothing. A visitor id with no pageviews on the website stores the payment as unattributed and
 answers a message only. Invalid input answers **400** `{"error": "…"}`.
 
-Delete with `DELETE /api/v1/payments?transaction_id=…`, `?datafast_visitor_id=…[&startAt&endAt]`
+Delete with `DELETE /api/v1/payments?transaction_id=…`, `?datagoat_visitor_id=…[&startAt&endAt]`
 or `?startAt=…&endAt=…` (bulk; `start`/`end` accepted).
 
 ## Tracking from the browser instead
 
-On the page customers reach after paying, `window.datafast("payment", { email: user.email })`
+On the page customers reach after paying, `window.datagoat("payment", { email: user.email })`
 links the visitor to that email; payments from any connected provider with the same customer email
 are then attributed (immediately, or within the hour for payments that arrived first).

@@ -4,7 +4,7 @@
 // 1. Loads the DataGoat tracker from the same origin with data-website-id / data-domain /
 //    data-api-url, unless the theme already has a tracker tag.
 // 2. Copies the visitor and session cookies into hidden cart attributes
-//    (_datafast_visitor_id, _datafast_session_id), which Shopify copies onto the order's
+//    (_datagoat_visitor_id, _datagoat_session_id), which Shopify copies onto the order's
 //    note_attributes, so the order is attributed to the visit.
 // 3. Sends the add_to_cart and initiate_checkout goals (disable with &goals=0 when the custom
 //    pixel sends them).
@@ -25,12 +25,12 @@
   const goals = src.searchParams.get("goals") !== "0";
   const domain = src.searchParams.get("domain") || location.hostname.replace(/^www\./, "");
 
-  if (!window.datafast) {
+  if (!window.datagoat && !window.datafast) {
     const queue = (...args) => {
       queue.q = queue.q || [];
       queue.q.push(args);
     };
-    window.datafast = queue;
+    window.datagoat = window.datafast = queue;
   }
   if (!document.querySelector("script[data-website-id]")) {
     const tag = document.createElement("script");
@@ -50,12 +50,14 @@
     }
     return "";
   }
+  // Our cookie first, then DataFast's (stores that switched, or data-compat="datafast").
+  const idCookie = (key) => cookie(`datagoat_${key}`) || cookie(`datafast_${key}`);
 
   const SYNC_KEY = "datagoat_cart_attributes";
   function syncCart(force) {
-    const vid = cookie("datafast_visitor_id");
+    const vid = idCookie("visitor_id");
     if (!vid) return false;
-    const sid = cookie("datafast_session_id");
+    const sid = idCookie("session_id");
     const value = `${vid}|${sid}`;
     try {
       if (!force && sessionStorage.getItem(SYNC_KEY) === value) return true;
@@ -67,7 +69,7 @@
         credentials: "same-origin",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
-          attributes: { _datafast_visitor_id: vid, _datafast_session_id: sid },
+          attributes: { _datagoat_visitor_id: vid, _datagoat_session_id: sid },
         }),
       })
       .then((res) => {
@@ -92,7 +94,7 @@
     const now = Date.now();
     if (lastGoal[name] && now - lastGoal[name] < 2000) return;
     lastGoal[name] = now;
-    window.datafast(name);
+    (window.datagoat || window.datafast)(name);
   }
   function isCartAdd(url) {
     return typeof url === "string" && /\/cart\/add(\.js)?(\?|$)/.test(url.split("#")[0]);

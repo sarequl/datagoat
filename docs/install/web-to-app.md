@@ -20,12 +20,12 @@ Follow one person from your landing page to your mobile app in a single dashboar
 
 ```html
 <script>
-  window.datafast = window.datafast || function () { (window.datafast.q = window.datafast.q || []).push(arguments); };
+  window.datagoat = window.datagoat || function () { (window.datagoat.q = window.datagoat.q || []).push(arguments); };
 </script>
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="https://a.example.com/js/script.js"></script>
 <script>
   // after sign-up or sign-in:
-  window.datafast("identify", { user_id: "user_123", name: "Ada" });
+  window.datagoat("identify", { user_id: "user_123", name: "Ada" });
 </script>
 ```
 

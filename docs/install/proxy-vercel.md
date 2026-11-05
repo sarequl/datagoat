@@ -21,7 +21,7 @@ after the filesystem: if your build outputs a file at `/js/script.js` or a funct
 Script tag:
 
 ```html
-<script defer data-website-id="dfid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
+<script defer data-website-id="dgid_XXXXXXXXXXXXXXXX" data-domain="example.com" src="/js/script.js"></script>
 ```
 
 Location data: Vercel's edge is the connection Cloudflare sees, so country and city may reflect a

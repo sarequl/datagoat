@@ -18,7 +18,7 @@ describe("API playground", () => {
     const curl = screen.getByRole("figure", { name: "curl command" });
     expect(curl).toHaveTextContent("/api/v1/analytics/referrers?startAt=");
     expect(curl).toHaveTextContent("limit=10&filter_country=US");
-    expect(curl).toHaveTextContent("Authorization: Bearer df_YOUR_WEBSITE_KEY");
+    expect(curl).toHaveTextContent("Authorization: Bearer dg_YOUR_WEBSITE_KEY");
 
     await userEvent.click(screen.getByRole("button", { name: "Send request" }));
     expect(await screen.findByTestId("playground-status")).toHaveTextContent("HTTP 200");
