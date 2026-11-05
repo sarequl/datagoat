@@ -23,7 +23,7 @@ export function Button({
         variant === "primary" && "bg-primary text-primary-fg hover:opacity-90",
         variant === "secondary" && "border border-line bg-surface hover:bg-surface-2",
         variant === "ghost" && "hover:bg-surface-2",
-        variant === "danger" && "bg-error text-primary-fg hover:opacity-90",
+        variant === "danger" && "bg-danger text-danger-fg hover:opacity-90",
         className,
       )}
     />

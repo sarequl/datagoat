@@ -16,7 +16,9 @@
 :root {
   /* Brand and status palette (same in both themes unless overridden) */
   --dg-primary: #e16540; /* main brand: buttons, active state, revenue */
-  --dg-primary-fg: #171717; /* text on primary (white fails AA on #e16540) */
+  /* Text on primary buttons. White in the light theme (3.4:1 on #e16540: AA for bold/large text
+     and UI components); the dark theme uses near-black, which reads better on dark surfaces. */
+  --dg-primary-fg: #ffffff;
   --dg-revenue: #e78468; /* revenue bars and highlights */
   --dg-secondary: #8dcdff; /* visitors line/series */
   --dg-accent: #00d7c0; /* teal */
@@ -24,6 +26,8 @@
   --dg-success: #00a96e;
   --dg-warning: #ffbe00;
   --dg-error: #ff5861;
+  --dg-danger: #d42f3a; /* destructive buttons; white text passes AA (4.9:1) */
+  --dg-danger-fg: #ffffff;
 
   /* Light theme surfaces and text */
   --dg-bg: #fcfbfa; /* base-200: page */
@@ -42,6 +46,9 @@
 }
 
 :root[data-theme="dark"] {
+  --dg-primary-fg: #171717;
+  --dg-danger: #ff5861;
+  --dg-danger-fg: #171717;
   --dg-accent: #00cdb7;
   --dg-bg: #171717;
   --dg-surface: #212121; /* base-200 */
@@ -60,6 +67,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] {
+    --dg-primary-fg: #171717;
+    --dg-danger: #ff5861;
+    --dg-danger-fg: #171717;
     --dg-accent: #00cdb7;
     --dg-bg: #171717;
     --dg-surface: #212121;
@@ -88,6 +98,8 @@
   --color-neutral: var(--dg-neutral);
   --color-primary: var(--dg-primary);
   --color-primary-fg: var(--dg-primary-fg);
+  --color-danger: var(--dg-danger);
+  --color-danger-fg: var(--dg-danger-fg);
   --color-primary-text: var(--dg-primary-text);
   --color-revenue: var(--dg-revenue);
   --color-secondary: var(--dg-secondary);

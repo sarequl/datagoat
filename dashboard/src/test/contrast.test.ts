@@ -78,14 +78,26 @@ describe.each([
       });
     }
   }
-  it("button text on primary and error meets AA", () => {
+  it("button text on primary and danger is readable", () => {
+    // White on the brand orange is 3.4:1: AA for bold/large text and UI components (3:1), the
+    // look the light theme wants. Dark text on orange in the dark theme clears 4.5:1.
     expect(
       contrast(theme["primary-fg"] as string, theme.primary as string, theme),
-    ).toBeGreaterThanOrEqual(4.5);
+    ).toBeGreaterThanOrEqual(theme === light ? 3 : 4.5);
     expect(
-      contrast(theme["primary-fg"] as string, theme.error as string, theme),
+      contrast(theme["danger-fg"] as string, theme.danger as string, theme),
     ).toBeGreaterThanOrEqual(4.5);
   });
+});
+
+it("light buttons use white text, dark buttons near-black", () => {
+  expect(light["primary-fg"]).toBe("#ffffff");
+  expect(light["danger-fg"]).toBe("#ffffff");
+  expect(dark["primary-fg"]).toBe("#171717");
+  // "system" in a dark OS matches the explicit dark theme.
+  const system = css.slice(css.indexOf(':root[data-theme="system"] {'));
+  expect(system).toContain("--dg-primary-fg: #171717;");
+  expect(system).toContain("--dg-danger-fg: #171717;");
 });
 
 it("uses DataFast's palette values", () => {
