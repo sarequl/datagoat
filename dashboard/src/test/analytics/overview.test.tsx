@@ -101,6 +101,22 @@ describe("overview", () => {
     expect(within(source).getAllByRole("listitem").length).toBeGreaterThan(0);
   });
 
+  it("filters commit markers by type (feat:, fix:)", async () => {
+    renderSite("overview");
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /commit/ }).length).toBeGreaterThan(0),
+    );
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Commit type" }), "fix:");
+    await waitFor(() =>
+      expect(screen.queryAllByRole("button", { name: /commit/ })).toHaveLength(0),
+    );
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Commit type" }), "feat:");
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /commit/ }).length).toBeGreaterThan(0),
+    );
+    window.localStorage.clear();
+  });
+
   it("filters on row click and shows the filter as a removable chip", async () => {
     renderSite("overview");
     const source = await screen.findByTestId("card-source");

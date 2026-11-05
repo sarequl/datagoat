@@ -33,7 +33,8 @@ card, or use its *Move up* / *Move down* buttons, to change the order; it is sav
   (conversion rate, revenue per visitor, bounce rate, session time, sessions, pageviews, payments)
   with the previous period dashed; click Visitors for new vs returning. Click it again, or
   *← Visitors / Revenue*, to go back.
-- **Markers.** Notes 📝, GitHub commits and 𝕏 mentions appear under the chart (toggle each kind).
+- **Markers.** Notes 📝, GitHub commits and 𝕏 mentions appear under the chart (toggle each kind;
+  narrow commits to a type such as `feat:` or `fix:`).
   Click a point to pin its numbers (handy for screenshots) with *Add note here* and *View this
   day/week/month*. Click a marker to read, edit or
   delete notes. Keyboard: focus the chart, move with ←/→ (Home/End), Enter for actions, Esc to close.

@@ -364,7 +364,15 @@ export function OverviewDashboard({
   const site = source.kind === "site" ? source : null;
   const markerRange = state.range.kind === "all" ? {} : rangeToParams(state.range, state.timezone);
   const notes = useNotes(siteId ?? "", markerRange, Boolean(siteId) && markerKinds.notes);
-  const commits = useCommits(siteId ?? "", markerRange, Boolean(siteId) && markerKinds.commits);
+  // DataFast: focus commit markers on a type such as feat: or fix: (message prefix).
+  const [commitPrefix, setCommitPrefix] = useState(() =>
+    readPref<string>(`commit-prefix:${sourceKey(source)}`, ""),
+  );
+  const commits = useCommits(
+    siteId ?? "",
+    commitPrefix ? { ...markerRange, q: commitPrefix } : markerRange,
+    Boolean(siteId) && markerKinds.commits,
+  );
   const mentions = useMentions(siteId ?? "", markerRange, Boolean(siteId) && markerKinds.mentions);
   const noteMutations = useNoteMutations(siteId ?? "");
   const liveCount = useRealtimeCount(siteId ?? "", Boolean(siteId));
@@ -573,6 +581,24 @@ export function OverviewDashboard({
                   {label}
                 </button>
               ))}
+              {markerKinds.commits ? (
+                <select
+                  aria-label="Commit type"
+                  value={commitPrefix}
+                  onChange={(e) => {
+                    setCommitPrefix(e.target.value);
+                    writePref(`commit-prefix:${sourceKey(source)}`, e.target.value);
+                  }}
+                  className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
+                >
+                  <option value="">All commits</option>
+                  <option value="feat:">feat:</option>
+                  <option value="fix:">fix:</option>
+                  <option value="perf:">perf:</option>
+                  <option value="refactor:">refactor:</option>
+                  <option value="docs:">docs:</option>
+                </select>
+              ) : null}
             </div>
           ) : null}
         </div>
