@@ -37,3 +37,4 @@ All notable changes to DataGoat are recorded here. The format follows
 - API playground page: try analytics, revenue, visitors and mentions endpoints with your session and copy the matching curl command (DataFast's docs playground).
 - `/llms.txt`: a static summary of the API, MCP server and tracker for AI agents.
 - Visitor journeys: sessions from Google search show the Search Console queries that most likely brought the visitor, with their share of clicks (`sessions[].searchKeywords` in the visitor profile API).
+- `docs/PARITY.md`: a feature-by-feature audit of DataGoat against DataFast (docs, changelog, research), with status, implementing files and reasons for every gap.

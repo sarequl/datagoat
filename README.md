@@ -166,6 +166,10 @@ Serve DataGoat from a subdomain such as `analytics.example.com`, or from a path 
 3. Leave your checkout code alone: DataGoat reads `datafast_visitor_id` from Stripe, Polar and Lemon Squeezy metadata, and `window.datafast("goal")` calls still work.
 4. Optionally import history from Plausible.
 
+[`docs/PARITY.md`](docs/PARITY.md) lists every DataFast feature with its status in DataGoat
+(done, done but untested against the real third-party service, partial, or not done and why), and
+[`docs/switching-from-datafast.md`](docs/switching-from-datafast.md) walks through the move.
+
 DataGoat is an independent project. It is not affiliated with or endorsed by DataFast.
 
 ## Privacy modes
