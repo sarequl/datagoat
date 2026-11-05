@@ -19,6 +19,8 @@ test.describe("overview", () => {
     await expect(page.getByTestId("kpi-goal")).toContainText("#1 KPI");
     const chart = page.getByRole("slider", { name: /Visitors and revenue over time/ });
     await expect(chart).toBeVisible();
+    // With the MRR and ROAS tiles the chart can start below the fold.
+    await chart.scrollIntoViewIfNeeded();
     const box = await chart.boundingBox();
     if (!box) throw new Error("chart has no box");
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

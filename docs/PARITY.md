@@ -100,7 +100,7 @@ Rows marked "finisher" were added or fixed in this audit.
 | Filter commits by type (`feat:`, `fix:`) | Done | `OverviewDashboard.tsx`, `/api/v1/github/commits?q=` | finisher |
 | Period selector: today, yesterday, last 24 h, 7 d, 30 d, more periods (3 / 6 / 12 months …), custom range | Done | `dashboard/src/analytics/components/PeriodSelector.tsx` | |
 | "Now" period (last 30 minutes, refreshes every minute) | Done | `PeriodSelector.tsx`, `interval=minute` | |
-| Pin favourite periods per website | Partial | `PeriodSelector.tsx` | pins are kept per website **in this browser** (localStorage), not synced across devices |
+| Pin favourite periods per website | Partial | `PeriodSelector.tsx` | pins are kept per website **in this browser** (localStorage), so they do not follow you to another device or browser |
 | Date hopping arrows | Done | `PeriodSelector.tsx` | |
 | Keyboard shortcuts T, Y, D, W, 3, N, M | Done | `dashboard/src/analytics/lib/period.ts` | finisher: D and 3 now mean last 24 hours and last 30 days as in DataFast |
 | Refresh button | Done | `OverviewDashboard.tsx` | |
