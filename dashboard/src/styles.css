@@ -8,12 +8,15 @@
  *
  * Themes: <html data-theme="dark|light|system">. Dark is the default (index.html); "system"
  * follows prefers-color-scheme. The top-bar toggle stores the choice in localStorage.
+ * An element can also carry data-theme="dark|light" to show its subtree in that theme (the
+ * realtime map's panels follow the map style).
  * Text pairs are checked for WCAG AA (4.5:1) by src/test/contrast.test.ts; the *-text tokens are
  * darkened/lightened variants of status colours used for text so they pass on both themes.
  */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-:root {
+:root,
+[data-theme="light"] {
   /* Brand and status palette (same in both themes unless overridden) */
   --dg-primary: #e16540; /* main brand: buttons, active state, revenue */
   /* Text on primary buttons. White in the light theme (3.4:1 on #e16540: AA for bold/large text
@@ -45,7 +48,8 @@
   --dg-info-text: #00648f;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+[data-theme="dark"] {
   --dg-primary-fg: #171717;
   --dg-danger: #ff5861;
   --dg-danger-fg: #171717;
@@ -129,11 +133,13 @@ body {
   font-family: var(--font-sans);
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+[data-theme="dark"] {
   color-scheme: dark;
 }
 
-:root[data-theme="light"] {
+:root[data-theme="light"],
+[data-theme="light"] {
   color-scheme: light;
 }
 

@@ -20,8 +20,8 @@ function block(selector: string): Record<string, string> {
   );
 }
 
-const light = block(":root");
-const dark = { ...light, ...block(':root[data-theme="dark"]') };
+const light = block(':root,\n[data-theme="light"]');
+const dark = { ...light, ...block(':root[data-theme="dark"],\n[data-theme="dark"]') };
 
 function rgb(value: string, under: [number, number, number]): [number, number, number] {
   const hex = /^#([0-9a-f]{6})$/i.exec(value);

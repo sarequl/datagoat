@@ -31,6 +31,7 @@ import { MAP_STYLE_KEYS, MAP_STYLES, type MapStyle } from "../../analytics/lib/m
 import { initials, visitorName } from "../../analytics/lib/names";
 import { readPref, writePref } from "../../analytics/lib/storage";
 import { SiteAnalytics } from "../../analytics/SiteAnalytics";
+import { useResolvedTheme } from "../../components/ThemeToggle";
 import { cx } from "../../components/ui";
 
 const MarkerMap = lazy(() =>
@@ -290,7 +291,12 @@ export function RealtimeView({
 }) {
   const map = useRealtimeMap(siteId ?? "", 15_000, share?.token);
   const [view, setView] = useState<View>(() => readPref<View>("realtime:view", "globe"));
-  const [style, setStyle] = useState<MapStyle>(() => readPref<MapStyle>("realtime:style", "dark"));
+  // "auto" follows the app theme. (A new key: the old one stored "dark" for everyone on first visit.)
+  const [styleChoice, setStyleChoice] = useState<MapStyle | "auto">(() =>
+    readPref<MapStyle | "auto">("realtime:mapStyle", "auto"),
+  );
+  const theme = useResolvedTheme();
+  const style: MapStyle = styleChoice === "auto" ? theme : styleChoice;
   const [autoRotate, setAutoRotate] = useState(true);
   const [replay, setReplay] = useState(false);
   const [frame, setFrame] = useState(31);
@@ -303,7 +309,7 @@ export function RealtimeView({
   const frames = replayQ.data?.frames ?? [];
 
   useEffect(() => writePref("realtime:view", view), [view]);
-  useEffect(() => writePref("realtime:style", style), [style]);
+  useEffect(() => writePref("realtime:mapStyle", styleChoice), [styleChoice]);
   useEffect(() => {
     if (!playing || !frames.length) return;
     const id = setInterval(() => {
@@ -403,10 +409,11 @@ export function RealtimeView({
           <label className="flex items-center gap-1 text-xs text-muted">
             Style
             <select
-              value={style}
-              onChange={(e) => setStyle(e.target.value as MapStyle)}
+              value={styleChoice}
+              onChange={(e) => setStyleChoice(e.target.value as MapStyle | "auto")}
               className="rounded-md border border-line bg-surface px-2 py-1 text-xs text-text"
             >
+              <option value="auto">Match theme</option>
               {MAP_STYLE_KEYS.map((k) => (
                 <option key={k} value={k}>
                   {MAP_STYLES[k].label}
@@ -464,7 +471,9 @@ export function RealtimeView({
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div
           ref={stage}
-          className="relative min-w-0 overflow-hidden rounded-lg border border-line p-3"
+          // Panels over the map take the map's light or dark look, not the app theme's.
+          data-theme={MAP_STYLES[style].dark ? "dark" : "light"}
+          className="relative min-w-0 overflow-hidden rounded-lg border border-line p-3 text-text"
           style={{ background: MAP_STYLES[style].ocean }}
         >
           {summary ? (

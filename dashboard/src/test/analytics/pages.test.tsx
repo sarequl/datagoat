@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
@@ -32,6 +32,23 @@ describe("realtime", () => {
     expect(await screen.findByRole("list", { name: "Recent payments" })).toHaveTextContent("+$99");
   });
 
+  it("matches the map style to the app theme until a style is picked", async () => {
+    document.documentElement.setAttribute("data-theme", "light");
+    const { container } = renderSite("realtime");
+    await screen.findByRole("list", { name: "Active visitors" });
+    expect(screen.getByLabelText("Style")).toHaveValue("auto");
+    const stage = () => container.querySelector("div[data-theme]");
+    expect(stage()).toHaveAttribute("data-theme", "light");
+    act(() => document.documentElement.setAttribute("data-theme", "dark"));
+    await waitFor(() => expect(stage()).toHaveAttribute("data-theme", "dark"));
+    // A dark style keeps its dark panels in the light theme.
+    act(() => document.documentElement.setAttribute("data-theme", "light"));
+    await userEvent.selectOptions(screen.getByLabelText("Style"), "satellite");
+    expect(stage()).toHaveAttribute("data-theme", "dark");
+    document.documentElement.setAttribute("data-theme", "dark");
+    window.localStorage.clear();
+  });
+
   it("filters live visitors by country, switches view and style, and replays the last 8 hours", async () => {
     renderSite("realtime");
     const list = await screen.findByRole("list", { name: "Active visitors" });
@@ -45,7 +62,7 @@ describe("realtime", () => {
     await userEvent.click(screen.getByRole("button", { name: "2D map" }));
     expect(screen.getByRole("button", { name: "2D map" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.selectOptions(screen.getByLabelText("Style"), "satellite");
-    expect(window.localStorage.getItem("dg:realtime:style")).toBe('"satellite"');
+    expect(window.localStorage.getItem("dg:realtime:mapStyle")).toBe('"satellite"');
     await userEvent.click(screen.getByRole("button", { name: "Replay" }));
     expect(await screen.findByTestId("replay-time")).toHaveTextContent(/visitors · \d+ pageviews/);
     const slider = screen.getByRole("slider", { name: "Replay time" });

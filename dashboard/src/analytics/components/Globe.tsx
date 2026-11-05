@@ -44,6 +44,22 @@ function toRgb(color: string): [number, number, number] {
   return [0.88, 0.4, 0.25];
 }
 
+/** The centre of the 20°×20° cell holding the most markers (where most visitors are). */
+export function busiest(markers: { lat: number; lng: number }[]): { lat: number; lng: number } {
+  const cells = new Map<string, { n: number; lat: number; lng: number }>();
+  let best: { n: number; lat: number; lng: number } | null = null;
+  for (const m of markers) {
+    const key = `${Math.floor(m.lat / 20)}:${Math.floor(m.lng / 20)}`;
+    const cell = cells.get(key) ?? { n: 0, lat: 0, lng: 0 };
+    cell.n += 1;
+    cell.lat += m.lat;
+    cell.lng += m.lng;
+    cells.set(key, cell);
+    if (!best || cell.n > best.n) best = cell;
+  }
+  return best ? { lat: best.lat / best.n, lng: best.lng / best.n } : { lat: 0, lng: 0 };
+}
+
 const markerId = (id: string) => `v${id.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
 export default function Globe({
@@ -88,9 +104,15 @@ export default function Globe({
   const markersRef = useRef(cobeMarkers);
   markersRef.current = cobeMarkers;
 
+  // Start facing the visitors: the first time markers arrive (and nothing is focused), turn to
+  // the busiest spot; auto-rotation carries on from there.
+  const centred = useRef(false);
+  const start = useMemo(() => (markers.length ? busiest(markers) : null), [markers]);
+  const aim = focus ?? (centred.current ? null : start);
   useEffect(() => {
-    if (!focus) return;
-    const [phi, theta] = locationToAngles(focus.lat, focus.lng);
+    if (aim?.lat === undefined || aim.lng === undefined) return;
+    centred.current = true;
+    const [phi, theta] = locationToAngles(aim.lat, aim.lng);
     const s = state.current;
     // rotate the shortest way round
     const twoPi = Math.PI * 2;
@@ -99,7 +121,7 @@ export default function Globe({
     while (s.phi - target > Math.PI) target += twoPi;
     s.targetPhi = target;
     s.targetTheta = Math.max(-1, Math.min(1, theta));
-  }, [focus]);
+  }, [aim?.lat, aim?.lng]);
 
   useEffect(() => {
     if (!webgl || !host.current) return;

@@ -6,6 +6,8 @@ export type MapStyle = "outdoors" | "dark" | "light" | "satellite";
 
 export interface MapPalette {
   label: string;
+  /** Dark background: panels drawn over the map use the dark theme. */
+  dark: boolean;
   ocean: string;
   land: string;
   border: string;
@@ -21,6 +23,7 @@ export interface MapPalette {
 export const MAP_STYLES: Record<MapStyle, MapPalette> = {
   outdoors: {
     label: "Outdoors",
+    dark: false,
     ocean: "#cfe5ee",
     land: "#e4ecd3",
     border: "#b5c39f",
@@ -28,6 +31,7 @@ export const MAP_STYLES: Record<MapStyle, MapPalette> = {
   },
   dark: {
     label: "Dark",
+    dark: true,
     ocean: "#141414",
     land: "#2b2b2b",
     border: "#3d3d3d",
@@ -35,6 +39,7 @@ export const MAP_STYLES: Record<MapStyle, MapPalette> = {
   },
   light: {
     label: "Light",
+    dark: false,
     ocean: "#f3f3f1",
     land: "#dcdcd8",
     border: "#c4c4bf",
@@ -42,6 +47,7 @@ export const MAP_STYLES: Record<MapStyle, MapPalette> = {
   },
   satellite: {
     label: "Satellite",
+    dark: true,
     ocean: "#0b1d33",
     land: "#3d4a2c",
     border: "#5a6a43",
