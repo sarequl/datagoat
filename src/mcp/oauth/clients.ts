@@ -206,23 +206,27 @@ export function validateClientMetadata(
       "Client metadata documents must use token_endpoint_auth_method none",
     );
   }
-  const grantTypes = m.grant_types ?? ["authorization_code", "refresh_token"];
-  if (
-    !Array.isArray(grantTypes) ||
-    grantTypes.length === 0 ||
-    !grantTypes.every((g) => g === "authorization_code" || g === "refresh_token")
-  ) {
-    throw new ClientError(
-      "invalid_client_metadata",
-      "grant_types may contain only authorization_code and refresh_token",
-    );
+  // Clients may list grant types this server does not offer (Claude's published metadata also
+  // lists urn:ietf:params:oauth:grant-type:jwt-bearer). Keep the ones we support and ignore the
+  // rest (RFC 7591 §2: the server may reject or replace values); authorization_code is required.
+  const requested = m.grant_types ?? ["authorization_code", "refresh_token"];
+  if (!Array.isArray(requested) || !requested.every((g) => typeof g === "string")) {
+    throw new ClientError("invalid_client_metadata", "grant_types must be an array of strings");
   }
+  const grantTypes = requested.filter(
+    (g): g is "authorization_code" | "refresh_token" =>
+      g === "authorization_code" || g === "refresh_token",
+  );
   if (!grantTypes.includes("authorization_code")) {
     throw new ClientError("invalid_client_metadata", "grant_types must include authorization_code");
   }
   const responseTypes = m.response_types ?? ["code"];
-  if (!Array.isArray(responseTypes) || !responseTypes.every((r) => r === "code")) {
-    throw new ClientError("invalid_client_metadata", "response_types may contain only code");
+  if (
+    !Array.isArray(responseTypes) ||
+    !responseTypes.every((r) => typeof r === "string") ||
+    !responseTypes.includes("code")
+  ) {
+    throw new ClientError("invalid_client_metadata", "response_types must include code");
   }
   let name: string | null = null;
   if (m.client_name !== undefined && m.client_name !== null) {

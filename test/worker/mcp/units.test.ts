@@ -76,6 +76,40 @@ describe("client ID metadata documents", () => {
     expect(isMetadataUrl("dgc_abc")).toBe(false);
   });
 
+  it("accepts Claude's published document, ignoring grant types we do not offer", async () => {
+    // Exactly what https://claude.ai/oauth/mcp-oauth-client-metadata serves (Nov 2026).
+    const CLAUDE = "https://claude.ai/oauth/mcp-oauth-client-metadata";
+    const claude = {
+      client_id: CLAUDE,
+      client_name: "Claude",
+      client_uri: "https://claude.ai",
+      redirect_uris: ["https://claude.ai/api/mcp/auth_callback"],
+      grant_types: [
+        "authorization_code",
+        "refresh_token",
+        "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      ],
+      response_types: ["code"],
+      token_endpoint_auth_method: "none",
+    };
+    const client = await findClient(env.DB, CLAUDE, Date.now(), fetcher(claude) as typeof fetch);
+    expect(client).toMatchObject({
+      id: CLAUDE,
+      name: "Claude",
+      authMethod: "none",
+      grantTypes: ["authorization_code", "refresh_token"],
+    });
+    // A document without authorization_code is still refused.
+    await expect(
+      findClient(
+        env.DB,
+        URL_ID,
+        Date.now(),
+        fetcher({ ...doc, grant_types: ["client_credentials"] }) as typeof fetch,
+      ),
+    ).rejects.toThrow(/authorization_code/);
+  });
+
   it("fetches, validates and caches a document", async () => {
     let calls = 0;
     const counting = async () => {
