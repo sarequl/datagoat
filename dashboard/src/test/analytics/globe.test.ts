@@ -19,8 +19,8 @@ describe("globe start position", () => {
   });
 });
 
-it("auto-rotates slowly: about one turn an hour at 60 fps", () => {
+it("auto-rotates slowly: about one turn every 20 minutes at 60 fps", () => {
   const minutesPerTurn = (2 * Math.PI) / AUTO_ROTATE_PER_FRAME / 60 / 60;
-  expect(minutesPerTurn).toBeGreaterThan(50);
-  expect(minutesPerTurn).toBeLessThan(70);
+  expect(minutesPerTurn).toBeGreaterThan(17);
+  expect(minutesPerTurn).toBeLessThan(23);
 });
