@@ -11,7 +11,7 @@ One Worker, one D1 database, one script tag. MIT licensed.
 
 </div>
 
-> **Status: in active development.** The feature list below is the full scope being built. [`CHANGELOG.md`](CHANGELOG.md) records what has shipped. Until the first release, expect breaking changes.
+> **Status: pre-release.** Every feature below is built and covered by automated tests, and [`docs/PARITY.md`](docs/PARITY.md) tracks each DataFast feature in detail. Integrations with outside services (payment providers, email, X, Reddit, GitHub, Google, Meta, Expo push) are tested against mocked APIs only, so treat them as beta until you have verified them with your own accounts. Expect breaking changes until the first release.
 
 ## Why DataGoat
 
