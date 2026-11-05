@@ -13,6 +13,7 @@ import type { AppEnv } from "../types";
 import { type McpCaller, resolveMcpCaller, wwwAuthenticate } from "./auth";
 import { type CallToolResult, callTool } from "./executor";
 import { findTool, listTools } from "./tools";
+import { listWidgetResources, readWidgetResource } from "./widgets";
 
 export const SERVER_NAME = "datagoat";
 export const SERVER_VERSION = "0.1.0";
@@ -92,7 +93,7 @@ async function dispatch(message: JsonRpcRequest, s: Session): Promise<unknown> {
     case "initialize":
       return {
         protocolVersion: negotiate(params.protocolVersion),
-        capabilities: { tools: { listChanged: false } },
+        capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
         serverInfo: { name: SERVER_NAME, title: "DataGoat", version: SERVER_VERSION },
         instructions: INSTRUCTIONS,
       };
@@ -116,7 +117,13 @@ async function dispatch(message: JsonRpcRequest, s: Session): Promise<unknown> {
       return result;
     }
     case "resources/list":
-      return { resources: [] };
+      return { resources: listWidgetResources() };
+    case "resources/read": {
+      const uri = params.uri;
+      const res = typeof uri === "string" ? readWidgetResource(uri) : null;
+      if (!res) throw new RpcError(-32602, `Unknown resource: ${String(uri)}`);
+      return res;
+    }
     case "resources/templates/list":
       return { resourceTemplates: [] };
     case "prompts/list":

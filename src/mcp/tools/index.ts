@@ -4,6 +4,7 @@
  * accepted as aliases so prompts and scripts written for DataFast keep working.
  */
 import { z } from "zod";
+import { WIDGET_TOOLS, widgetToolMeta } from "../widgets";
 import { accountTools } from "./account";
 import { analyticsTools } from "./analytics";
 import type { ToolDef } from "./kit";
@@ -95,6 +96,8 @@ export function listTools(): ListedTool[] {
         "datagoat/permission": tool.permission,
         "datagoat/oauthScopes": tool.oauth,
         "datagoat/access": tool.access,
+        // Clients that render UI (MCP Apps, ChatGPT apps) draw these results as charts.
+        ...(WIDGET_TOOLS.has(tool.name) ? widgetToolMeta() : {}),
       },
     };
   });

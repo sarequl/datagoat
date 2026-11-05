@@ -414,6 +414,11 @@ Imported data contract for the analytics layer: `src/growth/imports/read.ts` (`i
 | POST            | `/oauth/revoke`                                                                                           | RFC 7009; revoking a refresh token revokes the connection                                                                                                                                                                                                                                    |
 | GET / DELETE    | `/api/v1/admin/oauth/connections[/:id]` (DG)                                                              | session or `dft_` with api-keys:read/write → `OAuthConnection[]` / `[{message: "Access revoked"}]`; DELETE also revokes credentials minted through the connection                                                                                                                             |
 
+Finisher: `resources/list` and `resources/read` serve the chart view for UI-capable clients
+(`ui://datagoat/chart.html`, `text/html;profile=mcp-app`, and `ui://datagoat/chart.skybridge.html`,
+`text/html+skybridge`); analytics read tools that it can draw carry `_meta.ui.resourceUri` and
+`_meta["openai/outputTemplate"]` (`src/mcp/widgets.ts`). `initialize` advertises `resources`.
+
 OAuth access tokens authenticate only at `/mcp` and `/api/mcp` (never `/api/v1`). OAuth scopes are
 the permissions of §1.8 plus `account:read|write`, `access-tokens:read|write`, `visitors:read`,
 `visitors:details` (PII), `bot-credentials:read|write` and `account-usage:read`; there is no
