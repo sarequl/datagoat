@@ -156,7 +156,7 @@ test.describe("phone width (390 px)", () => {
       "share",
       "usage",
     ].map((p) => `/app/${SITE}/${p}`);
-    for (const path of [...paths, "/app/account", "/app/new-site"]) {
+    for (const path of [...paths, "/app/account", "/app/websites", "/app/new-site"]) {
       await go(page, path);
       await expect(page.locator("main h1").first()).toBeVisible();
       await page.waitForLoadState("networkidle");

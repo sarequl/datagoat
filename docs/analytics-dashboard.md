@@ -5,6 +5,13 @@ and Revenue, plus the public dashboard behind a share link. Every view is a URL:
 granularity, comparison, chart metric and filters are query parameters, so you can bookmark or send
 any view.
 
+## All websites
+
+*All websites* (sidebar, `/app/websites`) lists every website you can open with its visitors,
+revenue and live visitors and a visitors trend for the last 24 hours, 7 days or 30 days. Drag a
+card, or use its *Move up* / *Move down* buttons, to change the order; it is saved to your account
+(`PUT /api/v1/admin/account/website-order`) and the website switcher uses it too.
+
 ## Overview
 
 - **KPI row.** Visitors (with new and returning), revenue, payments, revenue per visitor, conversion

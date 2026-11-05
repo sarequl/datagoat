@@ -197,3 +197,46 @@ describe("account", () => {
     expect(await within(apps).findByText("No connected apps.")).toBeInTheDocument();
   });
 });
+
+describe("all websites", () => {
+  const nameOf = (card: HTMLElement) => within(card).getAllByRole("link")[0]?.textContent ?? "";
+
+  it("shows every website with its numbers and reorders them", async () => {
+    const log = recordRequests();
+    openPage("/app/websites");
+    const list = await screen.findByRole("list", { name: "Websites" });
+    const cards = () => within(list).getAllByRole("listitem");
+    const [first, second] = cards().map(nameOf);
+    await waitFor(() =>
+      expect(
+        within(cards()[0] as HTMLElement).getByText("Visitors").nextSibling,
+      ).not.toHaveTextContent("…"),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Last 7 days" }));
+    expect(screen.getByRole("button", { name: "Last 7 days" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await waitFor(() =>
+      expect(
+        log.some(
+          (r) =>
+            r.path.startsWith("/api/v1/analytics/timeseries") && r.path.includes("interval=day"),
+        ),
+      ).toBe(true),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: `Move ${second} up` }));
+    await waitFor(() =>
+      expect(writes(log, "PUT", "/api/v1/admin/account/website-order")).toHaveLength(1),
+    );
+    const body = writes(log, "PUT", "/api/v1/admin/account/website-order")[0]?.body as {
+      websiteIds: string[];
+    };
+    expect(body.websiteIds[0]).toBe(state.websites[0]?._id);
+    expect(cards().map(nameOf).slice(0, 2)).toEqual([second, first]);
+    // The website switcher follows the new order.
+    const switcher = screen.getAllByRole("combobox", { name: "Website" })[0] as HTMLElement;
+    expect(within(switcher).getAllByRole("option")[0]).toHaveTextContent(String(second));
+  });
+});

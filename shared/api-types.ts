@@ -261,6 +261,11 @@ export interface CreateWebsiteRequest {
   currency?: string;
 }
 
+/** DG `PUT /api/v1/admin/account/website-order`: the caller's website order (ids or tracking ids). */
+export interface WebsiteOrderRequest {
+  websiteIds: string[];
+}
+
 export interface CreatedWebsite {
   websiteId: string;
   domain: string;

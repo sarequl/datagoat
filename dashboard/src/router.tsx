@@ -7,7 +7,7 @@
  *   /share/$token             public read-only dashboard (W4)
  *   /oauth/consent            MCP OAuth consent (W7; the Worker serves this SPA for /oauth/*)
  *   /app                      signed-in area → first website or /app/new-site
- *   /app/new-site /app/account
+ *   /app/new-site /app/websites (all websites) /app/account
  *   /app/$siteId/<page>       every entry of SITE_PAGES
  */
 import type { QueryClient } from "@tanstack/react-query";
@@ -133,6 +133,11 @@ const newSiteRoute = createRoute({
   path: "/new-site",
   component: page("account/NewSitePage"),
 });
+const websitesRoute = createRoute({
+  getParentRoute: () => plainRoute,
+  path: "/websites",
+  component: page("account/WebsitesPage"),
+});
 const accountRoute = createRoute({
   getParentRoute: () => plainRoute,
   path: "/account",
@@ -190,7 +195,7 @@ export const routeTree = rootRoute.addChildren([
   consentRoute,
   appRoute.addChildren([
     appIndexRoute,
-    plainRoute.addChildren([newSiteRoute, accountRoute]),
+    plainRoute.addChildren([newSiteRoute, websitesRoute, accountRoute]),
     siteRoute.addChildren([siteIndexRoute, settingsIndexRoute, ...sitePageRoutes]),
   ]),
 ]);
