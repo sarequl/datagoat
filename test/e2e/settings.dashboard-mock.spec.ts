@@ -107,6 +107,14 @@ test("team invite, API key shown once, and integrations", async ({ page }) => {
   await expect(polar.getByText("Connected", { exact: true })).toBeVisible();
 });
 
+/** Integrations rows open their setup with Manage, Set up or Details. */
+async function openMetaRow(page: Page) {
+  await page
+    .locator("#integration-meta-ads")
+    .getByRole("button", { name: /^(Manage|Set up|Details)$/ })
+    .click();
+}
+
 /** The copy button must sit outside the code text: no overlap, no clipped or scrolled-away text. */
 async function expectCodeBlockReadable(page: Page, name: string) {
   const figure = page.getByRole("figure", { name });
@@ -128,6 +136,7 @@ async function expectCodeBlockReadable(page: Page, name: string) {
 test("Meta Ads UTM template is fully readable next to its copy button", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await open(page, `/app/${SITE}/integrations`);
+  await openMetaRow(page);
   await expectCodeBlockReadable(page, "Meta URL parameters");
   await page.getByRole("button", { name: "Copy Meta URL parameters" }).click();
   await expect(page.getByRole("figure", { name: "Meta URL parameters" })).toContainText("Copied");
@@ -171,6 +180,7 @@ test.describe("phone width (390 px)", () => {
 
   test("the Meta Ads UTM template wraps beside its copy button", async ({ page }) => {
     await open(page, `/app/${SITE}/integrations`);
+    await openMetaRow(page);
     await expectCodeBlockReadable(page, "Meta URL parameters");
   });
 
