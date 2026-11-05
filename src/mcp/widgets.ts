@@ -53,7 +53,7 @@ export function widgetToolMeta(): Record<string, unknown> {
   };
 }
 
-const SCRIPT = String.raw`
+const SCRIPT = `
 (function () {
   var root = document.getElementById("root");
   var LABEL_KEYS = ["channel", "referrer", "goal", "path", "page", "url", "country", "region", "city",
