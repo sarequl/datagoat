@@ -67,6 +67,38 @@ describe("overview", () => {
     expect(screen.getAllByRole("button", { name: /commit/ }).length).toBeGreaterThan(0);
   });
 
+  it("shows MRR, ROAS, ad campaigns and Search Console keywords on the overview", async () => {
+    server.use(
+      http.get("/api/v1/search-console/status", () =>
+        HttpResponse.json({ status: "success", data: { connected: true } }),
+      ),
+    );
+    resetMockState({ signedIn: true });
+    const site = state.websites.find((w) => w._id === SITE);
+    if (site) site.revenueMetric = "mrr";
+    renderApp(`/app/${SITE}/overview`);
+    // Headline metric MRR: right after Visitors.
+    const mrr = await screen.findByTestId("kpi-mrr");
+    expect(mrr).toHaveTextContent(/MRR\s*\$1,247/);
+    expect(mrr).toHaveTextContent("43 active subscriptions");
+    const tiles = within(screen.getByRole("list", { name: "Key metrics" })).getAllByRole(
+      "listitem",
+    );
+    expect(tiles[1]).toBe(mrr.closest("li"));
+    expect(await screen.findByTestId("kpi-roas")).toHaveTextContent(/ROAS\s*2\.80x/);
+    expect(screen.getByTestId("kpi-roas")).toHaveTextContent("$500 ad spend");
+
+    const source = screen.getByTestId("card-source");
+    await userEvent.click(await within(source).findByRole("tab", { name: "Ads" }));
+    const campaign = await within(source).findByRole("button", { name: /^Filter by .*spend/ });
+    await userEvent.click(campaign);
+    await waitFor(() => expect(search().get("filter_utm_campaign")).toMatch(/^is:\d+$/));
+
+    await userEvent.click(within(source).getByRole("tab", { name: "Keyword" }));
+    expect(await within(source).findByText("Est. revenue")).toBeInTheDocument();
+    expect(within(source).getAllByRole("listitem").length).toBeGreaterThan(0);
+  });
+
   it("filters on row click and shows the filter as a removable chip", async () => {
     renderSite("overview");
     const source = await screen.findByTestId("card-source");

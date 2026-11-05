@@ -3,13 +3,15 @@
  * revenue and payments (exit links: visitors and clicks) and adds a filter when clicked. With a
  * goal as #1 KPI, the card can show that goal's converting visitors per row instead of revenue.
  */
+import { useQuery } from "@tanstack/react-query";
 import { lazy, type ReactNode, Suspense, useMemo, useState } from "react";
 import type { CountryRow } from "../../../../shared/api-types";
+import { api, type Query } from "../../api/client";
 import { cx } from "../../components/ui";
 import { type ActiveFilter, upsertFilter } from "../lib/filters";
 import { formatMoney, formatNumber } from "../lib/format";
 import { readPref, writePref } from "../lib/storage";
-import { showRevenue, useAnalytics, useSource } from "../source";
+import { showRevenue, sourceKey, useAnalytics, useSource } from "../source";
 import type { DashboardState } from "../state";
 import { Dialog, EmptyState, ErrorState, Segmented, Skeleton, Tabs } from "./primitives";
 
@@ -50,6 +52,20 @@ export interface BreakdownTab {
   donut?: boolean;
   /** After filtering on a row, switch the card to this tab (channel → its referrers). */
   drillTo?: string;
+  /**
+   * Growth tabs: read this API path (signed-in websites only) with the period instead of
+   * `/api/v1/analytics/<endpoint>`; `pageFilter` forwards the dashboard's page filter.
+   */
+  path?: string;
+  pageFilter?: boolean;
+  /** Normalise the API row into Row fields (visitors/revenue/payments drive the columns). */
+  mapRow?: (row: Row) => Row;
+  /** Column headings (defaults: Visitors, Revenue, Payments). */
+  labels?: { visitors?: string; revenue?: string; payments?: string };
+  /** Display label when it differs from the filter value. */
+  rowLabel?: (row: Row) => string;
+  /** Small muted text after the label (ad spend and ROAS). */
+  note?: (row: Row) => string | null;
 }
 
 const DONUT_COLORS = [
@@ -157,8 +173,34 @@ function useRows(
     limit,
     offset,
   };
-  const q = useAnalytics<Row[]>(tab.endpoint, params, { keepPrevious: false, enabled });
-  const rows = useMemo(() => groupRows(q.data?.data ?? [], tab, variant), [q.data, tab, variant]);
+  const source = useSource();
+  const analytics = useAnalytics<Row[]>(tab.endpoint, params, {
+    keepPrevious: false,
+    enabled: enabled && !tab.path,
+  });
+  const growthParams: Query = {
+    ...state.rangeParams,
+    ...(tab.pageFilter && state.filterParams.filter_page
+      ? { filter_page: state.filterParams.filter_page }
+      : {}),
+    ...(tab.extraParams?.(variant) ?? {}),
+    limit,
+    offset,
+  };
+  const growth = useQuery({
+    queryKey: ["growth-tab", sourceKey(source), tab.path, growthParams],
+    queryFn: () =>
+      api.get<Row[]>(tab.path as string, {
+        websiteId: source.kind === "site" ? source.websiteId : "",
+        ...growthParams,
+      }),
+    enabled: enabled && Boolean(tab.path) && source.kind === "site",
+  });
+  const q = tab.path ? growth : analytics;
+  const rows = useMemo(() => {
+    const raw = q.data?.data ?? [];
+    return groupRows(tab.mapRow ? raw.map(tab.mapRow) : raw, tab, variant);
+  }, [q.data, tab, variant]);
   return { q, rows, hasMore: Boolean(q.data?.pagination?.hasMore) };
 }
 
@@ -191,21 +233,27 @@ function RowList({
     state.setFilters(upsertFilter(state.filters, f));
     onPicked?.();
   };
-  const third = tab.clicks ? "Clicks" : kpiCounts ? kpiLabel : money ? "Revenue" : null;
+  const L = {
+    visitors: tab.labels?.visitors ?? "Visitors",
+    revenue: tab.labels?.revenue ?? "Revenue",
+    payments: tab.labels?.payments ?? "Payments",
+  };
+  const third = tab.clicks ? "Clicks" : kpiCounts ? kpiLabel : money ? L.revenue : null;
   return (
     <div>
       <div className="flex items-center gap-2 px-2 pb-1 text-xs text-muted" aria-hidden="true">
         <span className="flex-1">{tab.label}</span>
-        <span className="w-16 text-right">Visitors</span>
+        <span className="w-16 text-right">{L.visitors}</span>
         {third ? <span className="w-20 text-right">{third}</span> : null}
         {!tab.clicks && money && !kpiCounts ? (
-          <span className="hidden w-14 text-right sm:inline">Payments</span>
+          <span className="hidden w-14 text-right sm:inline">{L.payments}</span>
         ) : null}
       </div>
       <ul className="space-y-0.5">
         {rows.map((r) => {
           const value = tab.value(r, variant);
-          const label = value || "(none)";
+          const label = tab.rowLabel?.(r) || value || "(none)";
+          const note = tab.note?.(r) ?? null;
           const pct = ((r.visitors ?? 0) / max) * 100;
           const href = tab.href?.(r);
           const metrics = (
@@ -229,13 +277,13 @@ function RowList({
               ) : null}
             </>
           );
-          const aria = `${label}: ${formatNumber(r.visitors)} visitors${
+          const aria = `${label}: ${formatNumber(r.visitors)} ${L.visitors.toLowerCase()}${
             tab.clicks
               ? `, ${formatNumber(r.clicks)} clicks`
               : money
-                ? `, ${formatMoney(r.revenue ?? 0, currency)} revenue, ${formatNumber(r.payments ?? 0)} payments`
+                ? `, ${formatMoney(r.revenue ?? 0, currency)} ${L.revenue.toLowerCase()}, ${formatNumber(r.payments ?? 0)} ${L.payments.toLowerCase()}`
                 : ""
-          }`;
+          }${note ? `, ${note}` : ""}`;
           const inner = (
             <>
               <span
@@ -246,6 +294,7 @@ function RowList({
               <span className="relative flex min-w-0 flex-1 items-center gap-2">
                 {tab.icon ? <span className="shrink-0">{tab.icon(r)}</span> : null}
                 <span className="truncate">{label}</span>
+                {note ? <span className="shrink-0 text-xs text-muted">{note}</span> : null}
               </span>
               <span className="relative flex items-center gap-2 text-sm">{metrics}</span>
             </>

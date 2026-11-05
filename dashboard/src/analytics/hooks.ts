@@ -4,6 +4,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  AdsSummary,
   Funnel,
   FunnelResult,
   FunnelStep,
@@ -12,11 +13,13 @@ import type {
   GoalCustomization,
   Mention,
   Metadata,
+  MrrSummary,
   Note,
   PaymentRow,
   RealtimeMap,
   RealtimeReplay,
   RevenueSummary,
+  SearchConsoleStatus,
   Segment,
   TrackedGoal,
   VisitorListRow,
@@ -308,6 +311,44 @@ export function usePayments(websiteId: string, params: Query) {
     queryKey: ["payments", websiteId, params],
     queryFn: () => api.get<PaymentRow[]>("/api/v1/payments", { websiteId, ...params }),
     placeholderData: (prev) => prev,
+  });
+}
+
+/** Current MRR of live subscriptions (DG `/api/v1/analytics/revenue/mrr`). */
+export function useMrr(websiteId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["mrr", websiteId],
+    queryFn: () => apiGet<MrrSummary>("/api/v1/analytics/revenue/mrr", { websiteId }),
+    enabled,
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+/** Meta Ads spend and ROAS for the period; `campaigns === 0` when Meta Ads is not set up. */
+export function useAdsSummary(websiteId: string, params: Query, enabled = true) {
+  return useQuery({
+    queryKey: ["ads-summary", websiteId, params],
+    queryFn: () => apiGet<AdsSummary>("/api/v1/ads/summary", { websiteId, ...params }),
+    enabled,
+    retry: false,
+  });
+}
+
+/** Whether Google Search Console is connected (decides the overview's Keyword tab). */
+export function useSearchConsoleConnected(websiteId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["gsc-connected", websiteId],
+    queryFn: async () =>
+      (
+        await apiGet<SearchConsoleStatus>("/api/v1/search-console/status", {
+          websiteId,
+          properties: 0,
+        })
+      ).connected,
+    enabled,
+    retry: false,
+    staleTime: 5 * 60_000,
   });
 }
 

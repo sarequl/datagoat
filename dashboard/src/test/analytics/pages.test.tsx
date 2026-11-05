@@ -240,6 +240,9 @@ describe("revenue", () => {
   it("shows totals, attribution, LTV, path to purchase and payments with attribution sources", async () => {
     renderSite("revenue");
     expect(await screen.findByTestId("revenue-summary")).toHaveTextContent("Refunds");
+    await waitFor(() =>
+      expect(screen.getByTestId("revenue-summary")).toHaveTextContent(/MRR \(now\)\s*\$1,247/),
+    );
     expect(await screen.findByText(/of revenue linked to a visitor/)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Lifetime value by first channel" }),

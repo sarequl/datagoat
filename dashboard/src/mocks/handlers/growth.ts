@@ -1,5 +1,6 @@
 /** W3 (revenue), W6 (growth) and W7 (OAuth connections) endpoints. */
 import { http } from "msw";
+import type { MrrSummary } from "../../../../shared/api-types";
 import { paymentsFor } from "../fixtures/dashboard";
 import * as g from "../fixtures/growth";
 import { revenueFor } from "../fixtures/model";
@@ -46,6 +47,22 @@ export const growthHandlers = [
     );
   }),
   http.get("/api/v1/analytics/revenue/path-to-purchase", () => ok(g.pathToPurchase)),
+  http.get("/api/v1/analytics/revenue/mrr", ({ request }) => {
+    const id = new URL(request.url).searchParams.get("websiteId");
+    const site = state.websites.find((w) => w._id === id || w.trackingId === id);
+    const body: MrrSummary = {
+      currency: site?.currency ?? "USD",
+      mrr: 1247,
+      activeSubscriptions: 43,
+      byProvider: [
+        { provider: "stripe", mrr: 1058, subscriptions: 36 },
+        { provider: "polar", mrr: 189, subscriptions: 7 },
+      ],
+      revenueMetric: site?.revenueMetric === "mrr" ? "mrr" : "revenue",
+      unconverted: false,
+    };
+    return ok(body);
+  }),
   http.get(`${W}/integrations`, () => ok([g.integrations])),
   http.post(`${W}/integrations/:provider`, ({ params }) =>
     ok([{ message: `${String(params.provider)} connected successfully`, currency: "USD" }]),

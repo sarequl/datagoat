@@ -900,6 +900,21 @@ export interface RevenueSummary {
   };
 }
 
+/**
+ * DG `GET /api/v1/analytics/revenue/mrr`: current monthly recurring revenue of live (active or
+ * past-due) provider subscriptions, in the website currency. A snapshot; range and filters do not
+ * apply. `unconverted` is true when a currency had no exchange rate yet (amount counted 1:1).
+ */
+export interface MrrSummary {
+  currency: string;
+  mrr: number;
+  activeSubscriptions: number;
+  byProvider: Array<{ provider: string; mrr: number; subscriptions: number }>;
+  /** The website's headline revenue metric (`revenueMetric`), so the overview can lead with MRR. */
+  revenueMetric: "revenue" | "mrr";
+  unconverted: boolean;
+}
+
 /** GET /api/v1/analytics/revenue/sources row (`value` is "Unattributed" for the unattributed bucket). */
 export interface RevenueSourceRow {
   value: string;

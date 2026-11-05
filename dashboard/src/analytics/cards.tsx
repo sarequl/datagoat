@@ -45,7 +45,49 @@ export const CAMPAIGN_DIMENSIONS = [
   { id: "via", label: "via" },
 ] as const;
 
-export function sourceTabs(): BreakdownTab[] {
+const num = (v: unknown) => (typeof v === "number" ? v : Number(v ?? 0) || 0);
+
+/** Google Search Console keywords (DataFast's Keyword tab): clicks and estimated revenue. */
+export const keywordTab: BreakdownTab = {
+  id: "keyword",
+  label: "Keyword",
+  endpoint: "search-console",
+  path: "/api/v1/search-console",
+  pageFilter: true,
+  extraParams: () => ({ groupBy: "query" }),
+  value: (r) => str(r.query),
+  mapRow: (r) => ({
+    ...r,
+    visitors: num(r.clicks),
+    revenue: num(r.estimatedRevenue),
+    payments: num(r.impressions),
+  }),
+  labels: { visitors: "Clicks", revenue: "Est. revenue", payments: "Impr." },
+  icon: () => <span aria-hidden="true">🔎</span>,
+};
+
+/** Meta Ads campaigns (DataFast's campaign-level ad spend in the Source card). */
+export function adsTab(currencyLabel: (n: number) => string): BreakdownTab {
+  return {
+    id: "ads",
+    label: "Ads",
+    endpoint: "ads-campaigns",
+    path: "/api/v1/ads/campaigns",
+    // Visits match campaigns through utm_campaign={{campaign.id}}.
+    filterKey: "utm_campaign",
+    value: (r) => str(r.campaignId),
+    rowLabel: (r) => str(r.campaignName) || str(r.campaignId),
+    note: (r) =>
+      `${currencyLabel(num(r.spend))} spend${
+        r.roas === null || r.roas === undefined ? "" : ` · ${num(r.roas).toFixed(2)}x ROAS`
+      }`,
+    icon: () => <span aria-hidden="true">📣</span>,
+  };
+}
+
+export function sourceTabs(
+  growth: { keywords?: boolean; ads?: BreakdownTab | null } = {},
+): BreakdownTab[] {
   return [
     {
       id: "channel",
@@ -75,6 +117,8 @@ export function sourceTabs(): BreakdownTab[] {
       extraParams: (v) => ({ fields: `${v},visitors,revenue,payments` }),
       group: true,
     },
+    ...(growth.keywords ? [keywordTab] : []),
+    ...(growth.ads ? [growth.ads] : []),
   ];
 }
 

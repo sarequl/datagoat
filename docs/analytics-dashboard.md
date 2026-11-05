@@ -19,6 +19,10 @@ card, or use its *Move up* / *Move down* buttons, to change the order; it is sav
   previous period of the same length (the previous calendar month for "Last month") and a trend
   sparkline. Bounce rate counts a fall as good news. **Visitors now** opens the live map (shortcut
   `M`).
+- **MRR and ROAS.** When payment providers report subscriptions, an **MRR** tile shows the current
+  monthly recurring revenue of active and past-due subscriptions (right after Visitors when the
+  website's headline revenue metric is MRR, Settings → Attribution & revenue). With Meta Ads
+  connected, a **ROAS** tile shows return on ad spend for the period, with spend and revenue.
 - **#1 KPI.** When a goal is set as the website's #1 KPI (Goals → a goal → *Set as #1 KPI*, or
   website settings), it gets a tile with converting visitors and conversion rate, and every
   breakdown card can switch its third column from revenue to that goal.
@@ -33,7 +37,10 @@ card, or use its *Move up* / *Move down* buttons, to change the order; it is sav
   day/week/month*. Click a marker to read, edit or
   delete notes. Keyboard: focus the chart, move with ←/→ (Home/End), Enter for actions, Esc to close.
 - **Breakdowns.** Source (channel, referrer, campaign by UTM source/medium/campaign/term/content,
-  `ref`, `source`, `via`), Pages (page, entry page, exit page, exit link, hostname), Location (map,
+  `ref`, `source`, `via`; plus **Keyword** with Google Search Console clicks, impressions and
+  estimated revenue when it is connected, narrowed by a page filter, and **Ads** with each Meta
+  campaign's visitors, revenue, spend and ROAS when Meta Ads is connected; clicking a campaign
+  filters on its `utm_campaign`), Pages (page, entry page, exit page, exit link, hostname), Location (map,
   country, region, city), System (browser, OS, device) and Goals. Every row shows visitors, revenue
   and payments (exit links: visitors and clicks); clicking a row filters the whole dashboard. The
   Channel tab shows each channel's share of visitors as a donut; clicking a channel (in the donut
