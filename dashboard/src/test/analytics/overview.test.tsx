@@ -40,6 +40,10 @@ describe("overview", () => {
       "aria-selected",
       "true",
     );
+    // DataFast's channel pie: share of visitors per channel above the list.
+    expect(
+      within(source).getByRole("figure", { name: "Channel share of visitors" }),
+    ).toHaveTextContent(/Organic Search\s*\d+%/);
     expect(
       await within(screen.getByTestId("card-pages")).findByRole("button", {
         name: /Filter by \/pricing/,
@@ -70,9 +74,46 @@ describe("overview", () => {
       await within(source).findByRole("button", { name: /Filter by Organic Search/ }),
     );
     await waitFor(() => expect(search().get("filter_channel")).toBe("is:Organic Search"));
+    // Drill-down: the card now lists the sources inside that channel.
+    expect(within(source).getByRole("tab", { name: "Referrer" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     const chip = screen.getByRole("button", { name: "Remove filter: Channel is Organic Search" });
     await userEvent.click(chip);
     await waitFor(() => expect(search().get("filter_channel")).toBeNull());
+  });
+
+  it("sorts the Details list by name or revenue", async () => {
+    renderSite("overview");
+    const pages = await screen.findByTestId("card-pages");
+    await within(pages).findByRole("button", { name: /Filter by \/pricing/ });
+    await userEvent.click(within(pages).getByRole("button", { name: /Details/ }));
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findAllByRole("button", { name: /^Filter by/ });
+    const labels = () =>
+      within(dialog)
+        .getAllByRole("button", { name: /^Filter by/ })
+        .map((b) => (b.getAttribute("aria-label") ?? "").replace(/^Filter by /, "").split(":")[0]);
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Sort by" }),
+      "name",
+    );
+    const byName = labels();
+    expect(byName).toEqual([...byName].sort((a, b) => (a ?? "").localeCompare(b ?? "")));
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Sort by" }),
+      "revenue",
+    );
+    const revenues = within(dialog)
+      .getAllByRole("button", { name: /^Filter by/ })
+      .map((b) =>
+        Number(
+          /\$([\d,.]+) revenue/.exec(b.getAttribute("aria-label") ?? "")?.[1]?.replace(/,/g, "") ??
+            0,
+        ),
+      );
+    expect(revenues).toEqual([...revenues].sort((a, b) => b - a));
   });
 
   it("switches tabs with the keyboard and campaign dimensions with the select", async () => {
@@ -130,6 +171,9 @@ describe("overview", () => {
     const chart = await screen.findByRole("slider", { name: /Visitors and revenue over time/ });
     chart.focus();
     await userEvent.keyboard("{End}{Enter}");
+    const pinned = await screen.findByTestId("chart-pinned-tooltip");
+    expect(pinned).toHaveTextContent(/Visitors\s*[\d,]+/);
+    expect(pinned).toHaveTextContent("Revenue");
     await userEvent.click(await screen.findByRole("button", { name: "Add note here" }));
     await userEvent.type(screen.getByLabelText("Note"), "Launched the referral program");
     await userEvent.click(screen.getByRole("button", { name: "Save note" }));
@@ -210,6 +254,13 @@ describe("period selector", () => {
     await screen.findByTestId("kpi-visitors");
     await userEvent.keyboard("t");
     await waitFor(() => expect(search().get("period")).toBe("today"));
+    // DataFast's mapping: D is the last 24 hours, 3 the last 30 days.
+    await userEvent.keyboard("d");
+    await waitFor(() => expect(search().get("period")).toBe("24h"));
+    await userEvent.keyboard("3");
+    await waitFor(() => expect(search().get("period")).toBe("30d"));
+    await userEvent.keyboard("w");
+    await waitFor(() => expect(search().get("period")).toBe("7d"));
     await userEvent.keyboard("n");
     await waitFor(() => expect(search().get("period")).toBe("now"));
     expect(await screen.findByRole("button", { name: "Minutely" })).toBeInTheDocument();

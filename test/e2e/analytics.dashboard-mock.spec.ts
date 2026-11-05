@@ -56,6 +56,9 @@ test.describe("overview", () => {
     await page.keyboard.press("End");
     await expect(chart).toHaveAttribute("aria-valuetext", /Visitors/);
     await page.keyboard.press("Enter");
+    // The point's numbers stay pinned next to the actions (sticky tooltip).
+    const actions = page.getByRole("dialog", { name: "Chart point actions" });
+    await expect(actions.getByTestId("chart-pinned-tooltip")).toContainText("Visitors");
     await page.getByRole("button", { name: "Add note here" }).click();
     await page.getByLabel("Note", { exact: true }).fill("Shipped annual plans");
     await page.getByRole("button", { name: "Save note" }).click();

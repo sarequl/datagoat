@@ -54,6 +54,8 @@ export function sourceTabs(): BreakdownTab[] {
       filterKey: "channel",
       value: (r) => str(r.channel),
       icon: (r) => <span aria-hidden="true">{CHANNEL_ICONS[str(r.channel)] ?? "•"}</span>,
+      donut: true,
+      drillTo: "referrer",
     },
     {
       id: "referrer",

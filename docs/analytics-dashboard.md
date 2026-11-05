@@ -22,13 +22,17 @@ any view.
   with the previous period dashed; click Visitors for new vs returning. Click it again, or
   *← Visitors / Revenue*, to go back.
 - **Markers.** Notes 📝, GitHub commits and 𝕏 mentions appear under the chart (toggle each kind).
-  Click a point to *Add note here* or to *View this day/week/month*. Click a marker to read, edit or
+  Click a point to pin its numbers (handy for screenshots) with *Add note here* and *View this
+  day/week/month*. Click a marker to read, edit or
   delete notes. Keyboard: focus the chart, move with ←/→ (Home/End), Enter for actions, Esc to close.
 - **Breakdowns.** Source (channel, referrer, campaign by UTM source/medium/campaign/term/content,
   `ref`, `source`, `via`), Pages (page, entry page, exit page, exit link, hostname), Location (map,
   country, region, city), System (browser, OS, device) and Goals. Every row shows visitors, revenue
-  and payments (exit links: visitors and clicks); clicking a row filters the whole dashboard.
-  *Details* lists up to 1,000 rows with search.
+  and payments (exit links: visitors and clicks); clicking a row filters the whole dashboard. The
+  Channel tab shows each channel's share of visitors as a donut; clicking a channel (in the donut
+  or the list) filters on it and switches to Referrer, so you see the sources inside it.
+  *Details* lists up to 1,000 rows with search, sorted by visitors, revenue (clicks for exit links)
+  or name.
 - **Visitor activity.** A weekday × hour heatmap of visitors or pageviews in the website timezone
   (for periods longer than 41 days, the last 41 days).
 
@@ -37,9 +41,9 @@ any view.
 Now (last 30 minutes, minute buckets, refreshes every minute), Today, Yesterday, Last 24 hours,
 Last 7 / 30 days, and under *More periods*: Last 3 / 6 / 12 months, Month to date, Last month,
 Year to date, All time, plus a custom range. Pin the periods you use (★); pins are remembered per
-website in this browser. The arrows step back and forward by the period's length. Shortcuts: `N`
-now, `T` today, `Y` yesterday, `H` last 24 hours, `W` last 7 days, `D` last 30 days, `Q` last 3
-months, `L` last 12 months, `A` all time.
+website in this browser. The arrows step back and forward by the period's length. Shortcuts (DataFast's):
+`N` now, `T` today, `Y` yesterday, `D` last 24 hours, `W` last 7 days, `3` last 30 days, plus `Q`
+last 3 months, `L` last 12 months and `A` all time.
 
 ## Filters and segments
 

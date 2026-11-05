@@ -518,6 +518,18 @@ export function MainChart({
           <div className="mb-2 font-medium">
             {bucketLabel(menuPoint.timestamp, interval, timezone, true)}
           </div>
+          {/* The clicked point's numbers stay visible (DataFast's sticky tooltip, for screenshots). */}
+          <dl className="mb-2 space-y-0.5 text-xs" data-testid="chart-pinned-tooltip">
+            {tooltipRows(menu).map(([k, v, tone]) => (
+              <div
+                key={k}
+                className={cx("flex justify-between gap-2", tone === "muted" && "text-muted")}
+              >
+                <dt>{k}</dt>
+                <dd className="font-medium tabular-nums">{v}</dd>
+              </div>
+            ))}
+          </dl>
           {noteOpen ? (
             <form
               onSubmit={async (e) => {
