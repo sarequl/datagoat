@@ -34,3 +34,4 @@ All notable changes to DataGoat are recorded here. The format follows
 - Main chart: refunds are drawn greyed out on top of the revenue bars (DataFast); the timeseries API takes a DataGoat `refunds` field (positive refunded amount per bucket, hidden on public views without shared revenue).
 - MCP: interactive charts for ChatGPT apps and MCP Apps clients (traffic and revenue, breakdowns, funnels, live visitor map) served as `ui://datagoat/chart*.html` resources and linked from the analytics tools.
 - Weekly email reports and digests include up to three insights from the period (best revenue channel and revenue per visitor, conversion changes, traffic surges, unattributed revenue), like DataFast's "insight to grow your startup".
+- API playground page: try analytics, revenue, visitors and mentions endpoints with your session and copy the matching curl command (DataFast's docs playground).

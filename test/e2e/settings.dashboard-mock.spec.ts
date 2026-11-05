@@ -152,6 +152,7 @@ test.describe("phone width (390 px)", () => {
       "settings/danger",
       "team",
       "keys",
+      "api-playground",
       "integrations",
       "share",
       "usage",

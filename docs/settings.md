@@ -40,6 +40,13 @@ website always keeps at least one owner. Removing a member also stops the `df_` 
 Secrets are shown once and stored hashed. Members and owners can manage website keys; viewers can
 only see them.
 
+## API playground
+
+*API playground* (Website section of the sidebar) tries any analytics, revenue, visitors or
+mentions endpoint on the current website without code, like DataFast's docs playground: choose the
+endpoint, the dates and extra parameters (`fields`, `interval`, `limit`, `filter_*` …), send it with
+your dashboard session and read the JSON, then copy the matching `curl` command for a `df_` key.
+
 ## Integrations
 
 ### Revenue

@@ -142,6 +142,13 @@ export const SITE_PAGES: readonly NavItem[] = [
   { path: "team", label: "Team", group: "Website", owner: "W5", page: "settings/TeamPage" },
   { path: "keys", label: "API keys", group: "Website", owner: "W5", page: "settings/ApiKeysPage" },
   {
+    path: "api-playground",
+    label: "API playground",
+    group: "Website",
+    owner: "W5",
+    page: "settings/ApiPlaygroundPage",
+  },
+  {
     path: "integrations",
     label: "Integrations",
     group: "Website",
