@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { LogoMark } from "./Logo";
 
 /** Centered card layout for login, setup, invite and reset screens. */
 export function AuthLayout({
@@ -14,9 +15,7 @@ export function AuthLayout({
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1 text-center">
-          <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-lg bg-primary font-bold text-primary-fg">
-            D
-          </div>
+          <LogoMark size={44} className="mx-auto mb-3" />
           <h1 className="text-xl font-semibold">{title}</h1>
           {subtitle ? <p className="text-sm text-muted">{subtitle}</p> : null}
         </div>

@@ -26,7 +26,7 @@ import {
 import { useMe } from "./api/hooks";
 import { AppShell } from "./components/AppShell";
 import { PagePlaceholder } from "./components/PagePlaceholder";
-import { Spinner } from "./components/ui";
+import { PageLoader } from "./components/ui";
 import { SITE_PAGES } from "./nav";
 
 const pages = import.meta.glob<{ default: RouteComponent }>("./pages/**/*.tsx");
@@ -100,7 +100,7 @@ const consentRoute = createRoute({
 /** Signed-in area: redirects to /login when there is no session. */
 function SignedIn() {
   const me = useMe();
-  if (me.isPending) return <Spinner />;
+  if (me.isPending) return <PageLoader />;
   if (!me.data) return <Navigate to="/login" />;
   return <Outlet />;
 }
@@ -215,7 +215,7 @@ export function createAppRouter(
     routeTree,
     context: { queryClient },
     defaultPreload: "intent",
-    defaultPendingComponent: () => <Spinner />,
+    defaultPendingComponent: () => <PageLoader />,
     ...(history ? { history } : {}),
   });
 }

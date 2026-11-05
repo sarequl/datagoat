@@ -14,6 +14,7 @@ import type {
 } from "../../../../shared/api-types";
 import { ApiClientError, api, apiGet } from "../../api/client";
 import { useLogin, useLogout } from "../../api/hooks";
+import { LogoMark } from "../../components/Logo";
 import { Button, Field, Input, Notice, Spinner } from "../../components/ui";
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
@@ -21,9 +22,7 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
     <main className="flex min-h-screen justify-center px-4 py-10">
       <div className="w-full max-w-lg space-y-6">
         <div className="space-y-1 text-center">
-          <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-lg bg-primary font-bold text-primary-fg">
-            D
-          </div>
+          <LogoMark size={44} className="mx-auto mb-3" />
           <h1 className="text-xl font-semibold">{title}</h1>
         </div>
         <div className="space-y-5 rounded-lg border border-line bg-surface p-6">{children}</div>

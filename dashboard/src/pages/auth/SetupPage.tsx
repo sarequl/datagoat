@@ -2,7 +2,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useSetup, useSetupStatus } from "../../api/hooks";
 import { AuthLayout } from "../../components/AuthLayout";
-import { Button, Field, Input, Notice, Spinner } from "../../components/ui";
+import { Button, Field, Input, Notice, PageLoader } from "../../components/ui";
+import { FixSecretsPanel } from "./FixSecretsPanel";
 
 function browserTimezone(): string {
   try {
@@ -25,7 +26,7 @@ export default function SetupPage() {
   const [password, setPassword] = useState("");
   const [domain, setDomain] = useState("");
 
-  if (status.isPending) return <Spinner />;
+  if (status.isPending) return <PageLoader />;
   if (status.error) {
     return (
       <AuthLayout title="DataGoat is not ready">
@@ -43,6 +44,21 @@ export default function SetupPage() {
         <Button className="mt-4 w-full" onClick={() => void navigate({ to: "/login" })}>
           Go to sign in
         </Button>
+      </AuthLayout>
+    );
+  }
+
+  if (status.data?.configErrors.length) {
+    return (
+      <AuthLayout
+        title="Finish configuring DataGoat"
+        subtitle="One step before you create your account."
+      >
+        <FixSecretsPanel
+          errors={status.data.configErrors}
+          onCheckAgain={() => void status.refetch()}
+          checking={status.isFetching}
+        />
       </AuthLayout>
     );
   }
@@ -75,11 +91,6 @@ export default function SetupPage() {
   return (
     <AuthLayout title="Set up DataGoat" subtitle="Create the owner account for this install.">
       <form className="space-y-4" onSubmit={submit}>
-        {status.data?.configErrors.length ? (
-          <Notice tone="error">
-            Fix the Worker secrets first: {status.data.configErrors.join("; ")}.
-          </Notice>
-        ) : null}
         {setup.error ? <Notice tone="error">{setup.error.message}</Notice> : null}
         <Field label="Setup token" hint="The SETUP_TOKEN secret. The setup link fills it in.">
           <Input

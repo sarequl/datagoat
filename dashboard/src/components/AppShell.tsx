@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import type { WebsiteSummary } from "../../../shared/api-types";
 import { useLogout, useMe } from "../api/hooks";
 import { NAV_GROUPS, SITE_PAGES } from "../nav";
+import { LogoMark } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function SiteSwitcher({
@@ -41,9 +42,7 @@ export function Sidebar({ siteId, websites }: { siteId: string; websites: Websit
   return (
     <nav aria-label="Main" className="flex h-full flex-col gap-5 overflow-y-auto p-4">
       <div className="flex items-center gap-2 px-1 font-semibold">
-        <span className="flex size-7 items-center justify-center rounded-md bg-primary text-sm text-primary-fg">
-          D
-        </span>
+        <LogoMark size={28} />
         DataGoat
       </div>
       <SiteSwitcher websites={websites} current={siteId} />
@@ -211,9 +210,7 @@ export function AppShell({ websites }: { websites: WebsiteSummary[] }) {
           </svg>
         </button>
         <span className="flex items-center gap-2 font-semibold">
-          <span className="flex size-6 items-center justify-center rounded-md bg-primary text-xs text-primary-fg">
-            D
-          </span>
+          <LogoMark size={24} />
           DataGoat
         </span>
       </div>

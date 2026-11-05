@@ -1,5 +1,7 @@
 /** Small UI primitives built on the design tokens (styles.css). */
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { LogoMark } from "../Logo";
 
 export function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
@@ -94,6 +96,36 @@ export function Notice({
       )}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * Full-page loading state (session check, lazy route chunks). Centered on the viewport and shown
+ * only after `delayMs`, so fast loads (the common case) never flash a loader. The logo pulses
+ * unless the visitor prefers reduced motion.
+ */
+export function PageLoader({
+  label = "Loading",
+  delayMs = 300,
+}: {
+  label?: string;
+  delayMs?: number;
+}) {
+  const [visible, setVisible] = useState(delayMs <= 0);
+  useEffect(() => {
+    if (delayMs <= 0) return;
+    const timer = setTimeout(() => setVisible(true), delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs]);
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none fixed inset-0 z-40 grid place-items-center"
+    >
+      <span className="sr-only">{label}…</span>
+      {visible ? <LogoMark size={40} className="motion-safe:animate-pulse" /> : null}
     </div>
   );
 }

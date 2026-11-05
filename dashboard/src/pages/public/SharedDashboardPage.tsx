@@ -10,6 +10,7 @@ import type { SharedWebsite } from "../../../../shared/api-types";
 import { OverviewDashboard } from "../../analytics/OverviewDashboard";
 import { AnalyticsSourceProvider } from "../../analytics/source";
 import { apiGet } from "../../api/client";
+import { LogoMark } from "../../components/Logo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { cx, Spinner } from "../../components/ui";
 
@@ -52,9 +53,7 @@ export default function SharedDashboardPage() {
       <div className="min-h-screen">
         <header className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 md:px-6">
           <span className="flex min-w-0 items-center gap-2 text-sm text-muted">
-            <span className="flex size-6 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-fg">
-              D
-            </span>
+            <LogoMark size={24} />
             Public dashboard
           </span>
           <div className="flex items-center gap-2">

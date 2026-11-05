@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="static/brand/logo-mark.svg" alt="" width="88" height="88">
+
 # DataGoat
 
 **Open-source, revenue-first web analytics that runs in your own Cloudflare account.**
@@ -96,7 +98,9 @@ The tracker sets a first-party visitor id. When a customer pays, your checkout p
 
 ### One-click deploy
 
-1. Click **Deploy to Cloudflare** above. Cloudflare copies the repo to your GitHub account, creates the Worker, the D1 database and the other bindings, and asks for three secrets.
+1. Click **Deploy to Cloudflare** above. Cloudflare copies the repo to your GitHub account, creates the Worker, the D1 database and the other bindings, and asks for three secrets: `SETUP_TOKEN`, `SESSION_SECRET` and `ENCRYPTION_KEY`.
+
+   **Replace the pre-filled example values** with random strings, for example from `openssl rand -hex 32`. If you keep the examples, the setup page stops and shows how to change them in the Cloudflare dashboard, with fresh random values to paste.
 2. Open the setup link from the deploy output to create your owner account.
 3. Add your website and paste the script tag into your site's `<head>`:
 
