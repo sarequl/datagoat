@@ -52,6 +52,8 @@ export function budgetedFetch(inner: FetchFn, max: number): FetchFn & { used(): 
 function messageOf(body: unknown, fallback: string): string {
   if (body && typeof body === "object") {
     const b = body as Record<string, unknown>;
+    // OAuth-style errors (`{error: "invalid_token", error_description: "…"}`): the description reads better.
+    if (typeof b.error_description === "string") return b.error_description;
     const err = b.error;
     if (err && typeof err === "object") {
       const m = (err as Record<string, unknown>).message ?? (err as Record<string, unknown>).detail;
@@ -79,6 +81,8 @@ export interface RequestOptions {
   allow404?: boolean;
 }
 
+export const USER_AGENT = "DataGoat (+https://github.com/sarequl/datagoat)";
+
 export interface JsonResponse<T> {
   data: T;
   headers: Headers;
@@ -92,7 +96,8 @@ export async function requestJson<T>(
 ): Promise<JsonResponse<T>> {
   const res = await ctx.fetch(url, {
     method: options.method ?? "GET",
-    headers: { accept: "application/json", ...(options.headers ?? {}) },
+    // Workers send no User-Agent by default, which some API firewalls block.
+    headers: { accept: "application/json", "user-agent": USER_AGENT, ...(options.headers ?? {}) },
     body: options.body,
   });
   const text = await res.text();

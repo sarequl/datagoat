@@ -94,6 +94,86 @@ describe("Polar", () => {
     expect(missing.status).toBe(400);
   });
 
+  it("connects a token without organizations:read (only orders:read is required)", async () => {
+    const { site, cookie } = await ownerWithSite();
+    mock = mockProviders({
+      [`GET ${POLAR_API}/organizations/`]: () =>
+        json({ error: "insufficient_scope", error_description: "Missing organizations:read" }, 403),
+      [`GET ${POLAR_API}/orders/`]: () => json({ items: [] }),
+    });
+    const res = await api(`/api/v1/admin/websites/${site.id}/integrations/polar`, {
+      cookie,
+      body: { polarAccessToken: "polar_oat_abc", polarOrgId: "org_1", webhookSecret: SECRET },
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].message).toBe("Polar connected successfully");
+    // Orders are checked with the poller's query, and requests identify themselves.
+    const [orders] = mock.to(`${POLAR_API}/orders/`);
+    expect(orders?.url).toContain("organization_id=org_1");
+    expect(orders?.headers.get("authorization")).toBe("Bearer polar_oat_abc");
+    expect(orders?.headers.get("user-agent")).toMatch(/^DataGoat/);
+  });
+
+  it("says what Polar objected to when connecting fails", async () => {
+    const { site, cookie } = await ownerWithSite();
+    const attempt = async (routes: Parameters<typeof mockProviders>[0]) => {
+      mock?.restore();
+      mock = mockProviders(routes);
+      const res = await api(`/api/v1/admin/websites/${site.id}/integrations/polar`, {
+        cookie,
+        body: { polarAccessToken: "polar_oat_abc", polarOrgId: "org_1" },
+      });
+      expect(res.status).toBe(400);
+      return res.body.error.message as string;
+    };
+    const invalid = () =>
+      json(
+        {
+          error: "invalid_token",
+          error_description:
+            "The access token provided is expired, revoked, malformed, or invalid.",
+        },
+        401,
+      );
+
+    // Unknown everywhere: rejected, with Polar's own words.
+    let msg = await attempt({
+      [`GET ${POLAR_API}/orders/`]: invalid,
+      [`GET https://sandbox-api.polar.sh/v1/orders/`]: invalid,
+    });
+    expect(msg).toMatch(/^Polar rejected the access token\. Polar said: "The access token/);
+    expect(msg).toContain("polar_oat_");
+
+    // Unknown live but valid on the sandbox: a sandbox token.
+    msg = await attempt({
+      [`GET ${POLAR_API}/orders/`]: invalid,
+      [`GET https://sandbox-api.polar.sh/v1/orders/`]: () => json({ items: [] }),
+    });
+    expect(msg).toMatch(/sandbox token/);
+
+    // Valid token without orders:read.
+    msg = await attempt({
+      [`GET ${POLAR_API}/orders/`]: () =>
+        json({ error: "insufficient_scope", error_description: "Missing orders:read" }, 403),
+    });
+    expect(msg).toMatch(/not allowed to read orders/);
+    expect(msg).toContain("orders:read");
+
+    // Orders fine, but the organization ID does not exist for this token.
+    msg = await attempt({
+      [`GET ${POLAR_API}/orders/`]: () => json({ items: [] }),
+      [`GET ${POLAR_API}/organizations/`]: () => json({ detail: "Not found" }, 404),
+    });
+    expect(msg).toMatch(/no organization with the ID "org_1"/);
+
+    // A malformed organization ID.
+    msg = await attempt({
+      [`GET ${POLAR_API}/orders/`]: () =>
+        json({ detail: [{ msg: "Input should be a UUID" }] }, 422),
+    });
+    expect(msg).toMatch(/did not accept the organization ID "org_1"/);
+  });
+
   it("ingests Standard Webhooks orders and lifecycle (both secret generations)", async () => {
     const { site } = await ownerWithSite();
     const v = await visitorWithSessions(site.id, [

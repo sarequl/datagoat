@@ -105,7 +105,7 @@ export const PROVIDERS: readonly ProviderDef[] = [
       },
     ],
     steps: [
-      "In Polar, open Settings > Developers and create an organization access token with read scopes for orders, subscriptions, customers and checkouts.",
+      "In Polar, open Settings > Access Tokens and create a token with the orders:read and subscriptions:read scopes. Add checkouts:read for checkout links, organizations:read to show the organization name, and webhooks:write so DataGoat can create the webhook for you.",
       "Copy the organization ID from Settings > General.",
       "Add datafast_visitor_id to checkout metadata, or use checkout links whose success URL includes ?checkout_id={CHECKOUT_ID}.",
     ],

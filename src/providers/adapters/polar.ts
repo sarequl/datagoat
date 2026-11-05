@@ -190,6 +190,46 @@ function merge(target: NormalizedBatch, b: NormalizedBatch) {
   target.customers.push(...b.customers);
 }
 
+const TOKEN_PAGE = "Settings → Access Tokens";
+
+/**
+ * Turn a failed connect check into a message that says what to change in Polar. A 401 from the
+ * live API is retried once against the sandbox to recognise a sandbox token (failure path only).
+ */
+async function explainConnectError(
+  err: unknown,
+  ctx: AdapterContext,
+  token: string,
+  sandbox: boolean,
+  orgId: string,
+): Promise<string> {
+  if (!(err instanceof ProviderHttpError)) return `Could not reach Polar: ${describeError(err)}`;
+  const said =
+    err.message && !err.message.startsWith("HTTP ") ? ` Polar said: "${err.message}".` : "";
+  if (err.isAuth) {
+    if (!sandbox && (await worksOnSandbox(ctx, token)))
+      return "This is a Polar sandbox token. Create the token in your live Polar dashboard (polar.sh, not sandbox.polar.sh).";
+    return `Polar rejected the access token.${said} Copy the whole token (it starts with polar_oat_), check it has not expired or been revoked, and that it was made in ${sandbox ? "the sandbox" : "your live Polar dashboard, not the sandbox"}.`;
+  }
+  if (err.isPermission) {
+    if (typeof err.body === "string")
+      return `Polar's firewall blocked the request (HTTP 403). Try again in a minute; if it keeps happening, Polar is blocking requests from Cloudflare Workers.`;
+    return `The access token is not allowed to read orders.${said} In Polar, open ${TOKEN_PAGE}, create a token with the orders:read and subscriptions:read scopes, and paste the new token here.`;
+  }
+  if (err.isNotFound || err.status === 422)
+    return `Polar did not accept the organization ID "${orgId}". Copy it from Settings → General in Polar (it looks like 1a2b3c4d-…).`;
+  return `Could not reach Polar: ${describeError(err)}`;
+}
+
+async function worksOnSandbox(ctx: AdapterContext, token: string): Promise<boolean> {
+  try {
+    await getJson(ctx, `${POLAR_SANDBOX_API}/orders/${query({ limit: 1 })}`, headers(token));
+    return true;
+  } catch (err) {
+    return err instanceof ProviderHttpError && err.isPermission;
+  }
+}
+
 interface PollCursor {
   orders: number;
   subscriptions: number;
@@ -209,32 +249,43 @@ export const polarAdapter: ProviderAdapter = {
     if (sandbox && !ctx.allowTestKeys)
       return { ok: false, error: "Polar sandbox connections are disabled on this instance" };
     const settings = { sandbox, organizationId: orgId };
+    const api = base({ settings });
+    // Orders are the one thing DataGoat cannot work without (`orders:read`), so check them first
+    // and with the same query the poller uses.
     try {
-      const org = await getJson<Obj>(
-        ctx,
-        `${base({ settings })}/organizations/${encodeURIComponent(orgId)}`,
-        headers(token),
-      );
       await getJson<Page<Obj>>(
         ctx,
-        `${base({ settings })}/orders/${query({ organization_id: orgId, limit: 1 })}`,
+        `${api}/orders/${query({ organization_id: orgId, limit: 1 })}`,
         headers(token),
       );
-      return {
-        ok: true,
-        credentials: { accessToken: token },
-        accountId: orgId,
-        accountName: str(org.name) ?? str(org.slug) ?? null,
-        currency: currencyOf(org.default_presentment_currency) ?? null,
-        settings,
-      };
     } catch (err) {
-      if (err instanceof ProviderHttpError && (err.isAuth || err.isPermission))
-        return { ok: false, error: "Polar rejected the access token or it cannot read orders" };
-      if (err instanceof ProviderHttpError && err.isNotFound)
-        return { ok: false, error: "Polar organization not found for this token" };
-      return { ok: false, error: `Could not reach Polar: ${describeError(err)}` };
+      return { ok: false, error: await explainConnectError(err, ctx, token, sandbox, orgId) };
     }
+    // The organization's name and currency are nice to have: they need `organizations:read`,
+    // which many tokens leave out. Only a definite "no such organization" stops the connection.
+    let org: Obj | null = null;
+    try {
+      org = await getJson<Obj>(
+        ctx,
+        `${api}/organizations/${encodeURIComponent(orgId)}`,
+        headers(token),
+      );
+    } catch (err) {
+      if (err instanceof ProviderHttpError && err.isNotFound)
+        return {
+          ok: false,
+          error: `Polar has no organization with the ID "${orgId}" for this token. Copy the organization ID from Settings → General in the Polar organization the token belongs to.`,
+        };
+      if (!(err instanceof ProviderHttpError)) throw err;
+    }
+    return {
+      ok: true,
+      credentials: { accessToken: token },
+      accountId: orgId,
+      accountName: str(org?.name) ?? str(org?.slug) ?? null,
+      currency: currencyOf(org?.default_presentment_currency) ?? null,
+      settings,
+    };
   },
 
   async sync(conn, cursorRaw, ctx) {

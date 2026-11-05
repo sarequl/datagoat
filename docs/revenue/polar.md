@@ -4,9 +4,22 @@
 
 ## 1. Create an organization access token
 
-Polar dashboard → **Settings → Developers → New token**. Give it read scopes for orders,
-subscriptions, checkouts and organizations, plus **webhooks:write** if you want DataGoat to create
-the webhook for you. Copy your organization id too.
+Polar dashboard → **Settings → Access Tokens → Create token**, in your live dashboard (a token from
+sandbox.polar.sh only works with the sandbox API). Scopes:
+
+| Scope                 | Needed for                                                    |
+| --------------------- | ------------------------------------------------------------- |
+| `orders:read`         | Required: payments                                            |
+| `subscriptions:read`  | Subscriptions, MRR and renewals                               |
+| `checkouts:read`      | Checkout links (`?checkout_id={CHECKOUT_ID}`)                 |
+| `organizations:read`  | Optional: shows the organization name and default currency    |
+| `webhooks:write`      | Optional: lets DataGoat create the webhook endpoint for you   |
+
+Copy your organization ID from **Settings → General** too.
+
+If connecting fails, the error says what Polar objected to: a token Polar does not recognise
+(mistyped, expired, revoked, or a sandbox token), a token without `orders:read`, or an organization
+ID that does not match the token.
 
 ## 2. Connect
 
