@@ -311,6 +311,32 @@ export const analyticsHandlers = [
       showRevenue: w.isPublicDataEnabled,
     });
   }),
+  // Share API realtime (contract §9): no PII, payments only with public revenue.
+  http.get("/api/share/:token/analytics/realtime/map", ({ params }) => {
+    const w = state.websites.find((x) => x.shareToken === params.token);
+    if (!w) return fail(404, "Share link not found");
+    const map = realtimeMapFor();
+    return ok({
+      ...map,
+      visitors: map.visitors.map((v) => ({
+        ...v,
+        customerName: null,
+        customerEmail: null,
+        profileData: { ...v.profileData, displayName: null, email: null },
+      })),
+      recentPayments: w.isPublicDataEnabled ? map.recentPayments : [],
+    });
+  }),
+  http.get("/api/share/:token/analytics/realtime", ({ params }) =>
+    state.websites.some((x) => x.shareToken === params.token)
+      ? ok([{ visitors: realtimeMapFor().count }])
+      : fail(404, "Share link not found"),
+  ),
+  http.get("/api/share/:token/analytics/realtime/replay", ({ params }) =>
+    state.websites.some((x) => x.shareToken === params.token)
+      ? ok(replayFor())
+      : fail(404, "Share link not found"),
+  ),
   http.get("/api/share/:token/analytics/:endpoint", ({ params, request }) => {
     const url = new URL(request.url);
     const w = state.websites.find((x) => x.shareToken === params.token);

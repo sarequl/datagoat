@@ -270,10 +270,21 @@ export function useVisitor(websiteId: string, visitorId: string) {
 
 // Realtime ----------------------------------------------------------------
 
-export function useRealtimeMap(websiteId: string, refetchInterval: number | false = 15_000) {
+const sharePath = (token: string, endpoint: string) =>
+  `/api/share/${encodeURIComponent(token)}/analytics/${endpoint}`;
+
+/** Live map data; `shareToken` reads it through a public share link instead. */
+export function useRealtimeMap(
+  websiteId: string,
+  refetchInterval: number | false = 15_000,
+  shareToken?: string,
+) {
   return useQuery({
-    queryKey: ["realtime-map", websiteId],
-    queryFn: () => apiGet<RealtimeMap>("/api/v1/analytics/realtime/map", { websiteId }),
+    queryKey: ["realtime-map", shareToken ? `share:${shareToken}` : websiteId],
+    queryFn: () =>
+      shareToken
+        ? apiGet<RealtimeMap>(sharePath(shareToken, "realtime/map"))
+        : apiGet<RealtimeMap>("/api/v1/analytics/realtime/map", { websiteId }),
     refetchInterval,
   });
 }
@@ -295,10 +306,13 @@ export function useRealtimeCount(websiteId: string, enabled = true) {
   });
 }
 
-export function useRealtimeReplay(websiteId: string, enabled: boolean) {
+export function useRealtimeReplay(websiteId: string, enabled: boolean, shareToken?: string) {
   return useQuery({
-    queryKey: ["realtime-replay", websiteId],
-    queryFn: () => apiGet<RealtimeReplay>("/api/v1/analytics/realtime/replay", { websiteId }),
+    queryKey: ["realtime-replay", shareToken ? `share:${shareToken}` : websiteId],
+    queryFn: () =>
+      shareToken
+        ? apiGet<RealtimeReplay>(sharePath(shareToken, "realtime/replay"))
+        : apiGet<RealtimeReplay>("/api/v1/analytics/realtime/replay", { websiteId }),
     enabled,
     staleTime: 5 * 60_000,
   });

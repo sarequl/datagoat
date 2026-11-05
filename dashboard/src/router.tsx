@@ -5,6 +5,7 @@
  *   /                         → /app
  *   /login /setup /invite/$token /forgot-password /reset-password/$token
  *   /share/$token             public read-only dashboard (W4)
+ *   /share/$token/widget      embeddable widget (iframe) for a share link
  *   /oauth/consent            MCP OAuth consent (W7; the Worker serves this SPA for /oauth/*)
  *   /app                      signed-in area → first website or /app/new-site
  *   /app/new-site /app/websites (all websites) /app/account
@@ -84,6 +85,11 @@ const shareRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/share/$token",
   component: page("public/SharedDashboardPage"),
+});
+const widgetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/share/$token/widget",
+  component: page("public/WidgetPage"),
 });
 const consentRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -192,6 +198,7 @@ export const routeTree = rootRoute.addChildren([
   forgotRoute,
   resetRoute,
   shareRoute,
+  widgetRoute,
   consentRoute,
   appRoute.addChildren([
     appIndexRoute,

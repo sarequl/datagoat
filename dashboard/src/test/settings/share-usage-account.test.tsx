@@ -1,10 +1,11 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 import { usage } from "../../mocks/fixtures/analytics";
 import { server } from "../../mocks/node";
-import { state } from "../../mocks/state";
+import { resetMockState, state } from "../../mocks/state";
+import { renderApp } from "../render";
 import { openPage, recordRequests, SITE, SITE2, site, writes } from "./helpers";
 
 afterEach(() => server.events.removeAllListeners());
@@ -53,6 +54,46 @@ describe("share link", () => {
     expect(await screen.findByRole("textbox", { name: "Share link" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Turn off sharing" })).not.toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Show revenue" })).toBeDisabled();
+  });
+
+  it("generates widget embed code with type, period, theme, colour and size", async () => {
+    openPage(`/app/${SITE}/share`);
+    const widgets = await card("Widgets");
+    await userEvent.selectOptions(within(widgets).getByLabelText("Widget"), "chart");
+    await userEvent.selectOptions(within(widgets).getByLabelText("Period"), "7d");
+    await userEvent.selectOptions(within(widgets).getByLabelText("Theme"), "light");
+    const code = within(widgets).getByRole("figure", { name: "widget embed code" });
+    expect(code).toHaveTextContent(
+      `${window.location.origin}/share/share_demo_token_000000/widget?type=chart&amp;period=7d&amp;theme=light&amp;color=e16540`,
+    );
+    expect(code).toHaveTextContent('width="480" height="220"');
+    const preview = within(widgets).getByTitle(/visitors chart preview/);
+    expect(preview).toHaveAttribute("src", expect.stringContaining("type=chart&period=7d"));
+  });
+});
+
+describe("embeddable widget", () => {
+  it("shows the visitors number in the chosen theme and colour", async () => {
+    resetMockState({ signedIn: false });
+    renderApp("/share/share_demo_token_000000/widget?type=visitors&theme=light&color=00aa55");
+    const value = await screen.findByTestId("widget-value");
+    await waitFor(() => expect(value).toHaveTextContent(/^\d[\d,]*$/));
+    expect(value).toHaveStyle({ color: "#00aa55" });
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    expect(screen.getByTestId("widget")).toHaveTextContent("Visitors · Last 30 days");
+    expect(screen.getByTestId("widget")).toHaveAttribute("href", "/share/share_demo_token_000000");
+  });
+
+  it("hides revenue unless the owner shares it, and shows live visitors", async () => {
+    resetMockState({ signedIn: false });
+    renderApp("/share/share_demo_token_000000/widget?type=revenue");
+    expect(await screen.findByText("Revenue is not shared publicly")).toBeInTheDocument();
+    cleanup();
+    resetMockState({ signedIn: false });
+    renderApp("/share/share_demo_token_000000/widget?type=live");
+    const value = await screen.findByTestId("widget-value");
+    await waitFor(() => expect(value).toHaveTextContent(/^\d+$/));
+    expect(screen.getByTestId("widget")).toHaveTextContent("Visitors online now");
   });
 });
 

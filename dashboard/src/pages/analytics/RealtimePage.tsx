@@ -110,7 +110,8 @@ function VisitorDetail({
   onClose,
 }: {
   v: RealtimeVisitor;
-  siteId: string;
+  /** Null on a public share link: no journeys there. */
+  siteId: string | null;
   predictions: boolean;
   timezone: string;
   currency: string;
@@ -207,13 +208,15 @@ function VisitorDetail({
           ) : null}
         </div>
       ) : null}
-      <Link
-        to="/app/$siteId/visitors/$visitorId"
-        params={{ siteId, visitorId: v.visitorId }}
-        className="inline-block text-sm text-primary-text hover:underline"
-      >
-        Open visitor journey →
-      </Link>
+      {siteId ? (
+        <Link
+          to="/app/$siteId/visitors/$visitorId"
+          params={{ siteId, visitorId: v.visitorId }}
+          className="inline-block text-sm text-primary-text hover:underline"
+        >
+          Open visitor journey →
+        </Link>
+      ) : null}
     </section>
   );
 }
@@ -269,16 +272,23 @@ function EventLog({
   );
 }
 
-function Realtime({
+/**
+ * The live view. Signed in it reads `/api/v1/analytics/realtime/*`; on a public share link
+ * (`share`) it reads `/api/share/:token/analytics/realtime/*` (no PII, no journeys, payments only
+ * when the owner shares revenue).
+ */
+export function RealtimeView({
   siteId,
   timezone,
   currency,
+  share,
 }: {
-  siteId: string;
+  siteId: string | null;
   timezone: string;
   currency: string;
+  share?: { token: string; showRevenue: boolean };
 }) {
-  const map = useRealtimeMap(siteId);
+  const map = useRealtimeMap(siteId ?? "", 15_000, share?.token);
   const [view, setView] = useState<View>(() => readPref<View>("realtime:view", "globe"));
   const [style, setStyle] = useState<MapStyle>(() => readPref<MapStyle>("realtime:style", "dark"));
   const [autoRotate, setAutoRotate] = useState(true);
@@ -289,7 +299,7 @@ function Realtime({
   const [filters, setFilters] = useState<LiveFilter[]>([]);
   const [tab, setTab] = useState("visitors");
   const stage = useRef<HTMLDivElement>(null);
-  const replayQ = useRealtimeReplay(siteId, replay);
+  const replayQ = useRealtimeReplay(siteId ?? "", replay, share?.token);
   const frames = replayQ.data?.frames ?? [];
 
   useEffect(() => writePref("realtime:view", view), [view]);
@@ -604,7 +614,7 @@ function Realtime({
               tabs={[
                 { id: "visitors", label: `Visitors (${visitors.length})` },
                 { id: "events", label: selected ? "Events (visitor)" : "Events" },
-                { id: "payments", label: "Payments" },
+                ...(share && !share.showRevenue ? [] : [{ id: "payments", label: "Payments" }]),
               ]}
               value={tab}
               onChange={setTab}
@@ -708,7 +718,9 @@ function Realtime({
 export default function RealtimePage() {
   return (
     <SiteAnalytics>
-      {(site) => <Realtime siteId={site._id} timezone={site.timezone} currency={site.currency} />}
+      {(site) => (
+        <RealtimeView siteId={site._id} timezone={site.timezone} currency={site.currency} />
+      )}
     </SiteAnalytics>
   );
 }

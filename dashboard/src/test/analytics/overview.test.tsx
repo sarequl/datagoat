@@ -412,6 +412,21 @@ describe("public shared dashboard", () => {
     expect(await screen.findByTestId("kpi-revenue")).toHaveTextContent("$");
   });
 
+  it("shows the live visitor map without names, journeys or (unshared) payments", async () => {
+    resetMockState({ signedIn: false });
+    renderApp("/share/share_demo_token_000000");
+    await screen.findByTestId("kpi-visitors");
+    await userEvent.click(screen.getByRole("button", { name: "Live map" }));
+    const live = await screen.findByTestId("live-count");
+    await waitFor(() => expect(live).toHaveTextContent(/\d+ visitors? online/));
+    expect(screen.queryByRole("tab", { name: "Payments" })).not.toBeInTheDocument();
+    const list = await screen.findByRole("tab", { name: /^Visitors \(\d+\)/ });
+    expect(list).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Open visitor journey/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Overview" }));
+    expect(await screen.findByTestId("kpi-visitors")).toBeInTheDocument();
+  });
+
   it("explains an invalid link", async () => {
     resetMockState({ signedIn: false });
     renderApp("/share/nope");

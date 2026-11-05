@@ -79,7 +79,20 @@ connect with a pasted token:
 
 Turn on a public, read-only dashboard at `/share/<token>`. Copy or open the link, create a new link
 (the old one stops working), or turn sharing off. Revenue is hidden unless you switch on "Show
-revenue". Visitor profiles, customer details, notes and settings are never shown.
+revenue". Visitor profiles, customer details, notes and settings are never shown. The public page
+has an **Overview** and a **Live map** view (the real-time globe or map, the live visitor list and
+event log, without names or journeys; payments only with "Show revenue").
+
+### Widgets
+
+While sharing is on, the **Widgets** card generates an `<iframe>` you can paste into any page:
+*Visitors* or *Revenue* for the last 24 hours, 7 or 30 days with a trend line, *Visitors online
+now*, or a *Visitors chart*, in a dark or light theme, with your colour and size. The widget is
+served at `/share/<token>/widget?type=&period=&theme=&color=` (the only DataGoat page other sites
+may frame) and reads the public share API, so creating a new share link or turning sharing off
+stops every widget. Revenue widgets show a dash unless revenue is shared. Each widget view costs a
+few Worker requests and D1 reads (cached for 60 seconds on a custom domain), so keep that in mind on
+very busy pages.
 
 ## Usage & data
 

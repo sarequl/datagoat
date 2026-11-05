@@ -137,5 +137,17 @@ describe("public share API", () => {
     expect(good.body).not.toBe("Shared dashboard not found");
     expect(good.headers.get("x-robots-tag")).toBe("noindex");
     expect(good.headers.get("cache-control")).toBe("no-store");
+    expect(good.headers.get("x-frame-options")).toBe("DENY");
+  });
+
+  it("serves an embeddable widget shell that other sites may frame", async () => {
+    const { token } = await shared(false);
+    const bad = await api(`/share/${"y".repeat(24)}/widget`);
+    expect(bad.status).toBe(404);
+    const good = await api(`/share/${token}/widget?type=visitors&theme=dark`);
+    expect(good.body).not.toBe("Shared dashboard not found");
+    expect(good.headers.get("x-frame-options")).toBeNull();
+    expect(good.headers.get("content-security-policy")).toBe("frame-ancestors *");
+    expect(good.headers.get("x-robots-tag")).toBe("noindex");
   });
 });
