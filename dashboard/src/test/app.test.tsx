@@ -81,6 +81,51 @@ describe("dashboard shell", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Setup failed: disk full");
   });
 
+  it("requests a password reset link from the login page", async () => {
+    const bodies: unknown[] = [];
+    server.events.on("request:start", async ({ request }) => {
+      if (
+        request.method === "POST" &&
+        new URL(request.url).pathname === "/api/auth/password-resets"
+      )
+        bodies.push(await request.clone().json());
+    });
+    renderApp("/login");
+    await userEvent.click(await screen.findByRole("link", { name: "Forgot password?" }));
+    expect(await screen.findByRole("heading", { name: "Reset your password" })).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Email"), "nobody@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "If an account exists for that email, a password reset link is on its way.",
+    );
+    expect(bodies).toEqual([{ email: "nobody@example.com" }]);
+    server.events.removeAllListeners();
+    await userEvent.click(screen.getByRole("link", { name: "Back to sign in" }));
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();
+  });
+
+  it("shows the server's fallback when email is not configured", async () => {
+    server.use(
+      http.post("/api/auth/password-resets", () =>
+        HttpResponse.json(
+          {
+            status: "error",
+            error: {
+              code: 503,
+              message:
+                "Email is not configured on this server. Ask the operator to run `npm run reset-password -- <email> <url>`.",
+            },
+          },
+          { status: 503 },
+        ),
+      ),
+    );
+    renderApp("/forgot-password");
+    await userEvent.type(await screen.findByLabelText("Email"), "demo@datagoat.dev");
+    await userEvent.click(screen.getByRole("button", { name: "Send reset link" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("npm run reset-password");
+  });
+
   it("renders the placeholder for pages that are not built yet", async () => {
     // Pages are replaced by their teams; the placeholder component itself stays covered here.
     render(

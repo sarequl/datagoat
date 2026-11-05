@@ -3,7 +3,7 @@
  * nav.ts so the sidebar and the routes never drift.
  *
  *   /                         → /app
- *   /login /setup /invite/$token /reset-password/$token
+ *   /login /setup /invite/$token /forgot-password /reset-password/$token
  *   /share/$token             public read-only dashboard (W4)
  *   /oauth/consent            MCP OAuth consent (W7; the Worker serves this SPA for /oauth/*)
  *   /app                      signed-in area → first website or /app/new-site
@@ -69,6 +69,11 @@ const inviteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/invite/$token",
   component: page("auth/InvitePage"),
+});
+const forgotRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: page("auth/ForgotPasswordPage"),
 });
 const resetRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -179,6 +184,7 @@ export const routeTree = rootRoute.addChildren([
   loginRoute,
   setupRoute,
   inviteRoute,
+  forgotRoute,
   resetRoute,
   shareRoute,
   consentRoute,

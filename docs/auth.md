@@ -15,8 +15,13 @@ website. It works once; afterwards everyone signs in at `/login`.
   revoke sessions immediately.
 - Throttling: 8 failed attempts per email or 20 per IP within 15 minutes return 429 (KV, written
   only on failures).
-- Password change signs out every other session. Forgotten passwords: `npm run reset-password`
-  ([deploy.md](deploy.md)).
+- Password change signs out every other session.
+- Forgotten passwords: **Forgot password?** on the sign-in page (`/forgot-password`) emails a
+  one-time link to `/reset-password/<token>` that works for one hour
+  (`POST /api/auth/password-resets`; the answer is the same for unknown emails, and at most one
+  email per account is sent every 5 minutes). It needs an email provider
+  ([growth/alerts.md](growth/alerts.md)); without one the page shows the server's answer, and the
+  operator runs `npm run reset-password` instead ([deploy.md](deploy.md)).
 
 ## Roles
 

@@ -86,6 +86,10 @@ export const authHandlers = [
       ...me(),
     });
   }),
+  // W6: same answer whether or not the account exists (contract §11).
+  http.post("/api/auth/password-resets", () =>
+    ok({ message: "If an account exists for that email, a password reset link is on its way." }),
+  ),
   http.get("/api/auth/password-resets/:token", () => ok({ email: state.user.email })),
   http.post("/api/auth/password-resets/:token", () =>
     ok({ message: "Password updated. You can now sign in." }),
