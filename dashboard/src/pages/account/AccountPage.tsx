@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useMe } from "../../api/hooks";
+import { AppIcon, appOf } from "../../components/AppIcons";
 import { Button, Card, Input, Notice } from "../../components/ui";
 import { formatDate, formatRelative } from "../settings/lib/format";
 import {
@@ -215,6 +216,13 @@ function WebsitesCard() {
   );
 }
 
+/** "12 permissions · read only" / "29 permissions · read and write". */
+export function scopeSummary(scopes: string[]): string {
+  const writes = scopes.some((s) => s.endsWith(":write") || s.endsWith(":details"));
+  const n = scopes.length;
+  return `${n} permission${n === 1 ? "" : "s"} · ${writes ? "read and write" : "read only"}`;
+}
+
 export function ConnectionsCard() {
   const connections = useOAuthConnections();
   const revoke = useRevokeConnection();
@@ -229,13 +237,31 @@ export function ConnectionsCard() {
         connections.data.length ? (
           <ul className="divide-y divide-line">
             {connections.data.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center gap-3 py-3 text-sm">
+              <li key={c.id} className="flex flex-wrap items-start gap-3 py-3 text-sm">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-surface-2">
+                  <AppIcon app={appOf(c.client.name)} className="size-5" />
+                </span>
                 <div className="min-w-0 flex-1">
                   <div className="font-medium">{c.client.name ?? c.client.id}</div>
                   <div className="text-xs text-muted">
-                    {c.scopes.join(", ")} · connected {formatDate(c.createdAt)} · last used{" "}
-                    {formatRelative(c.lastUsedAt)} · expires {formatDate(c.expiresAt)}
+                    Connected {formatDate(c.createdAt)} · last used {formatRelative(c.lastUsedAt)} ·
+                    expires {formatDate(c.expiresAt)}
                   </div>
+                  <details className="mt-1 text-xs">
+                    <summary className="cursor-pointer text-muted hover:text-text">
+                      {scopeSummary(c.scopes)}
+                    </summary>
+                    <ul aria-label="Permissions" className="mt-2 flex flex-wrap gap-1">
+                      {c.scopes.map((s) => (
+                        <li
+                          key={s}
+                          className="rounded-full border border-line px-2 py-0.5 font-mono text-[11px] text-muted"
+                        >
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                 </div>
                 <Button
                   variant="ghost"

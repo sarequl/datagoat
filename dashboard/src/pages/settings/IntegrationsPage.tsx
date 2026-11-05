@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import type { GrowthIntegrationStatus, IntegrationsStatus } from "../../../../shared/api-types";
+import { BrandTile } from "../../components/BrandMarks";
 import { Button, Input, Notice, Spinner } from "../../components/ui";
 import { formatDate, formatRelative } from "./lib/format";
 import {
@@ -238,35 +239,6 @@ function IntegrationSection({
   );
 }
 
-/** Brand-coloured monogram (no third-party logo files are bundled). */
-const LOGO: Record<string, { bg: string; fg?: string; text: string }> = {
-  stripe: { bg: "#635bff", text: "S" },
-  lemonsqueezy: { bg: "#ffc233", fg: "#1c1917", text: "L" },
-  polar: { bg: "#1c1917", text: "P" },
-  paddle: { bg: "#fdd835", fg: "#1c1917", text: "P" },
-  dodo: { bg: "#0ea5e9", text: "D" },
-  creem: { bg: "#ff6b35", text: "C" },
-  shopify: { bg: "#5e8e3e", text: "S" },
-  woocommerce: { bg: "#7f54b3", text: "W" },
-  "google-search-console": { bg: "#4285f4", text: "G" },
-  github: { bg: "#24292f", text: "G" },
-  x: { bg: "#000000", text: "X" },
-  "meta-ads": { bg: "#0866ff", text: "M" },
-};
-
-function LogoTile({ id }: { id: string }) {
-  const l = LOGO[id] ?? { bg: "var(--dg-neutral)", text: id[0]?.toUpperCase() ?? "?" };
-  return (
-    <span
-      aria-hidden="true"
-      className="grid size-9 shrink-0 place-items-center rounded-lg text-sm font-bold ring-1 ring-line-strong ring-inset"
-      style={{ background: l.bg, color: l.fg ?? "#ffffff" }}
-    >
-      {l.text}
-    </span>
-  );
-}
-
 /**
  * One integration: header (logo, name, status, summary, actions) and an optional body for setup
  * steps, forms and notices.
@@ -293,7 +265,7 @@ function IntegrationRow({
       className="min-w-0 scroll-mt-4 overflow-hidden rounded-xl border border-line bg-surface"
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5">
-        <LogoTile id={id} />
+        <BrandTile id={id} name={name} />
         <div className="min-w-0 flex-1 basis-56">
           <div className="flex flex-wrap items-center gap-2">
             <h3 id={`integration-${id}-name`} className="text-sm font-semibold">

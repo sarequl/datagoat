@@ -5,6 +5,7 @@
  */
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { AppIcon, type AppId } from "../../components/AppIcons";
 import { Card } from "../../components/ui";
 import { ConnectionsCard } from "../account/AccountPage";
 import { useSiteId } from "./lib/hooks";
@@ -12,12 +13,12 @@ import { CodeBlock, CopyField, PageHeader } from "./lib/ui";
 
 type Client = "claude-code" | "claude" | "chatgpt" | "cursor" | "codex";
 
-const CLIENTS: ReadonlyArray<{ id: Client; label: string }> = [
-  { id: "claude-code", label: "Claude Code" },
-  { id: "claude", label: "Claude" },
-  { id: "chatgpt", label: "ChatGPT" },
-  { id: "cursor", label: "Cursor" },
-  { id: "codex", label: "Codex" },
+const CLIENTS: ReadonlyArray<{ id: Client; label: string; app: AppId }> = [
+  { id: "claude-code", label: "Claude Code", app: "claude" },
+  { id: "claude", label: "Claude", app: "claude" },
+  { id: "chatgpt", label: "ChatGPT", app: "chatgpt" },
+  { id: "cursor", label: "Cursor", app: "cursor" },
+  { id: "codex", label: "Codex", app: "codex" },
 ];
 
 /** Steps and, where the client takes one, a command or config file for `url`. */
@@ -92,12 +93,13 @@ export default function McpPage() {
               role="tab"
               aria-selected={client === c.id}
               onClick={() => setClient(c.id)}
-              className={`rounded-md px-3 py-1.5 text-sm ${
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
                 client === c.id
                   ? "bg-surface-2 font-medium text-text shadow-pill"
                   : "text-muted hover:bg-surface-2 hover:text-text"
               }`}
             >
+              <AppIcon app={c.app} />
               {c.label}
             </button>
           ))}
