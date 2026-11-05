@@ -7,7 +7,7 @@ import type {
   MetaAdAccount,
 } from "../../../../shared/api-types";
 import { api, apiGet } from "../../api/client";
-import { Button, Card, Field, Input, Notice, Spinner } from "../../components/ui";
+import { Button, Card, Input, Notice, Spinner } from "../../components/ui";
 import {
   fmtDate,
   fmtMoney,
@@ -107,29 +107,34 @@ function TokenForm({ siteId }: { siteId: string }) {
   });
   return (
     <form
-      className="mt-3 flex flex-wrap items-end gap-2"
+      className="mt-3 space-y-2"
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate();
       }}
     >
-      <div className="min-w-64 flex-1">
-        <Field
-          label="Or paste a Meta access token"
-          hint="A system user token with ads_read from Business Manager."
-        >
-          <Input
-            type="password"
-            autoComplete="off"
-            required
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-          />
-        </Field>
+      <label htmlFor="meta-token" className="block text-sm font-medium">
+        Or paste a Meta access token
+      </label>
+      {/* Input and button share one row; the hint sits under both so they line up. */}
+      <div className="flex flex-wrap gap-2">
+        <Input
+          id="meta-token"
+          type="password"
+          autoComplete="off"
+          required
+          aria-describedby="meta-token-hint"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          className="min-w-64 flex-1"
+        />
+        <Button type="submit" variant="secondary" disabled={save.isPending}>
+          Save token
+        </Button>
       </div>
-      <Button type="submit" variant="secondary" disabled={save.isPending}>
-        Save token
-      </Button>
+      <p id="meta-token-hint" className="text-xs text-muted">
+        A system user token with ads_read from Business Manager.
+      </p>
       {save.error ? <Notice tone="error">{save.error.message}</Notice> : null}
     </form>
   );
