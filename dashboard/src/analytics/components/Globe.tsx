@@ -60,6 +60,9 @@ export function busiest(markers: { lat: number; lng: number }[]): { lat: number;
   return best ? { lat: best.lat / best.n, lng: best.lng / best.n } : { lat: 0, lng: 0 };
 }
 
+/** Radians per frame: about one turn an hour at 60 fps, a slow drift rather than a spin. */
+export const AUTO_ROTATE_PER_FRAME = 0.00003;
+
 const markerId = (id: string) => `v${id.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
 export default function Globe({
@@ -180,7 +183,7 @@ export default function Globe({
         s.theta += (s.targetTheta - s.theta) * 0.08;
         if (Math.abs(s.targetPhi - s.phi) < 0.001) s.targetPhi = null;
       } else if (autoRef.current && !s.drag) {
-        s.phi += 0.003;
+        s.phi += AUTO_ROTATE_PER_FRAME;
       }
       globe?.update({ phi: s.phi, theta: s.theta, markers: markersRef.current });
       raf = requestAnimationFrame(frame);

@@ -97,6 +97,11 @@ describe("visitors", () => {
     );
     expect(screen.getByRole("group", { name: "Activity by day" })).toBeInTheDocument();
     expect(screen.getByText("Identity")).toBeInTheDocument();
+    // The back link sits on its own row above the title and returns to the list.
+    const back = within(screen.getByRole("main")).getByRole("link", { name: "Visitors" });
+    expect(back).toHaveAttribute("href", expect.stringMatching(/\/visitors$/));
+    await userEvent.click(back);
+    expect(await screen.findByRole("table", { name: /Visitors/ })).toBeInTheDocument();
   });
 
   it("applies customers-only and dashboard filters, and says which filters cannot apply", async () => {

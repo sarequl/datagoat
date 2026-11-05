@@ -1,5 +1,5 @@
 /** One funnel's results for the period and filters, with edit and delete. */
-import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { FunnelBuilder } from "../../analytics/components/FunnelBuilder";
 import { FunnelChart } from "../../analytics/components/FunnelChart";
@@ -19,7 +19,7 @@ import {
 import { AnalyticsHeader } from "../../analytics/OverviewDashboard";
 import { SiteAnalytics } from "../../analytics/SiteAnalytics";
 import { useDashboardState } from "../../analytics/state";
-import { Button } from "../../components/ui";
+import { BackLink, Button } from "../../components/ui";
 
 function Detail({
   siteId,
@@ -46,13 +46,9 @@ function Detail({
   const r = result.data;
   return (
     <div className="space-y-4">
-      <Link
-        to="/app/$siteId/funnels"
-        params={{ siteId }}
-        className="text-sm text-muted hover:text-text"
-      >
-        ← Funnels
-      </Link>
+      <BackLink to="/app/$siteId/funnels" params={{ siteId }}>
+        Funnels
+      </BackLink>
       <AnalyticsHeader
         title={funnel?.name ?? r?.funnel.name ?? "Funnel"}
         state={state}

@@ -3,7 +3,6 @@
  * chart with markers, breakdown cards, goals and the activity heatmap. Used signed in
  * (`/app/:siteId/overview`) and read-only on public share links (`/share/:token`).
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type { GoalRow, Note, Overview, TimeseriesPoint } from "../../../shared/api-types";
@@ -283,7 +282,6 @@ export function OverviewDashboard({
 }) {
   const source = useSource();
   const state = useDashboardState();
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const money = showRevenue(source);
   const live = state.range.live;
@@ -472,27 +470,7 @@ export function OverviewDashboard({
 
   return (
     <div className="space-y-4">
-      <AnalyticsHeader
-        title={title}
-        logo={logo}
-        state={state}
-        segments={source.kind === "site"}
-        actions={
-          <button
-            type="button"
-            aria-label="Refresh"
-            title="Refresh"
-            onClick={() =>
-              void qc.invalidateQueries({ queryKey: ["analytics", sourceKey(source)] })
-            }
-            className="rounded-md border border-line bg-surface p-2 hover:bg-surface-2"
-          >
-            <svg aria-hidden="true" viewBox="0 0 20 20" className="size-4" fill="currentColor">
-              <path d="M10 3a7 7 0 0 1 6.3 4H14v2h5V4h-2v1.7A9 9 0 1 0 19 11h-2a7 7 0 1 1-7-8z" />
-            </svg>
-          </button>
-        }
-      />
+      <AnalyticsHeader title={title} logo={logo} state={state} segments={source.kind === "site"} />
       {overview.error ? <ErrorState error={overview.error} /> : null}
       <KpiRow
         overview={ov}

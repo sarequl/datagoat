@@ -95,7 +95,8 @@ function CampaignPicker({ siteId, status }: { siteId: string; status: GrowthInte
   );
 }
 
-function TokenForm({ siteId }: { siteId: string }) {
+/** `primary` when it is the only way to connect (no Facebook login on this server). */
+function TokenForm({ siteId, primary }: { siteId: string; primary: boolean }) {
   const qc = useQueryClient();
   const [token, setToken] = useState("");
   const save = useMutation({
@@ -128,7 +129,7 @@ function TokenForm({ siteId }: { siteId: string }) {
           onChange={(e) => setToken(e.target.value)}
           className="min-w-64 flex-1"
         />
-        <Button type="submit" variant="secondary" disabled={save.isPending}>
+        <Button type="submit" variant={primary ? "primary" : "secondary"} disabled={save.isPending}>
           Save token
         </Button>
       </div>
@@ -193,7 +194,7 @@ export default function AdsPage() {
               Facebook login is not configured on this server (META_APP_ID, META_APP_SECRET).
             </Notice>
           )}
-          <TokenForm siteId={siteId} />
+          <TokenForm siteId={siteId} primary={!status.data.connectUrl} />
         </Card>
       ) : null}
       {connected && status.data ? (

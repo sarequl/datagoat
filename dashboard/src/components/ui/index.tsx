@@ -1,4 +1,6 @@
 /** Small UI primitives built on the design tokens (styles.css). */
+
+import { Link, type LinkProps } from "@tanstack/react-router";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { LogoMark } from "../Logo";
@@ -214,6 +216,32 @@ export function Spinner({ label = "Loading" }: { label?: string }) {
     >
       <span className="size-4 animate-spin rounded-full border-2 border-line border-t-primary" />
       {label}…
+    </div>
+  );
+}
+
+/** "← Parent" link above a detail page's title: its own row, a hit area and spacing. */
+export function BackLink({ children, ...props }: LinkProps & { children: ReactNode }) {
+  return (
+    <div className="mb-1">
+      <Link
+        {...props}
+        className="-ml-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-muted hover:bg-surface-2 hover:text-text"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="size-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m14 7-5 5 5 5" />
+        </svg>
+        {children}
+      </Link>
     </div>
   );
 }

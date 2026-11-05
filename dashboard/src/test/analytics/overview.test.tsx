@@ -14,6 +14,8 @@ describe("overview", () => {
     const visitors = await screen.findByTestId("kpi-visitors");
     await waitFor(() => expect(visitors).toHaveTextContent(/\d/));
     expect(visitors).toHaveTextContent(/new · .* returning/);
+    // No manual refresh button: data refetches on its own.
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
     for (const k of [
       "revenue",
       "payments",

@@ -3,7 +3,7 @@
  * GitHub-style activity grid (blue = activity, orange = goal days; click a day to jump to it) and
  * the journey timeline across sessions, grouped by day with each day's source.
  */
-import { Link, useParams } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { type ReactNode, useMemo } from "react";
 import type { VisitorProfile } from "../../../../shared/api-types";
 import { Badge, ErrorState, Skeleton } from "../../analytics/components/primitives";
@@ -21,7 +21,7 @@ import {
 import { initials, visitorName } from "../../analytics/lib/names";
 import { addDays, diffDays, formatDay, weekdayOf, ymdInTz } from "../../analytics/lib/tz";
 import { SiteAnalytics } from "../../analytics/SiteAnalytics";
-import { Card, cx } from "../../components/ui";
+import { BackLink, Card, cx } from "../../components/ui";
 
 type TimelineItem =
   | {
@@ -212,13 +212,9 @@ function Profile({
 
   return (
     <div className="space-y-4">
-      <Link
-        to="/app/$siteId/visitors"
-        params={{ siteId }}
-        className="text-sm text-muted hover:text-text"
-      >
-        ← Visitors
-      </Link>
+      <BackLink to="/app/$siteId/visitors" params={{ siteId }}>
+        Visitors
+      </BackLink>
       <div className="flex flex-wrap items-center gap-3">
         <span
           aria-hidden="true"

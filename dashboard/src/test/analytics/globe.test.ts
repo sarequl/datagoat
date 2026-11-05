@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { busiest, locationToAngles } from "../../analytics/components/Globe";
+import { AUTO_ROTATE_PER_FRAME, busiest, locationToAngles } from "../../analytics/components/Globe";
 
 describe("globe start position", () => {
   it("faces the spot with the most visitors", () => {
@@ -17,4 +17,10 @@ describe("globe start position", () => {
     expect(phi).toBeCloseTo(Math.PI, 5);
     expect(theta).toBe(0);
   });
+});
+
+it("auto-rotates slowly: about one turn an hour at 60 fps", () => {
+  const minutesPerTurn = (2 * Math.PI) / AUTO_ROTATE_PER_FRAME / 60 / 60;
+  expect(minutesPerTurn).toBeGreaterThan(50);
+  expect(minutesPerTurn).toBeLessThan(70);
 });

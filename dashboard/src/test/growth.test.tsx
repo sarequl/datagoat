@@ -308,9 +308,35 @@ describe("Search Console page", () => {
 });
 
 describe("Ads page", () => {
+  it("makes Save token the primary button when Facebook login is not configured", async () => {
+    server.use(
+      http.get(`/api/v1/admin/websites/${SITE}/integrations/meta-ads`, () =>
+        HttpResponse.json({
+          status: "success",
+          data: {
+            kind: "meta_ads",
+            connected: false,
+            status: null,
+            hasCredentials: false,
+            oauthConfigured: false,
+            connectUrl: null,
+            lastSyncedAt: null,
+            lastError: null,
+            settings: {},
+          },
+        }),
+      ),
+    );
+    open("ads");
+    expect(await screen.findByText(/Facebook login is not configured/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save token" }).className).toContain("bg-primary");
+  });
+
   it("connects Meta, chooses campaigns and shows ROAS", async () => {
     open("ads");
     expect(await screen.findByRole("link", { name: "Connect Meta Ads" })).toBeInTheDocument();
+    // With Facebook login available, saving a token is the secondary option.
+    expect(screen.getByRole("button", { name: "Save token" }).className).toContain("bg-surface");
     await userEvent.type(
       screen.getByLabelText(/^Or paste a Meta access token/),
       "EAAB-system-user-token",
