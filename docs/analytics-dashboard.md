@@ -5,6 +5,13 @@ and Revenue, plus the public dashboard behind a share link. Every view is a URL:
 granularity, comparison, chart metric and filters are query parameters, so you can bookmark or send
 any view.
 
+## All websites
+
+*All websites* (sidebar, `/app/websites`) lists every website you can open with its visitors,
+revenue and live visitors and a visitors trend for the last 24 hours, 7 days or 30 days. Drag a
+card, or use its *Move up* / *Move down* buttons, to change the order; it is saved to your account
+(`PUT /api/v1/admin/account/website-order`) and the website switcher uses it too.
+
 ## Overview
 
 - **KPI row.** Visitors (with new and returning), revenue, payments, revenue per visitor, conversion
@@ -12,23 +19,36 @@ any view.
   previous period of the same length (the previous calendar month for "Last month") and a trend
   sparkline. Bounce rate counts a fall as good news. **Visitors now** opens the live map (shortcut
   `M`).
+- **MRR and ROAS.** When payment providers report subscriptions, an **MRR** tile shows the current
+  monthly recurring revenue of active and past-due subscriptions (right after Visitors when the
+  website's headline revenue metric is MRR, Settings → Attribution & revenue). With Meta Ads
+  connected, a **ROAS** tile shows return on ad spend for the period, with spend and revenue.
 - **#1 KPI.** When a goal is set as the website's #1 KPI (Goals → a goal → *Set as #1 KPI*, or
   website settings), it gets a tile with converting visitors and conversion rate, and every
   breakdown card can switch its third column from revenue to that goal.
-- **Main chart.** Visitors as a line, revenue as bars in the website's KPI colour scheme. Choose
+- **Main chart.** Visitors as a line, revenue as bars in the website's KPI colour scheme, with
+  refunded amounts greyed out on top of each bar (timeseries field `refunds`). Choose
   hourly, daily, weekly or monthly granularity (what fits the period), and **Compare** to draw the
   previous period as a dashed line and faded bars. Click a KPI tile for a single-metric trend chart
   (conversion rate, revenue per visitor, bounce rate, session time, sessions, pageviews, payments)
   with the previous period dashed; click Visitors for new vs returning. Click it again, or
   *← Visitors / Revenue*, to go back.
-- **Markers.** Notes 📝, GitHub commits and 𝕏 mentions appear under the chart (toggle each kind).
-  Click a point to *Add note here* or to *View this day/week/month*. Click a marker to read, edit or
+- **Markers.** Notes 📝, GitHub commits and 𝕏 mentions appear under the chart (toggle each kind;
+  narrow commits to a type such as `feat:` or `fix:`).
+  Click a point to pin its numbers (handy for screenshots) with *Add note here* and *View this
+  day/week/month*. Click a marker to read, edit or
   delete notes. Keyboard: focus the chart, move with ←/→ (Home/End), Enter for actions, Esc to close.
 - **Breakdowns.** Source (channel, referrer, campaign by UTM source/medium/campaign/term/content,
-  `ref`, `source`, `via`), Pages (page, entry page, exit page, exit link, hostname), Location (map,
+  `ref`, `source`, `via`; plus **Keyword** with Google Search Console clicks, impressions and
+  estimated revenue when it is connected, narrowed by a page filter, and **Ads** with each Meta
+  campaign's visitors, revenue, spend and ROAS when Meta Ads is connected; clicking a campaign
+  filters on its `utm_campaign`), Pages (page, entry page, exit page, exit link, hostname), Location (map,
   country, region, city), System (browser, OS, device) and Goals. Every row shows visitors, revenue
-  and payments (exit links: visitors and clicks); clicking a row filters the whole dashboard.
-  *Details* lists up to 1,000 rows with search.
+  and payments (exit links: visitors and clicks); clicking a row filters the whole dashboard. The
+  Channel tab shows each channel's share of visitors as a donut; clicking a channel (in the donut
+  or the list) filters on it and switches to Referrer, so you see the sources inside it.
+  *Details* lists up to 1,000 rows with search, sorted by visitors, revenue (clicks for exit links)
+  or name.
 - **Visitor activity.** A weekday × hour heatmap of visitors or pageviews in the website timezone
   (for periods longer than 41 days, the last 41 days).
 
@@ -37,9 +57,9 @@ any view.
 Now (last 30 minutes, minute buckets, refreshes every minute), Today, Yesterday, Last 24 hours,
 Last 7 / 30 days, and under *More periods*: Last 3 / 6 / 12 months, Month to date, Last month,
 Year to date, All time, plus a custom range. Pin the periods you use (★); pins are remembered per
-website in this browser. The arrows step back and forward by the period's length. Shortcuts: `N`
-now, `T` today, `Y` yesterday, `H` last 24 hours, `W` last 7 days, `D` last 30 days, `Q` last 3
-months, `L` last 12 months, `A` all time.
+website in this browser. The arrows step back and forward by the period's length. Shortcuts (DataFast's):
+`N` now, `T` today, `Y` yesterday, `D` last 24 hours, `W` last 7 days, `3` last 30 days, plus `Q`
+last 3 months, `L` last 12 months and `A` all time.
 
 ## Filters and segments
 
@@ -73,7 +93,10 @@ goal, visit count…) apply; others are listed as not applied. A **profile** sho
 (location, device, browser and OS versions, viewport, first-touch parameters), activity, the purchase
 prediction (or lifetime revenue for customers and profile data from `identify`), goals, payments, a
 GitHub-style activity grid (orange = goal or payment days; click a day to jump to it) and the
-journey timeline grouped by day with each day's source.
+journey timeline grouped by day with each day's source. Sessions from Google search show the
+queries that most likely brought the visitor ("Likely searched: “pricing tool” 62%"): Search
+Console's queries for that landing page within three days of the visit, by share of clicks (needs
+the Search Console integration).
 
 ## Goals
 

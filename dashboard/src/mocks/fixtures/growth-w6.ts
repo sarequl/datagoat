@@ -289,6 +289,7 @@ export function integrationStatus(
       settings: {
         repo: "example/app",
         webhookUrl: `https://datagoat.example/webhooks/github/${siteId}`,
+        webhookSecret: "3f9a1c0d8e7b6a5f4e3d2c1b0a9f8e7d6c5b4a39",
       },
       lastSyncedAt: NOW,
     };

@@ -52,7 +52,11 @@ With email configured DataGoat also:
 
 - sends the **weekly email report** every Monday to the owners of websites with "Send weekly
   reports" on (visitors, pageviews, revenue, payments, bounce rate, session length versus the
-  previous week, top channels, referrers, pages and countries; HTML and plain text);
+  previous week, top channels, referrers, pages and countries, and up to three **insights** drawn
+  from those numbers: the channel that brought the most revenue (first touch) and its revenue per
+  visitor, a conversion rate jump or drop, a traffic surge and its top source, and a hint when a
+  quarter or more of revenue has no visitor attached; HTML and plain text). Daily and weekly
+  digest alerts carry the same insights;
 - emails owners on **traffic spikes** for websites with "Viral traffic alerts" on;
 - emails **team invites** (the invite link is still returned by the API, `emailQueued: true`);
 - serves `POST /api/auth/password-resets {email}`, which emails a one-hour reset link (one per

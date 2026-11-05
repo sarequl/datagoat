@@ -34,20 +34,26 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
-        <Field label="Password">
-          <Input
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </Field>
+        <div className="space-y-1">
+          <Field label="Password">
+            <Input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </Field>
+          <p className="text-right text-xs">
+            <Link to="/forgot-password" className="text-primary-text underline">
+              Forgot password?
+            </Link>
+          </p>
+        </div>
         <Button type="submit" className="w-full" disabled={login.isPending}>
           {login.isPending ? "Signing in…" : "Sign in"}
         </Button>
         <p className="text-center text-xs text-muted">
-          Forgot your password? Ask the operator to run <code>npm run reset-password</code>.{" "}
           <Link to="/setup" className="underline">
             First run?
           </Link>

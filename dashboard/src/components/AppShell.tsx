@@ -70,6 +70,16 @@ export function Sidebar({ siteId, websites }: { siteId: string; websites: Websit
         </div>
       ))}
       <div className="mt-auto space-y-1">
+        <Link
+          to="/app/websites"
+          className="block rounded-md px-2 py-1.5 text-sm hover:bg-surface-2"
+          activeProps={{
+            className: "bg-surface-2 font-medium text-primary-text",
+            "aria-current": "page",
+          }}
+        >
+          All websites
+        </Link>
         <Link to="/app/account" className="block rounded-md px-2 py-1.5 text-sm hover:bg-surface-2">
           Account
         </Link>

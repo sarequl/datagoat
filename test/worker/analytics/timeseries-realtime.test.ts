@@ -66,6 +66,36 @@ describe("GET /api/v1/analytics/timeseries", () => {
     });
   });
 
+  it("reports refunds per bucket with the DataGoat refunds field (revenue only)", async () => {
+    const f = await seedFixture();
+    await createPayment({
+      siteId: f.site.id,
+      amountMinor: -1500,
+      kind: "refund",
+      occurredAt: Date.UTC(2026, 2, 11, 9),
+    });
+    const res = await api(
+      `/api/v1/analytics/timeseries?interval=day&fields=visitors,revenue,refunds&${RANGE}`,
+      { token: f.key },
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.fields).toEqual(["visitors", "revenue", "payments", "refunds"]);
+    expect(res.body.data[0]).toMatchObject({ refunds: 0, revenue: 49.99 });
+    // Refunds are positive amounts; revenue stays net of them.
+    expect(res.body.data[1]).toMatchObject({ refunds: 15, revenue: -5 });
+    expect(res.body.totals).toMatchObject({ refunds: 15 });
+    // Public views without shared revenue never see it.
+    const share = await api(`/api/v1/admin/websites/${f.site.id}/share`, {
+      token: f.key,
+      body: {},
+    });
+    const pub = await api(
+      `/api/share/${share.body.data.token}/analytics/timeseries?interval=day&fields=visitors,refunds&${RANGE}`,
+    );
+    expect(pub.body.fields).toEqual(["visitors"]);
+    expect(pub.body.data[1]).not.toHaveProperty("refunds");
+  });
+
   it("weeks start on Monday and months on the 1st in the requested timezone", async () => {
     const f = await seedFixture();
     const week = await api(`/api/v1/analytics/timeseries?interval=week&fields=visitors&${RANGE}`, {

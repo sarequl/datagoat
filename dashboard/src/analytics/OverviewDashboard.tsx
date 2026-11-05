@@ -8,21 +8,24 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type { GoalRow, Note, Overview, TimeseriesPoint } from "../../../shared/api-types";
 import { Button, cx } from "../components/ui";
-import { locationTabs, pageTabs, sourceTabs, systemTabs } from "./cards";
+import { adsTab, locationTabs, pageTabs, sourceTabs, systemTabs } from "./cards";
 import { ActivityHeatmap } from "./components/ActivityHeatmap";
 import { BreakdownCard } from "./components/BreakdownCard";
 import { FilterBar } from "./components/FilterBar";
-import { KpiRow } from "./components/KpiRow";
+import { type ExtraTile, KpiRow } from "./components/KpiRow";
 import { type ChartMarker, MainChart } from "./components/MainChart";
 import { PeriodSelector } from "./components/PeriodSelector";
 import { EmptyState, ErrorState, Segmented, Skeleton } from "./components/primitives";
 import {
+  useAdsSummary,
   useCommits,
   useGoalCustomizations,
   useMentions,
+  useMrr,
   useNoteMutations,
   useNotes,
   useRealtimeCount,
+  useSearchConsoleConnected,
 } from "./hooks";
 import { kpiColor } from "./lib/colors";
 import { upsertFilter } from "./lib/filters";
@@ -34,7 +37,7 @@ import { showRevenue, sourceKey, useAnalytics, useSource } from "./source";
 import { type DashboardState, rangeToParams, useDashboardState } from "./state";
 
 export const TIMESERIES_FIELDS =
-  "visitors,new_visitors,returning_visitors,pageviews,sessions,revenue,payments,conversion_rate,bounce_rate,avg_session_duration";
+  "visitors,new_visitors,returning_visitors,pageviews,sessions,revenue,payments,conversion_rate,bounce_rate,avg_session_duration,refunds";
 
 /** Header row shared by the analytics pages: title, period and filters. */
 export function AnalyticsHeader({
@@ -361,10 +364,50 @@ export function OverviewDashboard({
   const site = source.kind === "site" ? source : null;
   const markerRange = state.range.kind === "all" ? {} : rangeToParams(state.range, state.timezone);
   const notes = useNotes(siteId ?? "", markerRange, Boolean(siteId) && markerKinds.notes);
-  const commits = useCommits(siteId ?? "", markerRange, Boolean(siteId) && markerKinds.commits);
+  // DataFast: focus commit markers on a type such as feat: or fix: (message prefix).
+  const [commitPrefix, setCommitPrefix] = useState(() =>
+    readPref<string>(`commit-prefix:${sourceKey(source)}`, ""),
+  );
+  const commits = useCommits(
+    siteId ?? "",
+    commitPrefix ? { ...markerRange, q: commitPrefix } : markerRange,
+    Boolean(siteId) && markerKinds.commits,
+  );
   const mentions = useMentions(siteId ?? "", markerRange, Boolean(siteId) && markerKinds.mentions);
   const noteMutations = useNoteMutations(siteId ?? "");
   const liveCount = useRealtimeCount(siteId ?? "", Boolean(siteId));
+  // Revenue and growth tiles/tabs for signed-in websites (DataFast: MRR, ROAS, keywords, ad spend).
+  const mrr = useMrr(siteId ?? "", Boolean(siteId) && money);
+  const adsSummary = useAdsSummary(siteId ?? "", markerRange, Boolean(siteId) && money);
+  const gscConnected = useSearchConsoleConnected(siteId ?? "", Boolean(siteId));
+  const currencyCode = overview.data?.data?.[0]?.currency ?? source.currency;
+  const ads = adsSummary.data && adsSummary.data.campaigns > 0 ? adsSummary.data : null;
+  const extras: ExtraTile[] = [];
+  if (mrr.data && (mrr.data.activeSubscriptions > 0 || mrr.data.revenueMetric === "mrr")) {
+    extras.push({
+      key: "mrr",
+      label: "MRR",
+      value: formatMoney(mrr.data.mrr, mrr.data.currency),
+      sub: `${formatNumber(mrr.data.activeSubscriptions)} active subscriptions`,
+      lead: mrr.data.revenueMetric === "mrr",
+    });
+  }
+  if (ads) {
+    extras.push({
+      key: "roas",
+      label: "ROAS",
+      value: ads.roas === null ? "–" : `${ads.roas.toFixed(2)}x`,
+      sub: `${formatMoney(ads.spend, ads.currency)} ad spend · ${formatMoney(ads.revenue, ads.currency)} revenue`,
+    });
+  }
+  const sourceCardTabs = useMemo(
+    () =>
+      sourceTabs({
+        keywords: Boolean(siteId) && gscConnected.data === true,
+        ads: ads ? adsTab((n) => formatMoney(n, currencyCode)) : null,
+      }),
+    [siteId, gscConnected.data, ads, currencyCode],
+  );
 
   const markers: ChartMarker[] = useMemo(() => {
     const out: ChartMarker[] = [];
@@ -474,6 +517,7 @@ export function OverviewDashboard({
         }
         liveVisitors={liveCount.data}
         realtimeLink={siteId ? { siteId } : null}
+        extras={extras}
       />
       <section className="rounded-lg border border-line bg-surface p-4" aria-label="Main chart">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -537,6 +581,24 @@ export function OverviewDashboard({
                   {label}
                 </button>
               ))}
+              {markerKinds.commits ? (
+                <select
+                  aria-label="Commit type"
+                  value={commitPrefix}
+                  onChange={(e) => {
+                    setCommitPrefix(e.target.value);
+                    writePref(`commit-prefix:${sourceKey(source)}`, e.target.value);
+                  }}
+                  className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
+                >
+                  <option value="">All commits</option>
+                  <option value="feat:">feat:</option>
+                  <option value="fix:">fix:</option>
+                  <option value="perf:">perf:</option>
+                  <option value="refactor:">refactor:</option>
+                  <option value="docs:">docs:</option>
+                </select>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -579,7 +641,7 @@ export function OverviewDashboard({
         <BreakdownCard
           id="source"
           title="Source"
-          tabs={sourceTabs()}
+          tabs={sourceCardTabs}
           state={state}
           kpiGoal={kpiGoalName ? { name: kpiGoalName, label: kpiLabel ?? kpiGoalName } : null}
         />

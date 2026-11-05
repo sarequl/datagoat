@@ -3,11 +3,12 @@
  * nav.ts so the sidebar and the routes never drift.
  *
  *   /                         → /app
- *   /login /setup /invite/$token /reset-password/$token
+ *   /login /setup /invite/$token /forgot-password /reset-password/$token
  *   /share/$token             public read-only dashboard (W4)
+ *   /share/$token/widget      embeddable widget (iframe) for a share link
  *   /oauth/consent            MCP OAuth consent (W7; the Worker serves this SPA for /oauth/*)
  *   /app                      signed-in area → first website or /app/new-site
- *   /app/new-site /app/account
+ *   /app/new-site /app/websites (all websites) /app/account
  *   /app/$siteId/<page>       every entry of SITE_PAGES
  */
 import type { QueryClient } from "@tanstack/react-query";
@@ -70,6 +71,11 @@ const inviteRoute = createRoute({
   path: "/invite/$token",
   component: page("auth/InvitePage"),
 });
+const forgotRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: page("auth/ForgotPasswordPage"),
+});
 const resetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/reset-password/$token",
@@ -79,6 +85,11 @@ const shareRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/share/$token",
   component: page("public/SharedDashboardPage"),
+});
+const widgetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/share/$token/widget",
+  component: page("public/WidgetPage"),
 });
 const consentRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -127,6 +138,11 @@ const newSiteRoute = createRoute({
   getParentRoute: () => plainRoute,
   path: "/new-site",
   component: page("account/NewSitePage"),
+});
+const websitesRoute = createRoute({
+  getParentRoute: () => plainRoute,
+  path: "/websites",
+  component: page("account/WebsitesPage"),
 });
 const accountRoute = createRoute({
   getParentRoute: () => plainRoute,
@@ -179,12 +195,14 @@ export const routeTree = rootRoute.addChildren([
   loginRoute,
   setupRoute,
   inviteRoute,
+  forgotRoute,
   resetRoute,
   shareRoute,
+  widgetRoute,
   consentRoute,
   appRoute.addChildren([
     appIndexRoute,
-    plainRoute.addChildren([newSiteRoute, accountRoute]),
+    plainRoute.addChildren([newSiteRoute, websitesRoute, accountRoute]),
     siteRoute.addChildren([siteIndexRoute, settingsIndexRoute, ...sitePageRoutes]),
   ]),
 ]);

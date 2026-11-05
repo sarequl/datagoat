@@ -116,6 +116,24 @@ codex mcp add datagoat --url https://<your-datagoat>/mcp --bearer-token-env-var 
 Try it: *"List my DataGoat websites, then show visitors and revenue for the first one over the last
 7 days."*
 
+## Charts in ChatGPT and other MCP Apps clients
+
+Clients that can show UI draw DataGoat's analytics results as interactive charts inside the
+conversation, like DataFast's ChatGPT app: traffic and revenue over time
+(`analytics_timeseries`), bar lists for every breakdown (pages, referrers, channels, campaigns,
+countries, devices, goals, goal properties…), funnels (`analytics_funnel`) and a live visitor dot
+map (`analytics_realtime_map`). The server offers one self-contained view twice:
+
+| Resource | MIME type | Used by |
+| --- | --- | --- |
+| `ui://datagoat/chart.html` | `text/html;profile=mcp-app` | MCP Apps clients, via the tool's `_meta.ui.resourceUri` |
+| `ui://datagoat/chart.skybridge.html` | `text/html+skybridge` | ChatGPT apps, via `_meta["openai/outputTemplate"]` |
+
+The view only receives the tool's structured result (the same JSON the model sees), never a
+token, and loads nothing from the network. In ChatGPT, add DataGoat as a custom app in developer
+mode with the `/mcp` URL and OAuth (see [ChatGPT](#chatgpt) above). Clients without UI support
+ignore the metadata and use the JSON as before.
+
 ## Tools
 
 Tool names follow DataFast's MCP catalog without the vendor prefix. Calls that use DataFast's names

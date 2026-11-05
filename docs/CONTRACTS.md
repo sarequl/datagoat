@@ -64,6 +64,7 @@ Edit these minimally and additively (one line), so merges stay trivial.
 | 0600–0699 | W6                     |
 | 0700–0799 | W7                     |
 | 0800–0899 | W8                     |
+| 0900–0999 | Finisher (post-merge parity work) |
 
 Wrangler applies migrations in filename order, so ranges also fix the order across teams.
 

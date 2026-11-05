@@ -1,18 +1,27 @@
 /**
  * Public dashboard at /share/:token (no sign-in): the website overview read-only, from the share
- * API. Revenue shows only when the owner enabled public revenue; no visitors, notes or segments.
+ * API, and (like DataFast's public dashboard) the real-time visitor map. Revenue and payments show
+ * only when the owner enabled public revenue; no visitor names, journeys, notes or segments.
  */
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
+import { lazy, Suspense, useState } from "react";
 import type { SharedWebsite } from "../../../../shared/api-types";
 import { OverviewDashboard } from "../../analytics/OverviewDashboard";
 import { AnalyticsSourceProvider } from "../../analytics/source";
 import { apiGet } from "../../api/client";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { Spinner } from "../../components/ui";
+import { cx, Spinner } from "../../components/ui";
+
+const LiveView = lazy(() =>
+  import("../analytics/RealtimePage").then((m) => ({ default: m.RealtimeView })),
+);
 
 export default function SharedDashboardPage() {
   const { token } = useParams({ strict: false }) as { token: string };
+  const [view, setView] = useState<"overview" | "live">(() =>
+    new URLSearchParams(window.location.search).get("view") === "live" ? "live" : "overview",
+  );
   const site = useQuery({
     queryKey: ["share", token],
     queryFn: () => apiGet<SharedWebsite>(`/api/share/${encodeURIComponent(token)}`),
@@ -48,25 +57,64 @@ export default function SharedDashboardPage() {
             </span>
             Public dashboard
           </span>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            {/* biome-ignore lint/a11y/useSemanticElements: a group of toggle buttons */}
+            <div
+              role="group"
+              aria-label="View"
+              className="flex rounded-md border border-line p-0.5"
+            >
+              {(
+                [
+                  ["overview", "Overview"],
+                  ["live", "Live map"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={view === key}
+                  onClick={() => setView(key)}
+                  className={cx(
+                    "rounded px-2.5 py-1 text-sm",
+                    view === key ? "bg-surface-2 font-medium text-primary-text" : "text-muted",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <ThemeToggle />
+          </div>
         </header>
         <main className="mx-auto max-w-6xl p-4 md:p-6">
-          <OverviewDashboard
-            title={w.name ?? w.domain}
-            domain={w.domain}
-            logo={
-              w.logo ? (
-                <img src={w.logo} alt="" className="size-7 rounded" />
-              ) : (
-                <span
-                  aria-hidden="true"
-                  className="flex size-7 items-center justify-center rounded bg-surface-2 text-sm"
-                >
-                  {w.domain[0]?.toUpperCase()}
-                </span>
-              )
-            }
-          />
+          {view === "live" ? (
+            <Suspense fallback={<Spinner />}>
+              <LiveView
+                siteId={null}
+                timezone={w.timezone}
+                currency={w.currency}
+                share={{ token, showRevenue: w.showRevenue }}
+              />
+            </Suspense>
+          ) : (
+            <OverviewDashboard
+              title={w.name ?? w.domain}
+              domain={w.domain}
+              logo={
+                w.logo ? (
+                  <img src={w.logo} alt="" className="size-7 rounded" />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="flex size-7 items-center justify-center rounded bg-surface-2 text-sm"
+                  >
+                    {w.domain[0]?.toUpperCase()}
+                  </span>
+                )
+              }
+            />
+          )}
           <footer className="mt-8 text-center text-xs text-muted">
             {w.domain} analytics, shared publicly · Powered by DataGoat
           </footer>

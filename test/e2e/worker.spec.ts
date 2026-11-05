@@ -41,6 +41,10 @@ test("serves the tracker as a static asset and validates ingest bodies", async (
   const script = await request.get("/js/script.js");
   expect(script.status()).toBe(200);
   expect(await script.text()).toContain("DataGoat tracker");
+  // llms.txt for AI agents (DataFast publishes one too).
+  const llms = await request.get("/llms.txt");
+  expect(llms.status()).toBe(200);
+  expect(await llms.text()).toContain("/api/v1/analytics/overview");
   const ingest = await request.post("/api/events", { data: { type: "pageview" } });
   expect(ingest.status()).toBe(400);
   expect(ingest.headers()["access-control-allow-origin"]).toBe("*");

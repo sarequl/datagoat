@@ -33,8 +33,9 @@ async function limitShare(c: Context<AppEnv>): Promise<Response | null> {
   return c.json(rateLimitBody(60, 0, reset), 429, { "Retry-After": "60" });
 }
 
-publicRoutes.get("/share/:token", async (c) => {
-  const token = c.req.param("token");
+/** The dashboard shell for a valid share token; `framable` for embeddable widgets. */
+async function shareShell(c: Context<AppEnv>, framable: boolean): Promise<Response> {
+  const token = c.req.param("token") ?? "";
   const site = TOKEN_RE.test(token) ? await loadSiteByShareToken(c.env.DB, token) : null;
   if (!site) {
     return c.text("Shared dashboard not found", 404, { "X-Robots-Tag": "noindex" });
@@ -43,8 +44,19 @@ publicRoutes.get("/share/:token", async (c) => {
   const out = new Response(res.body, res);
   out.headers.set("X-Robots-Tag", "noindex");
   out.headers.set("Cache-Control", "no-store");
+  if (framable) {
+    // Widgets are meant to be embedded on the owner's own pages (DataFast's widgets).
+    out.headers.delete("X-Frame-Options");
+    out.headers.set("Content-Security-Policy", "frame-ancestors *");
+  } else {
+    out.headers.set("X-Frame-Options", "DENY");
+  }
   return out;
-});
+}
+
+publicRoutes.get("/share/:token", (c) => shareShell(c, false));
+/** Finisher: embeddable widget (`<iframe src="/share/<token>/widget?type=…">`). */
+publicRoutes.get("/share/:token/widget", (c) => shareShell(c, true));
 
 publicRoutes.get("/api/share/:token", async (c) => {
   const limited = await limitShare(c);

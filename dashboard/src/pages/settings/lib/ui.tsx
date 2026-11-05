@@ -552,15 +552,36 @@ export function CopyButton({
   );
 }
 
-export function CodeBlock({ code, label }: { code: string; label: string }) {
+/**
+ * A code snippet with its copy button in a toolbar above the text, so the button never covers
+ * the code at any width. `wrap` breaks long single-line values (URL templates) instead of
+ * scrolling them sideways; multi-line snippets keep their layout and scroll.
+ */
+export function CodeBlock({
+  code,
+  label,
+  wrap = false,
+}: {
+  code: string;
+  label: string;
+  wrap?: boolean;
+}) {
   return (
-    <figure className="relative" aria-label={label}>
-      <pre className="max-h-96 overflow-auto rounded-md border border-line bg-surface-2 p-3 pr-20 text-xs leading-relaxed">
-        <code>{code}</code>
-      </pre>
-      <div className="absolute top-2 right-2">
+    <figure
+      className="min-w-0 overflow-hidden rounded-md border border-line bg-surface-2"
+      aria-label={label}
+    >
+      <div className="flex justify-end border-b border-line px-2 py-1.5">
         <CopyButton text={code} label={`Copy ${label}`} />
       </div>
+      <pre
+        className={cx(
+          "max-h-96 overflow-auto p-3 text-xs leading-relaxed",
+          wrap && "whitespace-pre-wrap [overflow-wrap:anywhere]",
+        )}
+      >
+        <code>{code}</code>
+      </pre>
     </figure>
   );
 }

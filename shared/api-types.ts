@@ -261,6 +261,11 @@ export interface CreateWebsiteRequest {
   currency?: string;
 }
 
+/** DG `PUT /api/v1/admin/account/website-order`: the caller's website order (ids or tracking ids). */
+export interface WebsiteOrderRequest {
+  websiteIds: string[];
+}
+
 export interface CreatedWebsite {
   websiteId: string;
   domain: string;
@@ -343,6 +348,8 @@ export interface TimeseriesPoint {
   avg_session_duration?: number;
   /** Completions per goal name in the bucket (`fields=goals`). */
   goals?: Record<string, number>;
+  /** DG: refunded amount in the bucket, positive (`fields=refunds`; revenue already nets it). */
+  refunds?: number;
 }
 
 export interface RevenueBreakdown {
@@ -692,6 +699,11 @@ export interface VisitorProfile {
     referrer: string | null;
     entryPath: string;
     pageviews: number;
+    /**
+     * DG: for sessions from Google search, the Search Console queries that brought clicks to the
+     * landing page around that day, with their share of those clicks in percent (top 3).
+     */
+    searchKeywords?: Array<{ query: string; probability: number }>;
   }>;
   payments?: Array<{
     id: string;
@@ -893,6 +905,21 @@ export interface RevenueSummary {
     /** Most common channel sequences across the customer's sessions before paying. */
     topPaths: Array<{ channels: string[]; customers: number; revenue: number }>;
   };
+}
+
+/**
+ * DG `GET /api/v1/analytics/revenue/mrr`: current monthly recurring revenue of live (active or
+ * past-due) provider subscriptions, in the website currency. A snapshot; range and filters do not
+ * apply. `unconverted` is true when a currency had no exchange rate yet (amount counted 1:1).
+ */
+export interface MrrSummary {
+  currency: string;
+  mrr: number;
+  activeSubscriptions: number;
+  byProvider: Array<{ provider: string; mrr: number; subscriptions: number }>;
+  /** The website's headline revenue metric (`revenueMetric`), so the overview can lead with MRR. */
+  revenueMetric: "revenue" | "mrr";
+  unconverted: boolean;
 }
 
 /** GET /api/v1/analytics/revenue/sources row (`value` is "Unattributed" for the unattributed bucket). */

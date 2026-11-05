@@ -328,7 +328,14 @@ export const w6Handlers = [
     );
   }),
   http.get("/api/v1/x/links", ({ request }) => list(g.xLinks, new URL(request.url))),
-  http.get("/api/v1/github/commits", ({ request }) => list(g.commits, new URL(request.url))),
+  http.get("/api/v1/github/commits", ({ request }) => {
+    const url = new URL(request.url);
+    const q = (url.searchParams.get("q") ?? "").toLowerCase();
+    return list(
+      q ? g.commits.filter((c) => c.message.toLowerCase().startsWith(q)) : g.commits,
+      url,
+    );
+  }),
   http.get("/api/v1/github/repos", () =>
     ok([{ fullName: "example/app", private: false, defaultBranch: "main", pushedAt: null }]),
   ),

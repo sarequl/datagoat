@@ -1,6 +1,12 @@
 /** MCP Streamable HTTP transport and JSON-RPC behaviour at /mcp and /api/mcp. */
 import { beforeEach, describe, expect, it } from "vitest";
 import { TOOLS } from "../../../src/mcp/tools";
+import {
+  MCP_APP_MIME,
+  SKYBRIDGE_MIME,
+  WIDGET_SKYBRIDGE_URI,
+  WIDGET_URI,
+} from "../../../src/mcp/widgets";
 import { resetDb } from "../../helpers/db";
 import { createApiKey, createSite, createUser } from "../../helpers/factories";
 import { ORIGIN } from "../../helpers/http";
@@ -55,7 +61,7 @@ describe("MCP transport", () => {
     expect(res.headers.get("content-type")).toContain("application/json");
     expect(res.body.result).toMatchObject({
       protocolVersion: "2025-06-18",
-      capabilities: { tools: { listChanged: false } },
+      capabilities: { tools: { listChanged: false }, resources: { listChanged: false } },
       serverInfo: { name: "datagoat", version: expect.any(String) },
     });
     expect(res.body.result.instructions).toContain("websites_list");
@@ -70,7 +76,7 @@ describe("MCP transport", () => {
     expect(res.body).toBeNull();
   });
 
-  it("handles batches, ping, empty resource/prompt lists and unknown methods", async () => {
+  it("handles batches, ping, the resource and prompt lists and unknown methods", async () => {
     const t = await token();
     const res = await rpc(t, [
       request("ping"),
@@ -83,10 +89,47 @@ describe("MCP transport", () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(5);
     expect(res.body[0].result).toEqual({});
-    expect(res.body[1].result).toEqual({ resources: [] });
+    expect(res.body[1].result.resources.map((r: { uri: string }) => r.uri)).toEqual([
+      WIDGET_URI,
+      WIDGET_SKYBRIDGE_URI,
+    ]);
     expect(res.body[2].result).toEqual({ prompts: [] });
     expect(res.body[3].error.code).toBe(-32601);
     expect(res.body[4].error.code).toBe(-32600);
+  });
+
+  it("serves the chart view for UI-capable clients (MCP Apps and ChatGPT apps)", async () => {
+    const t = await token();
+    const list = await rpc(t, request("tools/list"));
+    const tools = list.body.result.tools as Array<{ name: string; _meta: Record<string, unknown> }>;
+    const ts = tools.find((x) => x.name === "analytics_timeseries");
+    expect(ts?._meta).toMatchObject({
+      ui: { resourceUri: WIDGET_URI },
+      "openai/outputTemplate": WIDGET_SKYBRIDGE_URI,
+    });
+    for (const name of ["analytics_referrers", "analytics_funnel", "analytics_realtime_map"]) {
+      expect(tools.find((x) => x.name === name)?._meta.ui, name).toEqual({
+        resourceUri: WIDGET_URI,
+      });
+    }
+    // Write and account tools have no view.
+    expect(tools.find((x) => x.name === "goals_track")?._meta.ui).toBeUndefined();
+
+    for (const [uri, mime] of [
+      [WIDGET_URI, MCP_APP_MIME],
+      [WIDGET_SKYBRIDGE_URI, SKYBRIDGE_MIME],
+    ]) {
+      const read = await rpc(t, request("resources/read", { uri }));
+      const [content] = read.body.result.contents;
+      expect(content).toMatchObject({ uri, mimeType: mime });
+      expect(content.text).toContain("<!doctype html>");
+      expect(content.text).toContain("ui/notifications/tool-result");
+      expect(content.text).toContain("openai:set_globals");
+      // Self-contained: no network loads, no tokens.
+      expect(content.text).not.toMatch(/<script[^>]+src=|https?:\/\//);
+    }
+    const missing = await rpc(t, request("resources/read", { uri: "ui://nope" }));
+    expect(missing.body.error.code).toBe(-32602);
   });
 
   it("rejects parse errors, wrong content types and unsupported protocol versions", async () => {

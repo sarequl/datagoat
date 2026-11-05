@@ -16,7 +16,7 @@ import { type FilterKey, type ParsedFilter, parseFilterValue } from "../lib/filt
 import { isUuidV4 } from "../lib/ids";
 import { toMajor } from "../lib/money";
 import { escapeLike, join, list, prepare, raw, type SqlFragment, sql } from "../lib/sql";
-import { localDate } from "../lib/time";
+import { addDays, localDate } from "../lib/time";
 import { normaliseGoalName } from "../lib/validate";
 import { REFERRER_EXPR } from "./breakdowns";
 import { ACTIVITY, type QueryContext, rangeOn, sessionScope, sessionsFrom } from "./context";
@@ -269,6 +269,71 @@ function goalOrigin(name: string): {
   };
 }
 
+/** Google sessions that get keyword guesses (newest first), one statement each in one batch. */
+export const KEYWORD_SESSIONS = 10;
+/** Days of Search Console data around the session day (GSC reports by day and lags). */
+const KEYWORD_WINDOW_DAYS = 3;
+
+/**
+ * DataFast's "keyword probability" in journeys: for sessions that arrived from Google search,
+ * the Search Console queries that brought clicks to the session's landing page around that day,
+ * with each query's share of those clicks. Costs nothing when no session came from Google, and one
+ * batched read (≤ 10 statements) otherwise; empty when Search Console is not connected.
+ */
+async function googleKeywords(
+  qc: QueryContext,
+  sessions: Array<Record<string, unknown>>,
+): Promise<Map<string, Array<{ query: string; probability: number }>>> {
+  const out = new Map<string, Array<{ query: string; probability: number }>>();
+  const google = sessions
+    .filter(
+      (s) =>
+        s.channel === "Organic Search" &&
+        String(s.source ?? "").toLowerCase() === "google" &&
+        typeof s.entry_path === "string",
+    )
+    .slice(0, KEYWORD_SESSIONS);
+  if (!google.length) return out;
+  const { db, site } = qc;
+  const stmts = google.map((s) => {
+    const day = localDate(Number(s.started_at), site.timezone);
+    const host = String(s.hostname ?? site.domain);
+    const path = String(s.entry_path).split(/[?#]/)[0] || "/";
+    const alt = path.endsWith("/") && path !== "/" ? path.slice(0, -1) : `${path}/`;
+    const pages = [`https://${host}${path}`, `https://${host}${alt}`, `http://${host}${path}`];
+    return db
+      .prepare(
+        `SELECT query, SUM(clicks) AS clicks, SUM(SUM(clicks)) OVER () AS total FROM gsc_daily
+         WHERE site_id = ? AND day >= ? AND day <= ? AND query <> '' AND page IN (?, ?, ?)
+         GROUP BY query HAVING SUM(clicks) > 0 ORDER BY clicks DESC LIMIT 3`,
+      )
+      .bind(
+        site.id,
+        addDays(day, -KEYWORD_WINDOW_DAYS),
+        addDays(day, KEYWORD_WINDOW_DAYS),
+        ...pages,
+      );
+  });
+  const results = await db.batch(stmts);
+  google.forEach((s, i) => {
+    const rows = (results[i]?.results ?? []) as Array<{
+      query: string;
+      clicks: number;
+      total: number;
+    }>;
+    if (!rows.length) return;
+    out.set(
+      String(s.id),
+      rows.map((r) => ({
+        query: String(r.query),
+        probability:
+          Number(r.total) > 0 ? Math.round((Number(r.clicks) / Number(r.total)) * 100) : 0,
+      })),
+    );
+  });
+  return out;
+}
+
 export async function visitorProfile(qc: QueryContext, visitorId: string) {
   const { db, site, now } = qc;
   const [sessionsRes, visitorRes, paymentsRes, eventsRes, modelRes] = await db.batch([
@@ -320,6 +385,8 @@ export async function visitorProfile(qc: QueryContext, visitorId: string) {
     .flatMap((r) => (r.results ?? []) as Array<Record<string, unknown>>)
     .sort((a, b) => Number(b.ts) - Number(a.ts))
     .slice(0, MAX_PAGES);
+
+  const keywords = await googleKeywords(qc, sessions);
 
   const latest = sessions[0] as Record<string, unknown>;
   const earliest = sessions[sessions.length - 1] as Record<string, unknown>;
@@ -412,6 +479,7 @@ export async function visitorProfile(qc: QueryContext, visitorId: string) {
       referrer: s.source !== null || s.referrer_domain !== null ? String(s.referrer_label) : null,
       entryPath: String(s.entry_path),
       pageviews: Number(s.pageviews ?? 0),
+      ...(keywords.has(String(s.id)) ? { searchKeywords: keywords.get(String(s.id)) } : {}),
     })),
     payments: payments.map((p) => ({
       id: String(p.id),

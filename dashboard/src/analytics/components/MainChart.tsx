@@ -42,6 +42,7 @@ interface Series {
   newV?: number[];
   retV?: number[];
   revenue?: number[];
+  refunds?: number[];
   prevRevenue?: number[] | null;
 }
 
@@ -141,6 +142,8 @@ export function MainChart({
       main: points.map((p) => val(p, "visitors")),
       prevMain: prev ? points.map((_, i) => val(prev[i], "visitors")) : null,
       revenue: points.map((p) => Math.max(0, val(p, "revenue") ?? 0)),
+      // Refunded amounts are drawn greyed out on top of the net revenue bar (DataFast).
+      refunds: points.map((p) => Math.max(0, val(p, "refunds") ?? 0)),
       prevRevenue: prev ? points.map((_, i) => Math.max(0, val(prev[i], "revenue") ?? 0)) : null,
     };
   }, [points, prev, metric, mode]);
@@ -154,7 +157,13 @@ export function MainChart({
   const top = ticks[ticks.length - 1] || 1;
   const y = (v: number) => PAD_T + innerH - (v / top) * innerH;
   const revTicks = revenueOn
-    ? niceTicks(Math.max(0, ...(series.revenue ?? []), ...(series.prevRevenue ?? [])))
+    ? niceTicks(
+        Math.max(
+          0,
+          ...(series.revenue ?? []).map((v, i) => v + (series.refunds?.[i] ?? 0)),
+          ...(series.prevRevenue ?? []),
+        ),
+      )
     : [];
   const revTop = revTicks[revTicks.length - 1] || 1;
   const yr = (v: number) => PAD_T + innerH - (v / revTop) * innerH;
@@ -223,6 +232,8 @@ export function MainChart({
     if (revenueOn) {
       rows.push(["Revenue", formatMoney(p.revenue ?? 0, currency)]);
       rows.push(["Payments", formatNumber(p.payments ?? 0)]);
+      if ((p.refunds ?? 0) > 0)
+        rows.push(["Refunds", formatMoney(p.refunds ?? 0, currency), "muted"]);
     }
     if (pp) {
       rows.push(["Previous visitors", formatNumber(pp.visitors), "muted"]);
@@ -276,6 +287,11 @@ export function MainChart({
               <span className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-sm" style={{ background: revenueColor }} />{" "}
                 Revenue
+              </span>
+            ) : null}
+            {revenueOn && series.refunds?.some((v) => v > 0) ? (
+              <span className="flex items-center gap-1.5">
+                <span className="size-2.5 rounded-sm bg-muted/45" /> Refunds
               </span>
             ) : null}
           </>
@@ -372,6 +388,26 @@ export function MainChart({
                   />
                 ) : null,
               )
+            : null}
+          {series.refunds && series.revenue
+            ? series.refunds.map((v, i) => {
+                if (v <= 0) return null;
+                const base = series.revenue?.[i] ?? 0;
+                return (
+                  <rect
+                    // biome-ignore lint/suspicious/noArrayIndexKey: buckets are positional
+                    key={`rf${i}`}
+                    x={cx_(i) - barW / 2}
+                    width={barW}
+                    y={yr(base + v)}
+                    height={yr(base) - yr(base + v)}
+                    fill="var(--dg-muted)"
+                    opacity={0.45}
+                    rx={2}
+                    data-testid="refund-bar"
+                  />
+                );
+              })
             : null}
           {series.newV
             ? series.newV.map((v, i) => {
@@ -518,6 +554,18 @@ export function MainChart({
           <div className="mb-2 font-medium">
             {bucketLabel(menuPoint.timestamp, interval, timezone, true)}
           </div>
+          {/* The clicked point's numbers stay visible (DataFast's sticky tooltip, for screenshots). */}
+          <dl className="mb-2 space-y-0.5 text-xs" data-testid="chart-pinned-tooltip">
+            {tooltipRows(menu).map(([k, v, tone]) => (
+              <div
+                key={k}
+                className={cx("flex justify-between gap-2", tone === "muted" && "text-muted")}
+              >
+                <dt>{k}</dt>
+                <dd className="font-medium tabular-nums">{v}</dd>
+              </div>
+            ))}
+          </dl>
           {noteOpen ? (
             <form
               onSubmit={async (e) => {

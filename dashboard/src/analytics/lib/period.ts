@@ -55,9 +55,10 @@ export const PERIOD_OPTIONS: readonly PeriodOption[] = [
   { key: "now", label: "Now", shortcut: "n", primary: true },
   { key: "today", label: "Today", shortcut: "t", primary: true },
   { key: "yesterday", label: "Yesterday", shortcut: "y", primary: true },
-  { key: "24h", label: "Last 24 hours", shortcut: "h", primary: true },
+  // DataFast's keys: T today, Y yesterday, D last 24 hours, W last 7 days, 3 last 30 days, N now.
+  { key: "24h", label: "Last 24 hours", shortcut: "d", primary: true },
   { key: "7d", label: "Last 7 days", shortcut: "w", primary: true },
-  { key: "30d", label: "Last 30 days", shortcut: "d", primary: true },
+  { key: "30d", label: "Last 30 days", shortcut: "3", primary: true },
   { key: "90d", label: "Last 3 months", shortcut: "q" },
   { key: "6m", label: "Last 6 months" },
   { key: "12m", label: "Last 12 months", shortcut: "l" },

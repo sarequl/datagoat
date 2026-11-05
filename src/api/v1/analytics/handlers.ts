@@ -61,7 +61,13 @@ export interface View {
 
 export type AnalyticsHandler = (c: Context<AppEnv>, site: Site, view: View) => Promise<Response>;
 
-const REVENUE_FIELDS = new Set(["revenue", "payments", "revenue_per_visitor", "conversion_rate"]);
+const REVENUE_FIELDS = new Set([
+  "revenue",
+  "payments",
+  "revenue_per_visitor",
+  "conversion_rate",
+  "refunds",
+]);
 
 function visibleFields<T extends string>(fields: T[], view: View): T[] {
   return view.showRevenue ? fields : fields.filter((f) => !REVENUE_FIELDS.has(f));

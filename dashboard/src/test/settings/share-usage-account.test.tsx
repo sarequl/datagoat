@@ -1,10 +1,11 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 import { usage } from "../../mocks/fixtures/analytics";
 import { server } from "../../mocks/node";
-import { state } from "../../mocks/state";
+import { resetMockState, state } from "../../mocks/state";
+import { renderApp } from "../render";
 import { openPage, recordRequests, SITE, SITE2, site, writes } from "./helpers";
 
 afterEach(() => server.events.removeAllListeners());
@@ -53,6 +54,46 @@ describe("share link", () => {
     expect(await screen.findByRole("textbox", { name: "Share link" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Turn off sharing" })).not.toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Show revenue" })).toBeDisabled();
+  });
+
+  it("generates widget embed code with type, period, theme, colour and size", async () => {
+    openPage(`/app/${SITE}/share`);
+    const widgets = await card("Widgets");
+    await userEvent.selectOptions(within(widgets).getByLabelText("Widget"), "chart");
+    await userEvent.selectOptions(within(widgets).getByLabelText("Period"), "7d");
+    await userEvent.selectOptions(within(widgets).getByLabelText("Theme"), "light");
+    const code = within(widgets).getByRole("figure", { name: "widget embed code" });
+    expect(code).toHaveTextContent(
+      `${window.location.origin}/share/share_demo_token_000000/widget?type=chart&amp;period=7d&amp;theme=light&amp;color=e16540`,
+    );
+    expect(code).toHaveTextContent('width="480" height="220"');
+    const preview = within(widgets).getByTitle(/visitors chart preview/);
+    expect(preview).toHaveAttribute("src", expect.stringContaining("type=chart&period=7d"));
+  });
+});
+
+describe("embeddable widget", () => {
+  it("shows the visitors number in the chosen theme and colour", async () => {
+    resetMockState({ signedIn: false });
+    renderApp("/share/share_demo_token_000000/widget?type=visitors&theme=light&color=00aa55");
+    const value = await screen.findByTestId("widget-value");
+    await waitFor(() => expect(value).toHaveTextContent(/^\d[\d,]*$/));
+    expect(value).toHaveStyle({ color: "#00aa55" });
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    expect(screen.getByTestId("widget")).toHaveTextContent("Visitors · Last 30 days");
+    expect(screen.getByTestId("widget")).toHaveAttribute("href", "/share/share_demo_token_000000");
+  });
+
+  it("hides revenue unless the owner shares it, and shows live visitors", async () => {
+    resetMockState({ signedIn: false });
+    renderApp("/share/share_demo_token_000000/widget?type=revenue");
+    expect(await screen.findByText("Revenue is not shared publicly")).toBeInTheDocument();
+    cleanup();
+    resetMockState({ signedIn: false });
+    renderApp("/share/share_demo_token_000000/widget?type=live");
+    const value = await screen.findByTestId("widget-value");
+    await waitFor(() => expect(value).toHaveTextContent(/^\d+$/));
+    expect(screen.getByTestId("widget")).toHaveTextContent("Visitors online now");
   });
 });
 
@@ -195,5 +236,48 @@ describe("account", () => {
       within(screen.getByRole("dialog")).getByRole("button", { name: "Revoke" }),
     );
     expect(await within(apps).findByText("No connected apps.")).toBeInTheDocument();
+  });
+});
+
+describe("all websites", () => {
+  const nameOf = (card: HTMLElement) => within(card).getAllByRole("link")[0]?.textContent ?? "";
+
+  it("shows every website with its numbers and reorders them", async () => {
+    const log = recordRequests();
+    openPage("/app/websites");
+    const list = await screen.findByRole("list", { name: "Websites" });
+    const cards = () => within(list).getAllByRole("listitem");
+    const [first, second] = cards().map(nameOf);
+    await waitFor(() =>
+      expect(
+        within(cards()[0] as HTMLElement).getByText("Visitors").nextSibling,
+      ).not.toHaveTextContent("…"),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Last 7 days" }));
+    expect(screen.getByRole("button", { name: "Last 7 days" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await waitFor(() =>
+      expect(
+        log.some(
+          (r) =>
+            r.path.startsWith("/api/v1/analytics/timeseries") && r.path.includes("interval=day"),
+        ),
+      ).toBe(true),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: `Move ${second} up` }));
+    await waitFor(() =>
+      expect(writes(log, "PUT", "/api/v1/admin/account/website-order")).toHaveLength(1),
+    );
+    const body = writes(log, "PUT", "/api/v1/admin/account/website-order")[0]?.body as {
+      websiteIds: string[];
+    };
+    expect(body.websiteIds[0]).toBe(state.websites[0]?._id);
+    expect(cards().map(nameOf).slice(0, 2)).toEqual([second, first]);
+    // The website switcher follows the new order.
+    const switcher = screen.getAllByRole("combobox", { name: "Website" })[0] as HTMLElement;
+    expect(within(switcher).getAllByRole("option")[0]).toHaveTextContent(String(second));
   });
 });

@@ -36,7 +36,7 @@ export interface MembershipSite {
   role: Role;
 }
 
-/** Every live site the user belongs to, oldest first. */
+/** Every live site the user belongs to, in the user's saved order (0900), then oldest first. */
 export async function listUserSiteRows(
   db: D1Database,
   userId: string,
@@ -44,7 +44,8 @@ export async function listUserSiteRows(
   const res = await db
     .prepare(
       `SELECT s.*, m.role AS member_role FROM memberships m JOIN sites s ON s.id = m.site_id
-        WHERE m.user_id = ? AND s.deleted_at IS NULL ORDER BY s.created_at ASC`,
+        WHERE m.user_id = ? AND s.deleted_at IS NULL
+        ORDER BY m.position IS NULL, m.position, s.created_at ASC`,
     )
     .bind(userId)
     .all<Record<string, unknown>>();

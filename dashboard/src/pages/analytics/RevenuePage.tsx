@@ -5,7 +5,7 @@
  */
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import type { PaymentRow, RevenueSummary } from "../../../../shared/api-types";
+import type { MrrSummary, PaymentRow, RevenueSummary } from "../../../../shared/api-types";
 import { sourceTabs } from "../../analytics/cards";
 import { BreakdownCard } from "../../analytics/components/BreakdownCard";
 import {
@@ -15,7 +15,7 @@ import {
   Skeleton,
   Tabs,
 } from "../../analytics/components/primitives";
-import { usePayments, useRevenueSummary } from "../../analytics/hooks";
+import { useMrr, usePayments, useRevenueSummary } from "../../analytics/hooks";
 import {
   formatDateTime,
   formatMoney,
@@ -46,9 +46,12 @@ const KIND_LABELS: Record<PaymentRow["kind"], string> = {
   free_trial: "Free trial",
 };
 
-function Summary({ s }: { s: RevenueSummary }) {
+function Summary({ s, mrr }: { s: RevenueSummary; mrr?: MrrSummary }) {
   const tiles: Array<[string, string, string?]> = [
     ["Revenue", formatMoney(s.revenue, s.currency)],
+    ...(mrr && mrr.activeSubscriptions > 0
+      ? ([["MRR (now)", formatMoney(mrr.mrr, mrr.currency)]] as Array<[string, string]>)
+      : []),
     ["New revenue", formatMoney(s.newRevenue, s.currency)],
     ["Renewals", formatMoney(s.renewalRevenue, s.currency)],
     ["Refunds", formatMoney(s.refunds, s.currency), "error"],
@@ -57,7 +60,7 @@ function Summary({ s }: { s: RevenueSummary }) {
   ];
   return (
     <dl
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7"
       data-testid="revenue-summary"
     >
       {tiles.map(([k, v, tone]) => (
@@ -409,6 +412,7 @@ function Revenue({ siteId, timezone }: { siteId: string; timezone: string }) {
   const state = useDashboardState();
   const summary = useRevenueSummary(siteId, { ...state.rangeParams, ...state.filterParams });
   const s = summary.data;
+  const mrr = useMrr(siteId);
   const tabs = sourceTabs();
   return (
     <div className="space-y-4">
@@ -418,7 +422,7 @@ function Revenue({ siteId, timezone }: { siteId: string; timezone: string }) {
       ) : summary.error ? (
         <ErrorState error={summary.error} />
       ) : s ? (
-        <Summary s={s} />
+        <Summary s={s} mrr={mrr.data} />
       ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <BreakdownCard

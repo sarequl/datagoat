@@ -40,6 +40,13 @@ website always keeps at least one owner. Removing a member also stops the `df_` 
 Secrets are shown once and stored hashed. Members and owners can manage website keys; viewers can
 only see them.
 
+## API playground
+
+*API playground* (Website section of the sidebar) tries any analytics, revenue, visitors or
+mentions endpoint on the current website without code, like DataFast's docs playground: choose the
+endpoint, the dates and extra parameters (`fields`, `interval`, `limit`, `filter_*` …), send it with
+your dashboard session and read the JSON, then copy the matching `curl` command for a `df_` key.
+
 ## Integrations
 
 ### Revenue
@@ -60,21 +67,39 @@ the last error, with **Re-sync** and **Disconnect**.
 
 ### Growth
 
-Google Search Console, GitHub, X and Reddit mentions, and Meta Ads connect through the provider's
-OAuth flow (`/api/connect/<integration>/start`). The operator must register an OAuth app with each
-provider and set its client ID and secret on the Worker first. After connecting:
+Google Search Console, GitHub, X and Reddit mentions, and Meta Ads can connect through the
+provider's OAuth flow (`/api/connect/<integration>/start`) once the operator has registered an OAuth
+app with the provider and set its client ID and secret on the Worker. Without that, the card says
+which variables are missing instead of offering a Connect button, and GitHub and Meta Ads still
+connect with a pasted token:
 
-- Search Console: the property (`sc-domain:example.com` or a URL prefix).
-- GitHub: the repository as `owner/name`. Push events go to `/webhooks/github/<websiteId>`.
+- Search Console: the property (`sc-domain:example.com` or a URL prefix). OAuth only.
+- GitHub: the repository as `owner/name` and an optional branch. A public repository needs nothing
+  else; for a private one paste a fine-grained token (*Contents: read*, *Metadata: read*). Once saved,
+  the card shows the push webhook URL (`/webhooks/github/<websiteId>`) and its signing secret.
 - X and Reddit: keywords (4 to 15 characters, shared by both searches) and link-in-bio handles. Your
   domain is always searched.
-- Meta Ads: ad account IDs and campaign IDs, plus the recommended UTM template for your ads.
+- Meta Ads: ad account IDs and campaign IDs (and, without OAuth, a system-user access token with
+  `ads_read`), plus the recommended UTM template for your ads.
 
 ## Share link
 
 Turn on a public, read-only dashboard at `/share/<token>`. Copy or open the link, create a new link
 (the old one stops working), or turn sharing off. Revenue is hidden unless you switch on "Show
-revenue". Visitor profiles, customer details, notes and settings are never shown.
+revenue". Visitor profiles, customer details, notes and settings are never shown. The public page
+has an **Overview** and a **Live map** view (the real-time globe or map, the live visitor list and
+event log, without names or journeys; payments only with "Show revenue").
+
+### Widgets
+
+While sharing is on, the **Widgets** card generates an `<iframe>` you can paste into any page:
+*Visitors* or *Revenue* for the last 24 hours, 7 or 30 days with a trend line, *Visitors online
+now*, or a *Visitors chart*, in a dark or light theme, with your colour and size. The widget is
+served at `/share/<token>/widget?type=&period=&theme=&color=` (the only DataGoat page other sites
+may frame) and reads the public share API, so creating a new share link or turning sharing off
+stops every widget. Revenue widgets show a dash unless revenue is shared. Each widget view costs a
+few Worker requests and D1 reads (cached for 60 seconds on a custom domain), so keep that in mind on
+very busy pages.
 
 ## Usage & data
 

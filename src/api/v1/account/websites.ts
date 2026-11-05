@@ -57,6 +57,49 @@ websiteRoutes.get("/websites", requireAccountAccess("websites:read"), async (c) 
   return success(c, sites);
 });
 
+const WebsiteOrderBody = z
+  .object({ websiteIds: z.array(z.string().trim().min(1).max(64)).min(1).max(200) })
+  .strict();
+
+/**
+ * DG: save the caller's website order (DataFast's drag-and-drop reorder on the websites
+ * dashboard). Ids the user is not a member of are ignored; websites left out keep their place
+ * after the listed ones. Writes one membership row per listed website.
+ */
+websiteRoutes.put(
+  "/account/website-order",
+  requireAccountAccess("websites:read", { allowSiteKey: false }),
+  async (c) => {
+    const auth = getAuth(c);
+    const { websiteIds } = await parseJsonBody(c, WebsiteOrderBody, { maxBytes: 16 * 1024 });
+    const rows = await listUserSiteRows(c.env.DB, auth.user.id);
+    const mine = new Map<string, string>();
+    for (const row of rows) {
+      mine.set(String(row.id), String(row.id));
+      mine.set(String(row.public_id), String(row.id));
+    }
+    const ordered = [
+      ...new Set(websiteIds.map((id) => mine.get(id)).filter((id) => id)),
+    ] as string[];
+    const rest = rows.map((r) => String(r.id)).filter((id) => !ordered.includes(id));
+    const stmt = c.env.DB.prepare(
+      "UPDATE memberships SET position = ? WHERE site_id = ? AND user_id = ? AND position IS NOT ?",
+    );
+    const writes = [...ordered, ...rest].map((id, i) => stmt.bind(i, id, auth.user.id, i));
+    for (let i = 0; i < writes.length; i += 50) await c.env.DB.batch(writes.slice(i, i + 50));
+    const sorted = await listUserSiteRows(c.env.DB, auth.user.id);
+    return success(
+      c,
+      sorted
+        .map((row) => ({ site: rowToSite(row), role: String(row.member_role) as Role }))
+        .filter(({ site }) => auth.websiteIds === "all" || auth.websiteIds.includes(site.id))
+        .map(({ site, role }) =>
+          websiteSummaryDto(site, auth.roleCap && role === "owner" ? auth.roleCap : role),
+        ),
+    );
+  },
+);
+
 websiteRoutes.post(
   "/websites",
   requireAccountAccess("websites:write", { allowSiteKey: false }),

@@ -277,6 +277,9 @@ function point(
     bounce_rate: s.sessions ? Math.round((s.bounces / s.sessions) * 10000) / 100 : 0,
     avg_session_duration: s.sessions ? Math.round(s.durationSum / s.sessions) : 0,
     goals,
+    // A refund now and then, so the chart shows greyed-out refunded revenue.
+    refunds:
+      revenue > 0 && noise(`refund${key}`) < 0.12 ? Math.round(revenue * 0.3 * 100) / 100 : 0,
   };
 }
 

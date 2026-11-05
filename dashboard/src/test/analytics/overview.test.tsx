@@ -32,6 +32,8 @@ describe("overview", () => {
     expect(
       await screen.findByRole("slider", { name: /Visitors and revenue over time/ }),
     ).toBeInTheDocument();
+    // Refunded revenue is drawn greyed out on top of the revenue bars.
+    expect(screen.getAllByTestId("refund-bar").length).toBeGreaterThan(0);
     const source = screen.getByTestId("card-source");
     expect(
       await within(source).findByRole("button", { name: /Filter by Organic Search/ }),
@@ -40,6 +42,10 @@ describe("overview", () => {
       "aria-selected",
       "true",
     );
+    // DataFast's channel pie: share of visitors per channel above the list.
+    expect(
+      within(source).getByRole("figure", { name: "Channel share of visitors" }),
+    ).toHaveTextContent(/Organic Search\s*\d+%/);
     expect(
       await within(screen.getByTestId("card-pages")).findByRole("button", {
         name: /Filter by \/pricing/,
@@ -63,6 +69,54 @@ describe("overview", () => {
     expect(screen.getAllByRole("button", { name: /commit/ }).length).toBeGreaterThan(0);
   });
 
+  it("shows MRR, ROAS, ad campaigns and Search Console keywords on the overview", async () => {
+    server.use(
+      http.get("/api/v1/search-console/status", () =>
+        HttpResponse.json({ status: "success", data: { connected: true } }),
+      ),
+    );
+    resetMockState({ signedIn: true });
+    const site = state.websites.find((w) => w._id === SITE);
+    if (site) site.revenueMetric = "mrr";
+    renderApp(`/app/${SITE}/overview`);
+    // Headline metric MRR: right after Visitors.
+    const mrr = await screen.findByTestId("kpi-mrr");
+    expect(mrr).toHaveTextContent(/MRR\s*\$1,247/);
+    expect(mrr).toHaveTextContent("43 active subscriptions");
+    const tiles = within(screen.getByRole("list", { name: "Key metrics" })).getAllByRole(
+      "listitem",
+    );
+    expect(tiles[1]).toBe(mrr.closest("li"));
+    expect(await screen.findByTestId("kpi-roas")).toHaveTextContent(/ROAS\s*2\.80x/);
+    expect(screen.getByTestId("kpi-roas")).toHaveTextContent("$500 ad spend");
+
+    const source = screen.getByTestId("card-source");
+    await userEvent.click(await within(source).findByRole("tab", { name: "Ads" }));
+    const campaign = await within(source).findByRole("button", { name: /^Filter by .*spend/ });
+    await userEvent.click(campaign);
+    await waitFor(() => expect(search().get("filter_utm_campaign")).toMatch(/^is:\d+$/));
+
+    await userEvent.click(within(source).getByRole("tab", { name: "Keyword" }));
+    expect(await within(source).findByText("Est. revenue")).toBeInTheDocument();
+    expect(within(source).getAllByRole("listitem").length).toBeGreaterThan(0);
+  });
+
+  it("filters commit markers by type (feat:, fix:)", async () => {
+    renderSite("overview");
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /commit/ }).length).toBeGreaterThan(0),
+    );
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Commit type" }), "fix:");
+    await waitFor(() =>
+      expect(screen.queryAllByRole("button", { name: /commit/ })).toHaveLength(0),
+    );
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Commit type" }), "feat:");
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: /commit/ }).length).toBeGreaterThan(0),
+    );
+    window.localStorage.clear();
+  });
+
   it("filters on row click and shows the filter as a removable chip", async () => {
     renderSite("overview");
     const source = await screen.findByTestId("card-source");
@@ -70,9 +124,46 @@ describe("overview", () => {
       await within(source).findByRole("button", { name: /Filter by Organic Search/ }),
     );
     await waitFor(() => expect(search().get("filter_channel")).toBe("is:Organic Search"));
+    // Drill-down: the card now lists the sources inside that channel.
+    expect(within(source).getByRole("tab", { name: "Referrer" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     const chip = screen.getByRole("button", { name: "Remove filter: Channel is Organic Search" });
     await userEvent.click(chip);
     await waitFor(() => expect(search().get("filter_channel")).toBeNull());
+  });
+
+  it("sorts the Details list by name or revenue", async () => {
+    renderSite("overview");
+    const pages = await screen.findByTestId("card-pages");
+    await within(pages).findByRole("button", { name: /Filter by \/pricing/ });
+    await userEvent.click(within(pages).getByRole("button", { name: /Details/ }));
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findAllByRole("button", { name: /^Filter by/ });
+    const labels = () =>
+      within(dialog)
+        .getAllByRole("button", { name: /^Filter by/ })
+        .map((b) => (b.getAttribute("aria-label") ?? "").replace(/^Filter by /, "").split(":")[0]);
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Sort by" }),
+      "name",
+    );
+    const byName = labels();
+    expect(byName).toEqual([...byName].sort((a, b) => (a ?? "").localeCompare(b ?? "")));
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: "Sort by" }),
+      "revenue",
+    );
+    const revenues = within(dialog)
+      .getAllByRole("button", { name: /^Filter by/ })
+      .map((b) =>
+        Number(
+          /\$([\d,.]+) revenue/.exec(b.getAttribute("aria-label") ?? "")?.[1]?.replace(/,/g, "") ??
+            0,
+        ),
+      );
+    expect(revenues).toEqual([...revenues].sort((a, b) => b - a));
   });
 
   it("switches tabs with the keyboard and campaign dimensions with the select", async () => {
@@ -130,6 +221,9 @@ describe("overview", () => {
     const chart = await screen.findByRole("slider", { name: /Visitors and revenue over time/ });
     chart.focus();
     await userEvent.keyboard("{End}{Enter}");
+    const pinned = await screen.findByTestId("chart-pinned-tooltip");
+    expect(pinned).toHaveTextContent(/Visitors\s*[\d,]+/);
+    expect(pinned).toHaveTextContent("Revenue");
     await userEvent.click(await screen.findByRole("button", { name: "Add note here" }));
     await userEvent.type(screen.getByLabelText("Note"), "Launched the referral program");
     await userEvent.click(screen.getByRole("button", { name: "Save note" }));
@@ -210,6 +304,13 @@ describe("period selector", () => {
     await screen.findByTestId("kpi-visitors");
     await userEvent.keyboard("t");
     await waitFor(() => expect(search().get("period")).toBe("today"));
+    // DataFast's mapping: D is the last 24 hours, 3 the last 30 days.
+    await userEvent.keyboard("d");
+    await waitFor(() => expect(search().get("period")).toBe("24h"));
+    await userEvent.keyboard("3");
+    await waitFor(() => expect(search().get("period")).toBe("30d"));
+    await userEvent.keyboard("w");
+    await waitFor(() => expect(search().get("period")).toBe("7d"));
     await userEvent.keyboard("n");
     await waitFor(() => expect(search().get("period")).toBe("now"));
     expect(await screen.findByRole("button", { name: "Minutely" })).toBeInTheDocument();
@@ -327,6 +428,21 @@ describe("public shared dashboard", () => {
     if (w) w.isPublicDataEnabled = true;
     renderApp("/share/share_demo_token_000000");
     expect(await screen.findByTestId("kpi-revenue")).toHaveTextContent("$");
+  });
+
+  it("shows the live visitor map without names, journeys or (unshared) payments", async () => {
+    resetMockState({ signedIn: false });
+    renderApp("/share/share_demo_token_000000");
+    await screen.findByTestId("kpi-visitors");
+    await userEvent.click(screen.getByRole("button", { name: "Live map" }));
+    const live = await screen.findByTestId("live-count");
+    await waitFor(() => expect(live).toHaveTextContent(/\d+ visitors? online/));
+    expect(screen.queryByRole("tab", { name: "Payments" })).not.toBeInTheDocument();
+    const list = await screen.findByRole("tab", { name: /^Visitors \(\d+\)/ });
+    expect(list).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Open visitor journey/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Overview" }));
+    expect(await screen.findByTestId("kpi-visitors")).toBeInTheDocument();
   });
 
   it("explains an invalid link", async () => {

@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { HttpResponse, http } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 import { server } from "../../mocks/node";
 import { state } from "../../mocks/state";
@@ -159,6 +160,112 @@ describe("growth integrations", () => {
     expect(screen.getByRole("figure", { name: "Meta URL parameters" })).toHaveTextContent(
       "utm_campaign={{campaign.id}}",
     );
+  });
+
+  it("connects GitHub with a repository and a pasted token when OAuth is not configured", async () => {
+    server.use(
+      http.get(`/api/v1/admin/websites/${SITE}/integrations/github`, () =>
+        HttpResponse.json({
+          status: "success",
+          data: {
+            kind: "github",
+            connected: false,
+            status: null,
+            settings: { webhookUrl: `https://datagoat.example/webhooks/github/${SITE}` },
+            lastSyncedAt: null,
+            lastError: null,
+            oauthConfigured: false,
+            connectUrl: null,
+            hasCredentials: false,
+          },
+        }),
+      ),
+    );
+    const log = recordRequests();
+    openPage(`/app/${SITE}/integrations`);
+    const card = (await screen.findByRole("heading", { name: /GitHub/ })).closest(
+      "section",
+    ) as HTMLElement;
+    expect(await within(card).findByText(/Sign-in with GitHub is not set up/)).toBeInTheDocument();
+    expect(within(card).queryByRole("link", { name: "Connect GitHub" })).not.toBeInTheDocument();
+    await userEvent.type(within(card).getByLabelText("Repository"), "acme/private-site");
+    await userEvent.type(within(card).getByLabelText("Access token"), "short");
+    await userEvent.click(within(card).getByRole("button", { name: "Save" }));
+    expect(within(card).getByRole("alert")).toHaveTextContent("does not look like a GitHub token");
+    await userEvent.clear(within(card).getByLabelText("Access token"));
+    await userEvent.type(within(card).getByLabelText("Access token"), "github_pat_0123456789abc");
+    await userEvent.click(within(card).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(writes(log, "PUT", "/integrations/github")[0]?.body).toEqual({
+        repo: "acme/private-site",
+        accessToken: "github_pat_0123456789abc",
+      }),
+    );
+    // Connected: the push webhook URL and its signing secret are ready to copy.
+    expect(await within(card).findByLabelText("Webhook secret")).toHaveValue(
+      "3f9a1c0d8e7b6a5f4e3d2c1b0a9f8e7d6c5b4a39",
+    );
+    expect(within(card).getByLabelText("Push webhook URL")).toHaveValue(
+      `https://datagoat.example/webhooks/github/${SITE}`,
+    );
+    expect(within(card).getByText("Connected")).toBeInTheDocument();
+  });
+
+  it("connects Meta Ads with a system-user token when OAuth is not configured", async () => {
+    server.use(
+      http.get(`/api/v1/admin/websites/${SITE}/integrations/meta-ads`, () =>
+        HttpResponse.json({
+          status: "success",
+          data: {
+            kind: "meta_ads",
+            connected: false,
+            status: null,
+            settings: {},
+            lastSyncedAt: null,
+            lastError: null,
+            oauthConfigured: false,
+            connectUrl: null,
+            hasCredentials: false,
+          },
+        }),
+      ),
+    );
+    const log = recordRequests();
+    openPage(`/app/${SITE}/integrations`);
+    const card = (await screen.findByRole("heading", { name: /Meta Ads/ })).closest(
+      "section",
+    ) as HTMLElement;
+    expect(await within(card).findByText(/Facebook sign-in is not set up/)).toBeInTheDocument();
+    await userEvent.type(
+      within(card).getByRole("textbox", { name: "Ad account IDs" }),
+      "act_42{Enter}",
+    );
+    await userEvent.type(
+      within(card).getByRole("textbox", { name: "Campaign IDs" }),
+      "1202{Enter}",
+    );
+    await userEvent.type(
+      within(card).getByLabelText("Access token"),
+      "EAAB-system-user-token-0123456789",
+    );
+    await userEvent.click(within(card).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(writes(log, "PUT", "/integrations/meta-ads")[0]?.body).toEqual({
+        adAccountIds: ["act_42"],
+        campaignIds: ["1202"],
+        accessToken: "EAAB-system-user-token-0123456789",
+      }),
+    );
+  });
+
+  it("keeps the copy button outside the wrapped Meta UTM template", async () => {
+    openPage(`/app/${SITE}/integrations`);
+    const figure = await screen.findByRole("figure", { name: "Meta URL parameters" });
+    const pre = figure.querySelector("pre") as HTMLElement;
+    expect(pre).toHaveTextContent("utm_source=meta&utm_medium=paid-social");
+    expect(pre.querySelector("button")).toBeNull();
+    expect(pre.className).toContain("whitespace-pre-wrap");
+    expect(within(figure).getByRole("button", { name: "Copy Meta URL parameters" })).toBeVisible();
   });
 
   it("edits X and Reddit keywords and link-in-bio handles", async () => {

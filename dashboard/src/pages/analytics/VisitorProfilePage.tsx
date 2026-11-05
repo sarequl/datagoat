@@ -31,6 +31,7 @@ type TimelineItem =
       referrer: string | null;
       entryPath: string;
       pageviews: number;
+      keywords?: Array<{ query: string; probability: number }>;
     }
   | { kind: "page"; ts: number; url: string }
   | { kind: "goal"; ts: number; name: string; origin: string }
@@ -52,6 +53,7 @@ function timeline(p: VisitorProfile): TimelineItem[] {
       referrer: s.referrer,
       entryPath: s.entryPath,
       pageviews: s.pageviews,
+      keywords: s.searchKeywords,
     })),
     ...p.activity.visitedPages.map((v) => ({
       kind: "page" as const,
@@ -438,6 +440,20 @@ function Profile({
                           <span className="text-muted">
                             ({it.channel}, {it.pageviews} pages)
                           </span>
+                          {it.keywords?.length ? (
+                            <span
+                              className="block text-xs text-muted"
+                              data-testid="search-keywords"
+                            >
+                              Likely searched:{" "}
+                              {it.keywords.map((k, i) => (
+                                <span key={k.query}>
+                                  {i ? ", " : ""}
+                                  <span className="text-text">“{k.query}”</span> {k.probability}%
+                                </span>
+                              ))}
+                            </span>
+                          ) : null}
                         </span>
                       ) : it.kind === "page" ? (
                         <span>

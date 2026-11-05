@@ -7,6 +7,8 @@
  *                                                    under any attribution model, incl. "Unattributed"
  *   GET /api/v1/analytics/revenue/path-to-purchase   time and sessions from first visit to first
  *                                                    purchase, and first → last channel paths
+ *   GET /api/v1/analytics/revenue/mrr                current monthly recurring revenue of live
+ *                                                    subscriptions (the "MRR" headline metric)
  *
  * All take `startAt`/`endAt`/`timezone` (default: last 30 days) and `filter_*`. Filters apply to
  * the session each payment is attributed to under the website's attribution model (or `model=`).
@@ -14,7 +16,12 @@
  * renewal revenue; amounts in the website currency.
  */
 import { Hono } from "hono";
-import type { PathToPurchase, RevenueSourceRow, RevenueSummary } from "../../shared/api-types";
+import type {
+  MrrSummary,
+  PathToPurchase,
+  RevenueSourceRow,
+  RevenueSummary,
+} from "../../shared/api-types";
 import { getAccess } from "../auth/context";
 import { requireSiteAccess } from "../auth/middleware";
 import { ApiError } from "../lib/errors";
@@ -27,8 +34,70 @@ import { prepare, raw, type SqlFragment, sql } from "../lib/sql";
 import { type DateRange, lastNDays, parseRange } from "../lib/time";
 import { parsePagination } from "../lib/validate";
 import type { AppEnv } from "../types";
+import { loadRates, utcDay } from "./fx";
 
 export const revenueRoutes = new Hono<AppEnv>();
+
+/** Subscription states that count toward MRR (paying, or retrying a failed payment). */
+const MRR_STATUSES = raw("('active', 'past_due')");
+
+/**
+ * Current MRR (DataFast's `revenueMetric: "mrr"`): the monthly amount of every live subscription
+ * the payment providers reported (provider_subscriptions, kept up to date by sync and webhooks),
+ * converted to the website currency at the latest ECB rate. Trials, paused and ended
+ * subscriptions are excluded. It is a snapshot "now": the range and filters do not apply.
+ */
+revenueRoutes.get(
+  "/api/v1/analytics/revenue/mrr",
+  requireSiteAccess("analytics:read"),
+  async (c) => {
+    const { site } = getAccess(c);
+    const now = Date.now();
+    const res = await prepare(
+      c.env.DB,
+      sql`SELECT provider, currency, COUNT(*) AS subscriptions, COALESCE(SUM(mrr_minor), 0) AS mrr
+          FROM provider_subscriptions
+          WHERE site_id = ${site.id} AND status IN ${MRR_STATUSES} AND mrr_minor IS NOT NULL
+          GROUP BY provider, currency`,
+    ).all<{ provider: string; currency: string | null; subscriptions: number; mrr: number }>();
+    const rows = res.results ?? [];
+    const currencies = rows.map((r) => (r.currency ?? site.currency).toUpperCase());
+    const rates = await loadRates(c.env.DB, [...currencies, site.currency], now, now);
+    let unconverted = false;
+    const byProvider = new Map<string, { mrr: number; subscriptions: number }>();
+    for (const r of rows) {
+      const from = (r.currency ?? site.currency).toUpperCase();
+      const rate = from === site.currency ? 1 : rates.rate(from, site.currency, utcDay(now));
+      if (rate === null) unconverted = true;
+      const amount = toMajor(Number(r.mrr), from) * (rate ?? 1);
+      const entry = byProvider.get(r.provider) ?? { mrr: 0, subscriptions: 0 };
+      entry.mrr += amount;
+      entry.subscriptions += Number(r.subscriptions);
+      byProvider.set(r.provider, entry);
+    }
+    let total = 0;
+    let subscriptions = 0;
+    for (const e of byProvider.values()) {
+      total += e.mrr;
+      subscriptions += e.subscriptions;
+    }
+    const body: MrrSummary = {
+      currency: site.currency,
+      mrr: round2(total),
+      activeSubscriptions: subscriptions,
+      byProvider: [...byProvider.entries()]
+        .map(([provider, e]) => ({
+          provider,
+          mrr: round2(e.mrr),
+          subscriptions: e.subscriptions,
+        }))
+        .sort((a, b) => b.mrr - a.mrr),
+      revenueMetric: site.revenueMetric === "mrr" ? "mrr" : "revenue",
+      unconverted,
+    };
+    return success(c, body);
+  },
+);
 
 const DAY = 86_400_000;
 const kinds = (list: string[]) => raw(`(${list.map((k) => `'${k}'`).join(", ")})`);

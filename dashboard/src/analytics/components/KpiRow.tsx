@@ -4,6 +4,7 @@
  * trend chart); clicking it again returns to the mixed visitors/revenue chart.
  */
 import { Link } from "@tanstack/react-router";
+import { Fragment } from "react";
 import type { Overview, TimeseriesPoint } from "../../../../shared/api-types";
 import { cx } from "../../components/ui";
 import { formatMetric, METRICS, type MetricKind } from "../lib/chart";
@@ -21,6 +22,31 @@ interface Tile {
   sub?: string;
   spark: Array<number | null>;
   color?: string;
+}
+
+/** A read-only tile (MRR, ad spend and ROAS) shown next to the selectable KPIs. */
+export interface ExtraTile {
+  key: string;
+  label: string;
+  value: string;
+  sub?: string;
+  /** Put the tile right after Visitors (the website's headline revenue metric). */
+  lead?: boolean;
+}
+
+function ExtraTileItem({ t }: { t: ExtraTile }) {
+  return (
+    <li>
+      <div
+        className="flex h-full flex-col gap-1 rounded-lg border border-line bg-surface p-3"
+        data-testid={`kpi-${t.key}`}
+      >
+        <span className="text-xs font-medium text-muted">{t.label}</span>
+        <span className="text-xl font-semibold tabular-nums">{t.value}</span>
+        {t.sub ? <span className="text-xs text-muted">{t.sub}</span> : null}
+      </div>
+    </li>
+  );
 }
 
 function DeltaBadge({ value, inverse }: { value: number | null; inverse?: boolean }) {
@@ -53,6 +79,7 @@ export function KpiRow({
   liveVisitors,
   realtimeLink,
   revenueColor,
+  extras = [],
 }: {
   overview: Overview | undefined;
   prevOverview: Overview | undefined;
@@ -72,6 +99,7 @@ export function KpiRow({
   liveVisitors?: number | null;
   realtimeLink?: { siteId: string } | null;
   revenueColor: string;
+  extras?: ExtraTile[];
 }) {
   if (!overview) {
     return (
@@ -194,9 +222,9 @@ export function KpiRow({
         </div>
       ) : null}
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Key metrics">
-        {tiles.map((t) => {
+        {tiles.map((t, i) => {
           const isSelected = t.key === "revenue" ? selected === "revenue" : selected === t.key;
-          return (
+          const tile = (
             <li key={t.key}>
               <button
                 type="button"
@@ -237,7 +265,25 @@ export function KpiRow({
               </button>
             </li>
           );
+          // The headline MRR tile sits right after Visitors.
+          return i === 0 ? (
+            <Fragment key={t.key}>
+              {tile}
+              {extras
+                .filter((e) => e.lead)
+                .map((e) => (
+                  <ExtraTileItem key={e.key} t={e} />
+                ))}
+            </Fragment>
+          ) : (
+            tile
+          );
         })}
+        {extras
+          .filter((e) => !e.lead)
+          .map((e) => (
+            <ExtraTileItem key={e.key} t={e} />
+          ))}
         {realtimeLink ? (
           <li>
             <Link

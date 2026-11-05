@@ -86,6 +86,10 @@ export const authHandlers = [
       ...me(),
     });
   }),
+  // W6: same answer whether or not the account exists (contract §11).
+  http.post("/api/auth/password-resets", () =>
+    ok({ message: "If an account exists for that email, a password reset link is on its way." }),
+  ),
   http.get("/api/auth/password-resets/:token", () => ok({ email: state.user.email })),
   http.post("/api/auth/password-resets/:token", () =>
     ok({ message: "Password updated. You can now sign in." }),
@@ -131,6 +135,15 @@ export const authHandlers = [
   }),
 
   http.get("/api/v1/admin/websites", () => ok(state.websites.map(summary))),
+  http.put("/api/v1/admin/account/website-order", async ({ request }) => {
+    const { websiteIds } = (await request.json()) as { websiteIds: string[] };
+    const rank = (id: string) => {
+      const i = websiteIds.indexOf(id);
+      return i === -1 ? websiteIds.length : i;
+    };
+    state.websites = [...state.websites].sort((a, b) => rank(a._id) - rank(b._id));
+    return ok(state.websites.map(summary));
+  }),
   http.post("/api/v1/admin/websites", async ({ request }) => {
     const body = (await request.json()) as {
       domain: string;

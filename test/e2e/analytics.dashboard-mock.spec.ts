@@ -19,6 +19,8 @@ test.describe("overview", () => {
     await expect(page.getByTestId("kpi-goal")).toContainText("#1 KPI");
     const chart = page.getByRole("slider", { name: /Visitors and revenue over time/ });
     await expect(chart).toBeVisible();
+    // With the MRR and ROAS tiles the chart can start below the fold.
+    await chart.scrollIntoViewIfNeeded();
     const box = await chart.boundingBox();
     if (!box) throw new Error("chart has no box");
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -56,6 +58,9 @@ test.describe("overview", () => {
     await page.keyboard.press("End");
     await expect(chart).toHaveAttribute("aria-valuetext", /Visitors/);
     await page.keyboard.press("Enter");
+    // The point's numbers stay pinned next to the actions (sticky tooltip).
+    const actions = page.getByRole("dialog", { name: "Chart point actions" });
+    await expect(actions.getByTestId("chart-pinned-tooltip")).toContainText("Visitors");
     await page.getByRole("button", { name: "Add note here" }).click();
     await page.getByLabel("Note", { exact: true }).fill("Shipped annual plans");
     await page.getByRole("button", { name: "Save note" }).click();

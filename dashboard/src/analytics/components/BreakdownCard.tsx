@@ -3,13 +3,15 @@
  * revenue and payments (exit links: visitors and clicks) and adds a filter when clicked. With a
  * goal as #1 KPI, the card can show that goal's converting visitors per row instead of revenue.
  */
+import { useQuery } from "@tanstack/react-query";
 import { lazy, type ReactNode, Suspense, useMemo, useState } from "react";
 import type { CountryRow } from "../../../../shared/api-types";
+import { api, type Query } from "../../api/client";
 import { cx } from "../../components/ui";
 import { type ActiveFilter, upsertFilter } from "../lib/filters";
 import { formatMoney, formatNumber } from "../lib/format";
 import { readPref, writePref } from "../lib/storage";
-import { showRevenue, useAnalytics, useSource } from "../source";
+import { showRevenue, sourceKey, useAnalytics, useSource } from "../source";
 import type { DashboardState } from "../state";
 import { Dialog, EmptyState, ErrorState, Segmented, Skeleton, Tabs } from "./primitives";
 
@@ -46,6 +48,96 @@ export interface BreakdownTab {
   map?: boolean;
   /** Rows with an empty value are dropped and identical values merged (campaign dimensions). */
   group?: boolean;
+  /** Show a share-of-visitors donut above the list (channels). */
+  donut?: boolean;
+  /** After filtering on a row, switch the card to this tab (channel → its referrers). */
+  drillTo?: string;
+  /**
+   * Growth tabs: read this API path (signed-in websites only) with the period instead of
+   * `/api/v1/analytics/<endpoint>`; `pageFilter` forwards the dashboard's page filter.
+   */
+  path?: string;
+  pageFilter?: boolean;
+  /** Normalise the API row into Row fields (visitors/revenue/payments drive the columns). */
+  mapRow?: (row: Row) => Row;
+  /** Column headings (defaults: Visitors, Revenue, Payments). */
+  labels?: { visitors?: string; revenue?: string; payments?: string };
+  /** Display label when it differs from the filter value. */
+  rowLabel?: (row: Row) => string;
+  /** Small muted text after the label (ad spend and ROAS). */
+  note?: (row: Row) => string | null;
+}
+
+const DONUT_COLORS = [
+  "var(--dg-secondary)",
+  "var(--dg-revenue)",
+  "var(--dg-accent)",
+  "var(--dg-info)",
+  "var(--dg-warning)",
+  "var(--dg-success)",
+  "var(--dg-muted)",
+];
+
+/** Share of visitors per row as a donut (DataFast's channel pie); a click filters like the row. */
+export function ShareDonut({
+  rows,
+  label,
+  value,
+  onPick,
+}: {
+  rows: Row[];
+  label: string;
+  value: (row: Row) => string;
+  onPick?: (value: string) => void;
+}) {
+  const total = rows.reduce((s, r) => s + (r.visitors ?? 0), 0);
+  if (!total) return null;
+  const R = 42;
+  const C = 2 * Math.PI * R;
+  let offset = 0;
+  const slices = rows.slice(0, DONUT_COLORS.length).map((r, i) => {
+    const share = (r.visitors ?? 0) / total;
+    const slice = { v: value(r), share, offset, color: DONUT_COLORS[i] as string };
+    offset += share;
+    return slice;
+  });
+  return (
+    <figure className="mb-3 flex items-center gap-4" aria-label={`${label} share of visitors`}>
+      <svg viewBox="0 0 100 100" className="size-24 shrink-0 -rotate-90" aria-hidden="true">
+        {slices.map((s) => (
+          // biome-ignore lint/a11y/noStaticElementInteractions: pointer shortcut; the list below is the accessible control
+          <circle
+            key={s.v}
+            cx="50"
+            cy="50"
+            r={R}
+            fill="none"
+            stroke={s.color}
+            strokeWidth="14"
+            strokeDasharray={`${Math.max(0, s.share * C - 1)} ${C}`}
+            strokeDashoffset={-s.offset * C}
+            onClick={onPick ? () => onPick(s.v) : undefined}
+            style={onPick ? { cursor: "pointer" } : undefined}
+          >
+            <title>{`${s.v}: ${Math.round(s.share * 100)}%`}</title>
+          </circle>
+        ))}
+      </svg>
+      <figcaption className="grid min-w-0 flex-1 grid-cols-1 gap-0.5 text-xs sm:grid-cols-2">
+        {slices.map((s) => (
+          <span key={s.v} className="flex min-w-0 items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="size-2 shrink-0 rounded-full"
+              style={{ background: s.color }}
+            />
+            <span className="truncate">{s.v || "(none)"}</span>
+            <span className="ml-auto text-muted tabular-nums">{Math.round(s.share * 100)}%</span>
+          </span>
+        ))}
+      </figcaption>
+    </figure>
+  );
 }
 
 function groupRows(rows: Row[], tab: BreakdownTab, variant: string): Row[] {
@@ -81,8 +173,34 @@ function useRows(
     limit,
     offset,
   };
-  const q = useAnalytics<Row[]>(tab.endpoint, params, { keepPrevious: false, enabled });
-  const rows = useMemo(() => groupRows(q.data?.data ?? [], tab, variant), [q.data, tab, variant]);
+  const source = useSource();
+  const analytics = useAnalytics<Row[]>(tab.endpoint, params, {
+    keepPrevious: false,
+    enabled: enabled && !tab.path,
+  });
+  const growthParams: Query = {
+    ...state.rangeParams,
+    ...(tab.pageFilter && state.filterParams.filter_page
+      ? { filter_page: state.filterParams.filter_page }
+      : {}),
+    ...(tab.extraParams?.(variant) ?? {}),
+    limit,
+    offset,
+  };
+  const growth = useQuery({
+    queryKey: ["growth-tab", sourceKey(source), tab.path, growthParams],
+    queryFn: () =>
+      api.get<Row[]>(tab.path as string, {
+        websiteId: source.kind === "site" ? source.websiteId : "",
+        ...growthParams,
+      }),
+    enabled: enabled && Boolean(tab.path) && source.kind === "site",
+  });
+  const q = tab.path ? growth : analytics;
+  const rows = useMemo(() => {
+    const raw = q.data?.data ?? [];
+    return groupRows(tab.mapRow ? raw.map(tab.mapRow) : raw, tab, variant);
+  }, [q.data, tab, variant]);
   return { q, rows, hasMore: Boolean(q.data?.pagination?.hasMore) };
 }
 
@@ -115,21 +233,27 @@ function RowList({
     state.setFilters(upsertFilter(state.filters, f));
     onPicked?.();
   };
-  const third = tab.clicks ? "Clicks" : kpiCounts ? kpiLabel : money ? "Revenue" : null;
+  const L = {
+    visitors: tab.labels?.visitors ?? "Visitors",
+    revenue: tab.labels?.revenue ?? "Revenue",
+    payments: tab.labels?.payments ?? "Payments",
+  };
+  const third = tab.clicks ? "Clicks" : kpiCounts ? kpiLabel : money ? L.revenue : null;
   return (
     <div>
       <div className="flex items-center gap-2 px-2 pb-1 text-xs text-muted" aria-hidden="true">
         <span className="flex-1">{tab.label}</span>
-        <span className="w-16 text-right">Visitors</span>
+        <span className="w-16 text-right">{L.visitors}</span>
         {third ? <span className="w-20 text-right">{third}</span> : null}
         {!tab.clicks && money && !kpiCounts ? (
-          <span className="hidden w-14 text-right sm:inline">Payments</span>
+          <span className="hidden w-14 text-right sm:inline">{L.payments}</span>
         ) : null}
       </div>
       <ul className="space-y-0.5">
         {rows.map((r) => {
           const value = tab.value(r, variant);
-          const label = value || "(none)";
+          const label = tab.rowLabel?.(r) || value || "(none)";
+          const note = tab.note?.(r) ?? null;
           const pct = ((r.visitors ?? 0) / max) * 100;
           const href = tab.href?.(r);
           const metrics = (
@@ -153,13 +277,13 @@ function RowList({
               ) : null}
             </>
           );
-          const aria = `${label}: ${formatNumber(r.visitors)} visitors${
+          const aria = `${label}: ${formatNumber(r.visitors)} ${L.visitors.toLowerCase()}${
             tab.clicks
               ? `, ${formatNumber(r.clicks)} clicks`
               : money
-                ? `, ${formatMoney(r.revenue ?? 0, currency)} revenue, ${formatNumber(r.payments ?? 0)} payments`
+                ? `, ${formatMoney(r.revenue ?? 0, currency)} ${L.revenue.toLowerCase()}, ${formatNumber(r.payments ?? 0)} ${L.payments.toLowerCase()}`
                 : ""
-          }`;
+          }${note ? `, ${note}` : ""}`;
           const inner = (
             <>
               <span
@@ -170,6 +294,7 @@ function RowList({
               <span className="relative flex min-w-0 flex-1 items-center gap-2">
                 {tab.icon ? <span className="shrink-0">{tab.icon(r)}</span> : null}
                 <span className="truncate">{label}</span>
+                {note ? <span className="shrink-0 text-xs text-muted">{note}</span> : null}
               </span>
               <span className="relative flex items-center gap-2 text-sm">{metrics}</span>
             </>
@@ -216,6 +341,26 @@ function RowList({
   );
 }
 
+type DetailsSort = "visitors" | "revenue" | "clicks" | "name";
+
+/** Details ordering (DataFast: sort by name, revenue or traffic); the API sorts by visitors. */
+export function sortRows(
+  rows: Row[],
+  sort: DetailsSort,
+  tab: BreakdownTab,
+  variant: string,
+): Row[] {
+  if (sort === "visitors") return rows;
+  const out = [...rows];
+  if (sort === "name") {
+    out.sort((a, b) => tab.value(a, variant).localeCompare(tab.value(b, variant)));
+  } else {
+    const key = sort === "revenue" ? "revenue" : "clicks";
+    out.sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0) || (b.visitors ?? 0) - (a.visitors ?? 0));
+  }
+  return out;
+}
+
 function DetailsDialog({
   open,
   onClose,
@@ -237,20 +382,45 @@ function DetailsDialog({
 }) {
   const [limit, setLimit] = useState(100);
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState<DetailsSort>("visitors");
   const { q: query, rows, hasMore } = useRows(tab, variant, state, limit, 0, undefined, open);
-  const shown = q
+  const filtered = q
     ? rows.filter((r) => tab.value(r, variant).toLowerCase().includes(q.toLowerCase()))
     : rows;
+  const shown = sortRows(filtered, sort, tab, variant);
+  const sorts: Array<[DetailsSort, string]> = [
+    ["visitors", "Visitors"],
+    ...(tab.clicks
+      ? ([["clicks", "Clicks"]] as Array<[DetailsSort, string]>)
+      : money
+        ? ([["revenue", "Revenue"]] as Array<[DetailsSort, string]>)
+        : []),
+    ["name", "Name"],
+  ];
   return (
     <Dialog open={open} onClose={onClose} title={title} wide>
-      <input
-        aria-label={`Search ${tab.label.toLowerCase()}`}
-        placeholder="Search"
-        value={q}
-        data-autofocus
-        onChange={(e) => setQ(e.target.value)}
-        className="mb-3 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm"
-      />
+      <div className="mb-3 flex flex-wrap gap-2">
+        <input
+          aria-label={`Search ${tab.label.toLowerCase()}`}
+          placeholder="Search"
+          value={q}
+          data-autofocus
+          onChange={(e) => setQ(e.target.value)}
+          className="min-w-0 flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm"
+        />
+        <select
+          aria-label="Sort by"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as DetailsSort)}
+          className="rounded-md border border-line bg-surface px-2 py-2 text-sm"
+        >
+          {sorts.map(([id, label]) => (
+            <option key={id} value={id}>
+              Sort by {label.toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </div>
       {query.isPending ? (
         <Skeleton className="h-40" />
       ) : query.error ? (
@@ -416,16 +586,36 @@ export function BreakdownCard({
             />
           </Suspense>
         ) : (
-          <RowList
-            rows={rows}
-            tab={tab}
-            variant={activeVariant}
-            state={state}
-            money={money}
-            currency={source.currency}
-            kpiCounts={kpiCounts}
-            kpiLabel={kpiGoal?.label}
-          />
+          <>
+            {tab.donut ? (
+              <ShareDonut
+                rows={rows}
+                label={tab.label}
+                value={(r) => tab.value(r, activeVariant)}
+                onPick={
+                  filterKey
+                    ? (v) => {
+                        state.setFilters(
+                          upsertFilter(state.filters, { key: filterKey, op: "is", values: [v] }),
+                        );
+                        if (tab.drillTo) changeTab(tab.drillTo);
+                      }
+                    : undefined
+                }
+              />
+            ) : null}
+            <RowList
+              rows={rows}
+              tab={tab}
+              variant={activeVariant}
+              state={state}
+              money={money}
+              currency={source.currency}
+              kpiCounts={kpiCounts}
+              kpiLabel={kpiGoal?.label}
+              onPicked={tab.drillTo ? () => changeTab(tab.drillTo as string) : undefined}
+            />
+          </>
         )}
       </div>
       {!tab.map && rows.length ? (

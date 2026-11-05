@@ -74,6 +74,10 @@ describe("visitors", () => {
     expect(await screen.findByRole("list", { name: "Journey timeline" })).toHaveTextContent(
       /Day 1/,
     );
+    // Google sessions show Search Console keyword guesses (DataFast's keyword probability).
+    expect(screen.getByTestId("search-keywords")).toHaveTextContent(
+      "Likely searched: “revenue analytics” 62%, “datagoat” 38%",
+    );
     expect(screen.getByRole("group", { name: "Activity by day" })).toBeInTheDocument();
     expect(screen.getByText("Identity")).toBeInTheDocument();
   });
@@ -240,6 +244,9 @@ describe("revenue", () => {
   it("shows totals, attribution, LTV, path to purchase and payments with attribution sources", async () => {
     renderSite("revenue");
     expect(await screen.findByTestId("revenue-summary")).toHaveTextContent("Refunds");
+    await waitFor(() =>
+      expect(screen.getByTestId("revenue-summary")).toHaveTextContent(/MRR \(now\)\s*\$1,247/),
+    );
     expect(await screen.findByText(/of revenue linked to a visitor/)).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Lifetime value by first channel" }),
