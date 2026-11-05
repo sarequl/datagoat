@@ -9,7 +9,7 @@ status endpoint, and costs nothing. All secrets are Worker secrets (`wrangler se
 | Alerts, digests, weekly email report, invite and reset emails | Alerts | Email provider (optional), Telegram bot (optional) | [alerts.md](alerts.md) |
 | Attack mode | Bot traffic | none | [alerts.md](alerts.md#attack-mode) |
 | AI crawler bot traffic | Bot traffic | `@datagoat/ai-crawl` in your site's backend | [bot-traffic.md](bot-traffic.md) |
-| X and Reddit mentions, X link attribution | Mentions | X API token (Reddit works without) | [mentions.md](mentions.md) |
+| X and Reddit mentions, X link attribution | Mentions | X API token (paid, per post read); Reddit app credentials | [mentions.md](mentions.md) |
 | GitHub commit markers | Integrations | GitHub token or OAuth app, push webhook | [github.md](github.md) |
 | Google Search Console | Search Console | Google OAuth client | [search-console.md](search-console.md) |
 | Meta Ads spend and ROAS | Ads & ROAS | Meta app or system-user token | [meta-ads.md](meta-ads.md) |

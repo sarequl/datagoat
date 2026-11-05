@@ -26,6 +26,7 @@ import {
   buildXQuery,
   type MentionRecord,
   profileLinks,
+  redditConfigured,
   searchReddit,
   searchX,
   type TcoLink,
@@ -152,7 +153,7 @@ export async function syncMentionsForSite(
       }
     }
   }
-  if (conn.settings.redditEnabled !== false) {
+  if (conn.settings.redditEnabled !== false && redditConfigured(env)) {
     try {
       const since = cursor.redditSince ?? now - REDDIT_LOOKBACK_MS;
       const posts = await searchReddit(ctx.fetch, env, site.domain, keywords, since, now);

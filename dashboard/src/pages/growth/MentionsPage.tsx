@@ -68,6 +68,9 @@ function XSettings({ siteId }: { siteId: string }) {
   const usesServer = Boolean(
     (st?.settings as { usesServerToken?: boolean } | undefined)?.usesServerToken,
   );
+  const redditReady = Boolean(
+    (st?.settings as { redditConfigured?: boolean } | undefined)?.redditConfigured,
+  );
   return (
     <form className="space-y-4" onSubmit={submit} aria-label="Mention tracking settings">
       {save.error ? <Notice tone="error">{save.error.message}</Notice> : null}
@@ -96,6 +99,13 @@ function XSettings({ siteId }: { siteId: string }) {
         />
       </Field>
       <Toggle label="Also search Reddit" checked={reddit} onChange={setReddit} />
+      {reddit && !redditReady ? (
+        <Notice>
+          Reddit only answers apps it has approved, so Reddit search is off until this server has
+          Reddit app credentials: create an app at reddit.com/prefs/apps, request Data API access,
+          then add REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET as Worker secrets.
+        </Notice>
+      ) : null}
       <Field
         label="X API bearer token"
         hint={
@@ -103,7 +113,7 @@ function XSettings({ siteId }: { siteId: string }) {
             ? "Stored. Leave empty to keep it."
             : usesServer
               ? "Optional: the server's X_BEARER_TOKEN is used."
-              : "Needed for X search (recent search, X API v2). Reddit works without it."
+              : "Needed for X search. Create it in the X developer console (developer.x.com) under your app's Keys and tokens. X bills search per post read; DataGoat asks only for new posts every 30 minutes."
         }
       >
         <Input

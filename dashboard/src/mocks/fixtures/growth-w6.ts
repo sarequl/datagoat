@@ -277,6 +277,7 @@ export function integrationStatus(
         handles: ["datagoat"],
         redditEnabled: true,
         usesServerToken: true,
+        redditConfigured: true,
       },
       lastSyncedAt: NOW,
     };

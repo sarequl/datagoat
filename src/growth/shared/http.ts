@@ -54,6 +54,9 @@ function messageFrom(provider: string, status: number, body: unknown, text: stri
       if (typeof m === "string") return `${provider}: ${m}`;
     }
   }
+  // An HTML error page (a firewall or block page) says nothing useful in 160 characters of markup.
+  if (/^\s*<(!doctype|html|head|body|div|style)\b/i.test(text))
+    return `${provider}: HTTP ${status} (blocked: the server answered with a web page, not the API)`;
   const snippet = text.slice(0, 160).trim();
   return `${provider}: HTTP ${status}${snippet ? ` ${snippet}` : ""}`;
 }

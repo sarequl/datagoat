@@ -10,8 +10,7 @@
  * Reddit search, `GET https://oauth.reddit.com/search` with an app-only token from
  * `POST https://www.reddit.com/api/v1/access_token` (grant_type=client_credentials,
  * https://github.com/reddit-archive/reddit/wiki/OAuth2#application-only-oauth). Without Reddit
- * credentials the public `https://www.reddit.com/search.json` listing is used. Reddit requires a
- * descriptive User-Agent (https://github.com/reddit-archive/reddit/wiki/API).
+ * credentials Reddit is skipped (see `redditConfigured`). Reddit requires a descriptive User-Agent (https://github.com/reddit-archive/reddit/wiki/API).
  */
 import { type Fetcher, requestJson } from "../shared/http";
 
@@ -234,6 +233,15 @@ export function resetRedditToken(): void {
   redditToken = null;
 }
 
+/**
+ * Reddit answers only registered apps: anonymous `search.json` requests from servers (Cloudflare
+ * included) get an HTML 403 page. So Reddit is searched only when the Worker has Reddit app
+ * credentials.
+ */
+export function redditConfigured(env: Cloudflare.Env): boolean {
+  return Boolean(env.REDDIT_CLIENT_ID?.trim() && env.REDDIT_CLIENT_SECRET?.trim());
+}
+
 async function redditAuth(
   fetcher: Fetcher,
   env: Cloudflare.Env,
@@ -298,15 +306,17 @@ export async function searchReddit(
   now: number,
 ): Promise<MentionRecord[]> {
   const token = await redditAuth(fetcher, env, now);
-  const base = token ? "https://oauth.reddit.com/search" : "https://www.reddit.com/search.json";
-  const url = new URL(base);
+  if (!token) return [];
+  const url = new URL("https://oauth.reddit.com/search");
   url.searchParams.set("q", buildRedditQuery(domain, keywords));
   url.searchParams.set("sort", "new");
   url.searchParams.set("limit", "100");
   url.searchParams.set("t", "week");
   url.searchParams.set("raw_json", "1");
-  const headers: Record<string, string> = { "user-agent": REDDIT_UA };
-  if (token) headers.authorization = `Bearer ${token}`;
+  const headers: Record<string, string> = {
+    "user-agent": REDDIT_UA,
+    authorization: `Bearer ${token}`,
+  };
   const res = await requestJson<RedditListing>(fetcher, "Reddit", url.toString(), { headers });
   const needles = [domain, ...keywords.map((k) => k.replace(/^[@#]/, ""))].map((n) =>
     n.toLowerCase(),

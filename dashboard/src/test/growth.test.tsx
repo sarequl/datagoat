@@ -192,6 +192,37 @@ describe("Mentions page", () => {
     await userEvent.type(keywords, ", #launch");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText(/Saved\. New mentions appear/)).toBeInTheDocument();
+    // This server has Reddit credentials: no setup notice.
+    expect(screen.queryByText(/Reddit only answers apps it has approved/)).not.toBeInTheDocument();
+  });
+
+  it("explains that Reddit needs app credentials and that X search is billed", async () => {
+    server.use(
+      http.get(`/api/v1/admin/websites/${SITE}/integrations/x`, () =>
+        HttpResponse.json({
+          status: "success",
+          data: {
+            kind: "x",
+            connected: false,
+            status: "disconnected",
+            hasCredentials: false,
+            oauthConfigured: false,
+            connectUrl: null,
+            lastSyncedAt: null,
+            lastError: null,
+            settings: { keywords: [], handles: [], redditEnabled: true, redditConfigured: false },
+          },
+        }),
+      ),
+    );
+    open("mentions");
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
+    expect(await screen.findByText(/Reddit only answers apps it has approved/)).toHaveTextContent(
+      "REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET",
+    );
+    expect(screen.getByText(/X bills search per post read/)).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText("Also search Reddit"));
+    expect(screen.queryByText(/Reddit only answers apps it has approved/)).not.toBeInTheDocument();
   });
 });
 

@@ -134,8 +134,17 @@ describe("mentions.sync", () => {
           },
         ],
       }))
-      .on("https://www.reddit.com/search.json", () => redditListing);
-    const e = { ...env, X_BEARER_TOKEN: "x-app-token-0123456789" } as Cloudflare.Env;
+      .on("https://www.reddit.com/api/v1/access_token", () => ({
+        access_token: "rd-token",
+        expires_in: 3600,
+      }))
+      .on("https://oauth.reddit.com/search", () => redditListing);
+    const e = {
+      ...env,
+      X_BEARER_TOKEN: "x-app-token-0123456789",
+      REDDIT_CLIENT_ID: "id",
+      REDDIT_CLIENT_SECRET: "secret",
+    } as Cloudflare.Env;
     await syncMentions(jobCtx({ now: NOW, fetch, env: e }));
 
     const search = new URL(fetch.calls[0]?.url ?? "");
@@ -206,6 +215,41 @@ describe("mentions.sync", () => {
       "SELECT status, last_error FROM integration_connections",
     ).first();
     expect(conn).toMatchObject({ status: "error", last_error: "Reddit: Too Many Requests" });
+  });
+
+  it("skips Reddit without app credentials (Reddit blocks anonymous server requests)", async () => {
+    const owner = await createUser();
+    const site = await createSite(owner.id, { domain: "example.com" });
+    await connectX(site.id, { keywords: [] });
+    const fetch = mockFetch().on("https://www.reddit.com/", () =>
+      jsonResponse({ never: "called" }),
+    );
+    await syncMentions(jobCtx({ now: NOW, fetch, env }));
+    expect(fetch.calls.filter((c) => c.url.includes("reddit"))).toEqual([]);
+    const conn = await env.DB.prepare("SELECT last_error FROM integration_connections").first();
+    expect(conn?.last_error ?? null).toBeNull();
+  });
+
+  it("reports an HTML block page as one readable line", async () => {
+    const owner = await createUser();
+    const site = await createSite(owner.id, { domain: "example.com" });
+    await connectX(site.id, { keywords: [] });
+    const fetch = mockFetch()
+      .on("https://www.reddit.com/api/v1/access_token", () => ({ access_token: "rd-token" }))
+      .on(
+        "https://oauth.reddit.com/search",
+        () =>
+          new Response("<body class=theme-beta><div><style>.theme-light,:root{--rem360:22.5rem;", {
+            status: 403,
+            headers: { "content-type": "text/html" },
+          }),
+      );
+    const e = { ...env, REDDIT_CLIENT_ID: "id", REDDIT_CLIENT_SECRET: "secret" } as Cloudflare.Env;
+    await syncMentions(jobCtx({ now: NOW, fetch, env: e }));
+    const conn = await env.DB.prepare("SELECT last_error FROM integration_connections").first();
+    expect(conn?.last_error).toBe(
+      "Reddit: HTTP 403 (blocked: the server answered with a web page, not the API)",
+    );
   });
 });
 

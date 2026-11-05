@@ -477,7 +477,17 @@ export function RealtimeView({
           style={{ background: MAP_STYLES[style].ocean }}
         >
           {summary ? (
-            <div className="relative z-10 mb-3 flex flex-wrap gap-2 rounded-md bg-surface/90 p-2 text-xs lg:absolute lg:left-3 lg:top-3 lg:mb-0 lg:max-w-56 lg:flex-col">
+            // Over the globe the panel floats in the empty corner; on the flat map it would cover
+            // North America, so there it sits in a row above the map.
+            <div
+              data-testid="realtime-summary"
+              className={cx(
+                "relative z-10 mb-3 flex flex-wrap gap-2 rounded-md bg-surface/90 p-2 text-xs",
+                view === "globe"
+                  ? "lg:absolute lg:left-3 lg:top-3 lg:mb-0 lg:max-w-56 lg:flex-col"
+                  : "lg:gap-x-6",
+              )}
+            >
               {(
                 [
                   ["Countries", "country", summary.countries],

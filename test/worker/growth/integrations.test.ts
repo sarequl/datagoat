@@ -66,7 +66,12 @@ describe("integration settings", () => {
       connected: true,
       status: "active",
       hasCredentials: true,
-      settings: { keywords: ["DataGoat", "#goatstats"], handles: ["founder"], redditEnabled: true },
+      settings: {
+        keywords: ["DataGoat", "#goatstats"],
+        handles: ["founder"],
+        redditEnabled: true,
+        redditConfigured: false,
+      },
     });
     expect(JSON.stringify(saved.body)).not.toContain("AAAAAAAA");
     const stored = await env.DB.prepare(

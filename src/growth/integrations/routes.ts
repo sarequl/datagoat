@@ -24,6 +24,7 @@ import { toIsoOrNull } from "../../lib/time";
 import { parseJsonBody } from "../../lib/validate";
 import type { AppEnv } from "../../types";
 import { autoSelectProperty } from "../gsc/client";
+import { redditConfigured } from "../mentions/providers";
 import {
   type Connection,
   encryptCredentials,
@@ -166,6 +167,7 @@ async function statusDto(
     settings.handles ??= [];
     settings.redditEnabled ??= true;
     settings.usesServerToken = !conn?.hasCredentials && Boolean(c.env.X_BEARER_TOKEN?.trim());
+    settings.redditConfigured = redditConfigured(c.env);
   }
   const configured = oauthConfigured(c.env, kind);
   const connected =
