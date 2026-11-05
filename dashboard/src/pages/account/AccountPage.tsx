@@ -215,7 +215,7 @@ function WebsitesCard() {
   );
 }
 
-function ConnectionsCard() {
+export function ConnectionsCard() {
   const connections = useOAuthConnections();
   const revoke = useRevokeConnection();
   const [pending, setPending] = useState<string | null>(null);

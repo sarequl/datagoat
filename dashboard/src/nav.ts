@@ -113,6 +113,13 @@ export const SITE_PAGES: readonly NavItem[] = [
     page: "settings/ApiKeysPage",
   },
   {
+    path: "mcp",
+    label: "AI assistants (MCP)",
+    group: "Developers",
+    owner: "W5",
+    page: "settings/McpPage",
+  },
+  {
     path: "api-playground",
     label: "API playground",
     group: "Developers",
