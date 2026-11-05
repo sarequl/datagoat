@@ -9,7 +9,7 @@ import type {
   AlertTriggerType,
 } from "../../../../shared/api-types";
 import { api, apiGet } from "../../api/client";
-import { Button, Card, Field, Input, Notice, Spinner } from "../../components/ui";
+import { Button, Card, Field, Input, Notice, SecretInput, Spinner } from "../../components/ui";
 import { fmtDate, fmtNumber, PageHeader, Select, Table, Toggle, useSiteId } from "./shared";
 
 const TRIGGERS: Array<{ value: AlertTriggerType; label: string }> = [
@@ -244,17 +244,16 @@ function AlertForm({
               label="Bot token"
               hint={
                 editing?.destination.hasBotToken
-                  ? "Stored. Leave empty to keep it."
+                  ? "Saved and encrypted. Choose Replace to paste a new token."
                   : channels?.telegram.hasDefaultBotToken
                     ? "Optional: the server has a default bot."
                     : "From @BotFather"
               }
             >
-              <Input
-                type="password"
-                autoComplete="off"
+              <SecretInput
+                stored={Boolean(editing?.destination.hasBotToken)}
                 value={f.botToken}
-                onChange={(e) => set("botToken", e.target.value)}
+                onChange={(v) => set("botToken", v)}
               />
             </Field>
           </>

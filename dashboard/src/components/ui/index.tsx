@@ -1,6 +1,6 @@
 /** Small UI primitives built on the design tokens (styles.css). */
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { LogoMark } from "../Logo";
 
 export function cx(...classes: Array<string | false | null | undefined>): string {
@@ -30,15 +30,90 @@ export function Button({
   );
 }
 
-export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Input(props, ref) {
+    return (
+      <input
+        ref={ref}
+        {...props}
+        className={cx(
+          "w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-text placeholder:text-muted",
+          props.className,
+        )}
+      />
+    );
+  },
+);
+
+/**
+ * A secret the server already stores (API token, bot token). It is never sent back, so the field
+ * shows a masked placeholder and a Replace button; Replace opens an empty input and Cancel goes
+ * back to keeping the stored value. Without a stored value it is a plain password input.
+ */
+export function SecretInput({
+  stored,
+  value,
+  onChange,
+  placeholder,
+}: {
+  stored: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const [replacing, setReplacing] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
+  // Focus the new, empty input after Replace.
+  useEffect(() => {
+    if (replacing) input.current?.focus();
+  }, [replacing]);
+  if (stored && !replacing) {
+    return (
+      <div className="flex gap-2">
+        <Input
+          readOnly
+          value="••••••••••••••••••••"
+          className="font-mono tracking-wider text-muted"
+        />
+        <Button
+          // Inside a <label> a button would otherwise be named after the field.
+          aria-label="Replace"
+          variant="secondary"
+          onClick={(e) => {
+            e.preventDefault();
+            setReplacing(true);
+          }}
+        >
+          Replace
+        </Button>
+      </div>
+    );
+  }
   return (
-    <input
-      {...props}
-      className={cx(
-        "w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-text placeholder:text-muted",
-        props.className,
-      )}
-    />
+    <div className="flex gap-2">
+      <Input
+        ref={input}
+        type="password"
+        autoComplete="off"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {stored ? (
+        <Button
+          // Inside a <label> a button would otherwise be named after the field.
+          aria-label="Cancel"
+          variant="secondary"
+          onClick={(e) => {
+            e.preventDefault();
+            onChange("");
+            setReplacing(false);
+          }}
+        >
+          Cancel
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

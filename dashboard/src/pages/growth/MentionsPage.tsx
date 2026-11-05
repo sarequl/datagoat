@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import type { GrowthIntegrationStatus, Mention, XLinkRow } from "../../../../shared/api-types";
 import { api, apiGet } from "../../api/client";
-import { Button, Card, Field, Input, Notice, Spinner } from "../../components/ui";
+import { Button, Card, Field, Input, Notice, SecretInput, Spinner } from "../../components/ui";
 import {
   fmtDate,
   fmtMoney,
@@ -110,17 +110,18 @@ function XSettings({ siteId }: { siteId: string }) {
         label="X API bearer token"
         hint={
           st?.hasCredentials
-            ? "Stored. Leave empty to keep it."
+            ? "Saved and encrypted. Choose Replace to paste a new token."
             : usesServer
               ? "Optional: the server's X_BEARER_TOKEN is used."
               : "Needed for X search. Create it in the X developer console (developer.x.com) under your app's Keys and tokens. X bills search per post read; DataGoat asks only for new posts every 30 minutes."
         }
       >
-        <Input
-          type="password"
-          autoComplete="off"
+        <SecretInput
+          // A successful save starts over with the masked value.
+          key={save.submittedAt}
+          stored={Boolean(st?.hasCredentials)}
           value={token}
-          onChange={(e) => setToken(e.target.value)}
+          onChange={setToken}
         />
       </Field>
       <div className="flex flex-wrap gap-2">

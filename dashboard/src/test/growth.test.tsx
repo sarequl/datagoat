@@ -198,6 +198,46 @@ describe("Mentions page", () => {
     expect(screen.queryByText(/Reddit only answers apps it has approved/)).not.toBeInTheDocument();
   });
 
+  it("shows a saved X token as masked, with Replace and Cancel", async () => {
+    server.use(
+      http.get(`/api/v1/admin/websites/${SITE}/integrations/x`, () =>
+        HttpResponse.json({
+          status: "success",
+          data: {
+            kind: "x",
+            connected: true,
+            status: "active",
+            hasCredentials: true,
+            oauthConfigured: false,
+            connectUrl: null,
+            lastSyncedAt: null,
+            lastError: null,
+            settings: { keywords: [], handles: [], redditEnabled: false, redditConfigured: false },
+          },
+        }),
+      ),
+    );
+    open("mentions");
+    await userEvent.click(await screen.findByRole("tab", { name: "Settings" }));
+    const tokenInput = () =>
+      screen
+        .getAllByLabelText(/^X API bearer token/)
+        .find((el) => el.tagName === "INPUT") as HTMLInputElement;
+    await screen.findAllByLabelText(/^X API bearer token/);
+    const field = tokenInput();
+    expect(field).toHaveAttribute("readonly");
+    expect(field).toHaveValue("••••••••••••••••••••");
+    expect(screen.getByText(/Saved and encrypted/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Replace" }));
+    const input = tokenInput();
+    expect(input).toHaveAttribute("type", "password");
+    expect(input).toHaveValue("");
+    expect(input).toHaveFocus();
+    await userEvent.type(input, "new-token");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(tokenInput()).toHaveValue("••••••••••••••••••••");
+  });
+
   it("explains that Reddit needs app credentials and that X search is billed", async () => {
     server.use(
       http.get(`/api/v1/admin/websites/${SITE}/integrations/x`, () =>
