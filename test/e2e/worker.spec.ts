@@ -29,6 +29,7 @@ test("first-run setup on the real Worker creates the owner and website", async (
   expect((await sites.json()).data[0]).toMatchObject({ domain: "example.com", role: "owner" });
 
   // Sign out and back in.
+  await page.getByRole("button", { name: /^Account menu/ }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel("Email").fill("owner@example.com");

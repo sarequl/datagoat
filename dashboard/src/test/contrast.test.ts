@@ -63,7 +63,7 @@ const TEXT_ON_SURFACES = [
   "error-text",
   "info-text",
 ];
-const SURFACES = ["bg", "surface", "surface-2"];
+const SURFACES = ["bg", "surface", "surface-2", "shell", "shell-card", "pill"];
 
 describe.each([
   ["light", light],

@@ -88,6 +88,9 @@ test("team invite, API key shown once, and integrations", async ({ page }) => {
   await expect(page.getByText("cofounder@example.com", { exact: true })).toBeVisible();
 
   const nav = page.getByRole("navigation", { name: "Main" });
+  // Team lives under Settings, which is open; API keys is under the collapsed Developers group.
+  await expect(nav.getByRole("link", { name: "Team" })).toHaveAttribute("aria-current", "page");
+  await nav.getByRole("button", { name: "Developers" }).click();
   await nav.getByRole("link", { name: "API keys" }).click();
   await page.getByLabel("Key name").fill("Backend");
   await page.getByRole("button", { name: "Create key" }).click();

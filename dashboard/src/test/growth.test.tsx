@@ -144,7 +144,9 @@ describe("Bot traffic page", () => {
     await waitFor(() => expect(screen.queryByText("/free-trial")).not.toBeInTheDocument());
     expect(screen.getByText("/llms.txt")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    await userEvent.click(
+      within(screen.getByRole("main")).getByRole("button", { name: "Settings" }),
+    );
     await userEvent.click(await screen.findByRole("button", { name: "Create token" }));
     expect(await screen.findByText("dfbot_mockShownOnce")).toBeInTheDocument();
     const meta = await screen.findByLabelText(/^Meta \(/);

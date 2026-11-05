@@ -18,9 +18,20 @@ describe("dashboard shell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
-    for (const item of SITE_PAGES.filter((p) => !p.hidden)) {
-      expect(nav).toHaveTextContent(item.label);
+    // Developers and Settings start collapsed; opening them shows the rest.
+    for (const group of ["Developers", "Settings"]) {
+      const toggle = within(nav).getByRole("button", { name: group });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await userEvent.click(toggle);
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
     }
+    for (const item of SITE_PAGES.filter((p) => !p.hidden)) {
+      expect(nav).toHaveTextContent(item.navLabel ?? item.label);
+    }
+    expect(within(nav).getByRole("link", { name: "Overview" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     expect(document.body).not.toHaveTextContent(/Owner: W\d|CONTRACTS\.md/);
     expect(screen.getByRole("combobox", { name: "Website" })).toHaveDisplayValue("Example SaaS");
   });

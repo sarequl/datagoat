@@ -16,6 +16,18 @@ test("signs in against the mock API and navigates the shell", async ({ page }) =
 
   await page.getByRole("combobox", { name: "Website" }).selectOption({ label: "Indie blog" });
   await expect(page).toHaveURL(/6728f0a0a1b2c3d4e5f6a002\/overview$/);
+
+  // Search or jump to: Ctrl+K, type, Enter.
+  await page.keyboard.press("Control+k");
+  const search = page.getByRole("combobox", { name: "Search pages and websites" });
+  await expect(search).toBeFocused();
+  await search.fill("usage");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Usage & data", level: 1 })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Usage & data" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
 });
 
 test.describe("phone width (390 px)", () => {

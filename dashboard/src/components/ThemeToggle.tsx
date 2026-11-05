@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 export type Theme = "dark" | "light" | "system";
 const KEY = "dg-theme";
@@ -21,7 +21,13 @@ export function applyTheme(theme: Theme): void {
 const NEXT: Record<Theme, Theme> = { dark: "light", light: "system", system: "dark" };
 const LABEL: Record<Theme, string> = { dark: "Dark", light: "Light", system: "System" };
 
-export function ThemeToggle() {
+export function ThemeToggle({
+  className = "rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-2",
+  children,
+}: {
+  className?: string;
+  children?: ReactNode;
+} = {}) {
   const [theme, setTheme] = useState<Theme>(readTheme);
   useEffect(() => {
     applyTheme(theme);
@@ -36,9 +42,10 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(NEXT[theme])}
-      className="rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-2"
+      className={className}
       aria-label={`Theme: ${LABEL[theme]}. Switch to ${LABEL[NEXT[theme]]}`}
     >
+      {children}
       Theme: {LABEL[theme]}
     </button>
   );
