@@ -37,7 +37,7 @@ import { showRevenue, sourceKey, useAnalytics, useSource } from "./source";
 import { type DashboardState, rangeToParams, useDashboardState } from "./state";
 
 export const TIMESERIES_FIELDS =
-  "visitors,new_visitors,returning_visitors,pageviews,sessions,revenue,payments,conversion_rate,bounce_rate,avg_session_duration";
+  "visitors,new_visitors,returning_visitors,pageviews,sessions,revenue,payments,conversion_rate,bounce_rate,avg_session_duration,refunds";
 
 /** Header row shared by the analytics pages: title, period and filters. */
 export function AnalyticsHeader({

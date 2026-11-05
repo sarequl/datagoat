@@ -26,7 +26,8 @@ card, or use its *Move up* / *Move down* buttons, to change the order; it is sav
 - **#1 KPI.** When a goal is set as the website's #1 KPI (Goals → a goal → *Set as #1 KPI*, or
   website settings), it gets a tile with converting visitors and conversion rate, and every
   breakdown card can switch its third column from revenue to that goal.
-- **Main chart.** Visitors as a line, revenue as bars in the website's KPI colour scheme. Choose
+- **Main chart.** Visitors as a line, revenue as bars in the website's KPI colour scheme, with
+  refunded amounts greyed out on top of each bar (timeseries field `refunds`). Choose
   hourly, daily, weekly or monthly granularity (what fits the period), and **Compare** to draw the
   previous period as a dashed line and faded bars. Click a KPI tile for a single-metric trend chart
   (conversion rate, revenue per visitor, bounce rate, session time, sessions, pageviews, payments)

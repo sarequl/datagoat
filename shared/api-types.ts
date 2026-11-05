@@ -348,6 +348,8 @@ export interface TimeseriesPoint {
   avg_session_duration?: number;
   /** Completions per goal name in the bucket (`fields=goals`). */
   goals?: Record<string, number>;
+  /** DG: refunded amount in the bucket, positive (`fields=refunds`; revenue already nets it). */
+  refunds?: number;
 }
 
 export interface RevenueBreakdown {

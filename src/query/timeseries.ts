@@ -5,7 +5,8 @@
  * "Now" period). One pass over the sessions yields every bucket and the range totals.
  *
  * DataGoat fields on top of DataFast's: `bounce_rate` and `avg_session_duration` per bucket (same
- * definitions as the overview) and `goals` (completions per goal name per bucket).
+ * definitions as the overview), `goals` (completions per goal name per bucket) and `refunds`
+ * (refunded amount per bucket as a positive number, so charts can grey refunds out like DataFast).
  */
 import { ApiError } from "../lib/errors";
 import { percentage, TIMESERIES_FIELDS, visitorBreakdown } from "../lib/metrics";
@@ -46,6 +47,7 @@ export const SERIES_FIELDS = [
   "bounce_rate",
   "avg_session_duration",
   "goals",
+  "refunds",
 ] as const;
 export type SeriesField = (typeof SERIES_FIELDS)[number];
 
@@ -120,6 +122,7 @@ interface Bucket {
   bounces: number;
   durationSum: number;
   revenueMinor: number;
+  refundMinor: number;
   payments: number;
   payingVisitors: number;
   goals: Record<string, number>;
@@ -135,6 +138,7 @@ const emptyBucket = (start: number): Bucket => ({
   bounces: 0,
   durationSum: 0,
   revenueMinor: 0,
+  refundMinor: 0,
   payments: 0,
   payingVisitors: 0,
   goals: {},
@@ -403,11 +407,13 @@ function finish(
     const target = byStart.get(payKey.keyToStart(row.k as number));
     if (!target) continue;
     target.revenueMinor = Number(row.revenue_minor ?? 0);
+    target.refundMinor = Math.abs(Number(row.refund_minor ?? 0));
     target.payments = Number(row.payments ?? 0);
     target.payingVisitors = Number(row.paying_visitors ?? 0);
   }
   const revenue = revenueFromRow(results[1]?.results?.[0] as Record<string, unknown> | undefined);
   totals.revenueMinor = revenue.revenueMinor;
+  totals.refundMinor = Math.abs(revenue.refundMinor);
   totals.payments = revenue.payments;
   totals.payingVisitors = revenue.payingVisitors;
   return { interval, buckets: [...byStart.values()], totals, revenue, approximate };
@@ -450,6 +456,8 @@ function metricField(
       return { revenue: toMajor(b.revenueMinor, qc.site.currency) };
     case "payments":
       return { payments: b.payments };
+    case "refunds":
+      return { refunds: toMajor(b.refundMinor, qc.site.currency) };
     case "conversion_rate":
       return { conversion_rate: percentage(Math.min(b.payingVisitors, b.visitors), b.visitors) };
     case "bounce_rate":

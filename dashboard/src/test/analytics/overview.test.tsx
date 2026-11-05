@@ -32,6 +32,8 @@ describe("overview", () => {
     expect(
       await screen.findByRole("slider", { name: /Visitors and revenue over time/ }),
     ).toBeInTheDocument();
+    // Refunded revenue is drawn greyed out on top of the revenue bars.
+    expect(screen.getAllByTestId("refund-bar").length).toBeGreaterThan(0);
     const source = screen.getByTestId("card-source");
     expect(
       await within(source).findByRole("button", { name: /Filter by Organic Search/ }),
