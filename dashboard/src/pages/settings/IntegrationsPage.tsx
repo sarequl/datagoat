@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import type { GrowthIntegrationStatus, IntegrationsStatus } from "../../../../shared/api-types";
-import { Button, Card, Input, Notice } from "../../components/ui";
+import { Button, Input, Notice, Spinner } from "../../components/ui";
 import { formatDate, formatRelative } from "./lib/format";
 import {
   connectUrl,
@@ -30,9 +30,28 @@ import {
 } from "./lib/ui";
 
 /**
- * Integrations: payment providers (connect, status, re-sync, disconnect) and growth sources
- * (Search Console, GitHub, X and Reddit mentions, Meta Ads), each with setup steps.
+ * Integrations, laid out like a SaaS integrations directory: a toolbar (category tabs with
+ * counts, search), connected integrations first, then the rest by category. Every integration
+ * is one row (`#integration-<id>`) with a logo tile, status, a one-line summary and its actions;
+ * setup steps and forms open inside the row.
  */
+type Category = "all" | "payments" | "growth";
+
+const GROWTH: ReadonlyArray<{ kind: GrowthKind; name: string; description: string }> = [
+  {
+    kind: "google-search-console",
+    name: "Google Search Console",
+    description: "Search keywords, clicks and impressions next to your traffic and revenue.",
+  },
+  { kind: "github", name: "GitHub", description: "Commits as markers on your charts." },
+  {
+    kind: "x",
+    name: "X and Reddit",
+    description: "Mentions of your brand, and X link attribution.",
+  },
+  { kind: "meta-ads", name: "Meta Ads", description: "Facebook and Instagram ad spend with ROAS." },
+];
+
 export default function IntegrationsPage() {
   const siteId = useSiteId();
   const access = useAccess(siteId);
@@ -40,63 +59,270 @@ export default function IntegrationsPage() {
   const website = useWebsite(siteId);
   const disabled = !access.canEditSettings;
   const [hash] = useState(() => window.location.hash.replace(/^#/, ""));
+  const [category, setCategory] = useState<Category>("all");
+  const [query, setQuery] = useState("");
+  const gsc = useGrowthIntegration(siteId, "google-search-console");
+  const github = useGrowthIntegration(siteId, "github");
+  const x = useGrowthIntegration(siteId, "x");
+  const meta = useGrowthIntegration(siteId, "meta-ads");
+  const growthStatus: Record<GrowthKind, GrowthIntegrationStatus | undefined> = {
+    "google-search-console": gsc.data,
+    github: github.data,
+    x: x.data,
+    "meta-ads": meta.data,
+  };
 
   useEffect(() => {
     if (!hash || !status.data) return;
     document.getElementById(`integration-${hash}`)?.scrollIntoView?.({ block: "start" });
   }, [hash, status.data]);
 
+  // Which integrations count as "connected" is decided once the statuses load, and kept for the
+  // visit, so a row does not jump to another section the moment it is connected or disconnected.
+  const [initial, setInitial] = useState<Set<string> | null>(null);
+  const loaded = Boolean(status.data && gsc.data && github.data && x.data && meta.data);
+  useEffect(() => {
+    if (!loaded || initial || !status.data) return;
+    const ids = PROVIDERS.filter((p) => providerState(status.data, p.id).connected).map(
+      (p) => p.id,
+    );
+    const kinds = GROWTH.filter((g) => growthStatus[g.kind]?.connected).map((g) => g.kind);
+    setInitial(new Set<string>([...ids, ...kinds]));
+  });
+  const wasConnected = (id: string) => initial?.has(id) ?? false;
+  const q = query.trim().toLowerCase();
+  const matches = (name: string, description: string) =>
+    !q || `${name} ${description}`.toLowerCase().includes(q);
+  const providers =
+    status.data && initial
+      ? PROVIDERS.filter((p) => matches(p.name, p.description)).map((p) => ({
+          p,
+          connected: wasConnected(p.id),
+        }))
+      : [];
+  const growth = initial
+    ? GROWTH.filter((g) => matches(g.name, g.description)).map((g) => ({
+        g,
+        connected: wasConnected(g.kind),
+      }))
+    : [];
+  const showPayments = category !== "growth";
+  const showGrowth = category !== "payments";
+  const connectedCount =
+    (status.data ? PROVIDERS.filter((p) => providerState(status.data, p.id).connected).length : 0) +
+    GROWTH.filter((g) => growthStatus[g.kind]?.connected).length;
+
+  const providerRow = (p: ProviderDef) =>
+    status.data ? (
+      <ProviderCard
+        key={p.id}
+        provider={p}
+        status={status.data}
+        siteId={siteId}
+        siteCurrency={website.data?.currency ?? status.data.currency}
+        disabled={disabled}
+        initiallyOpen={hash === p.id}
+      />
+    ) : null;
+  const growthRow = (kind: GrowthKind) => {
+    const props = { key: kind, siteId, disabled };
+    if (kind === "google-search-console") return <SearchConsoleCard {...props} />;
+    if (kind === "github") return <GithubCard {...props} />;
+    if (kind === "x") return <MentionsCard {...props} domain={website.data?.domain} />;
+    return <MetaAdsCard {...props} />;
+  };
+  const connected = [
+    ...(showPayments ? providers.filter((r) => r.connected).map((r) => providerRow(r.p)) : []),
+    ...(showGrowth ? growth.filter((r) => r.connected).map((r) => growthRow(r.g.kind)) : []),
+  ];
+  const availablePayments = showPayments ? providers.filter((r) => !r.connected) : [];
+  const availableGrowth = showGrowth ? growth.filter((r) => !r.connected) : [];
+  const tabs: Array<{ id: Category; label: string; count: number }> = [
+    { id: "all", label: "All", count: PROVIDERS.length + GROWTH.length },
+    { id: "payments", label: "Payments", count: PROVIDERS.length },
+    { id: "growth", label: "Growth", count: GROWTH.length },
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Integrations"
-        description="Connect revenue so every channel, campaign and page shows the money it brings, and add growth sources to your charts."
+        description="Connect your payment provider so every channel, campaign and page shows the revenue it brings, and add growth sources to your charts."
       />
       {disabled ? <ReadOnlyNotice role={access.role} action="connect integrations" /> : null}
-      <section aria-labelledby="revenue-heading" className="space-y-3">
-        <h2 id="revenue-heading" className="text-base font-semibold">
-          Revenue
-        </h2>
-        {status.data ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {PROVIDERS.map((p) => (
-              <ProviderCard
-                key={p.id}
-                provider={p}
-                status={status.data}
-                siteId={siteId}
-                siteCurrency={website.data?.currency ?? status.data.currency}
-                disabled={disabled}
-                initiallyOpen={hash === p.id}
-              />
-            ))}
-          </div>
-        ) : (
-          <QueryState query={status} />
-        )}
-        <p className="text-xs text-muted">
-          No supported provider? Send payments from your server with{" "}
-          <code>POST /api/v1/payments</code> and a key from the{" "}
-          <Link to="/app/$siteId/keys" params={{ siteId }} className="text-primary-text underline">
-            API keys
-          </Link>{" "}
-          page.
-        </p>
-      </section>
-      <section aria-labelledby="growth-heading" className="space-y-3">
-        <h2 id="growth-heading" className="text-base font-semibold">
-          Growth
-        </h2>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <SearchConsoleCard siteId={siteId} disabled={disabled} />
-          <GithubCard siteId={siteId} disabled={disabled} />
-          <MentionsCard siteId={siteId} domain={website.data?.domain} disabled={disabled} />
-          <MetaAdsCard siteId={siteId} disabled={disabled} />
+      <div className="flex flex-wrap items-center gap-3">
+        <div
+          role="tablist"
+          aria-label="Category"
+          className="flex gap-1 rounded-lg bg-surface-2 p-1"
+        >
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={category === t.id}
+              onClick={() => setCategory(t.id)}
+              className={`rounded-md px-3 py-1 text-sm ${
+                category === t.id
+                  ? "bg-surface font-medium text-text shadow-pill"
+                  : "text-muted hover:text-text"
+              }`}
+            >
+              {t.label} <span className="tabular-nums text-muted">{t.count}</span>
+            </button>
+          ))}
         </div>
-      </section>
+        <span className="text-sm text-muted">{connectedCount} connected</span>
+        <Input
+          type="search"
+          aria-label="Search integrations"
+          placeholder="Search integrations…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="ml-auto max-w-64"
+        />
+      </div>
+      {!status.data ? <QueryState query={status} /> : !initial ? <Spinner /> : null}
+      {connected.length ? (
+        <IntegrationSection id="connected" title="Connected">
+          {connected}
+        </IntegrationSection>
+      ) : null}
+      {availablePayments.length ? (
+        <IntegrationSection
+          id="payments"
+          title="Payments"
+          description="Revenue, refunds and subscriptions, matched to the visit that brought each customer."
+        >
+          {availablePayments.map((r) => providerRow(r.p))}
+        </IntegrationSection>
+      ) : null}
+      {availableGrowth.length ? (
+        <IntegrationSection
+          id="growth"
+          title="Growth"
+          description="Search, code, social and ad data shown next to your traffic."
+        >
+          {availableGrowth.map((r) => growthRow(r.g.kind))}
+        </IntegrationSection>
+      ) : null}
+      {initial && !connected.length && !availablePayments.length && !availableGrowth.length ? (
+        <p className="py-8 text-center text-sm text-muted">No integrations match “{query}”.</p>
+      ) : null}
+      <p className="text-xs text-muted">
+        No supported provider? Send payments from your server with{" "}
+        <code>POST /api/v1/payments</code> and a key from the{" "}
+        <Link to="/app/$siteId/keys" params={{ siteId }} className="text-primary-text underline">
+          API keys
+        </Link>{" "}
+        page.
+      </p>
     </div>
   );
 }
+
+function IntegrationSection({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id: string;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-3" aria-labelledby={`${id}-heading`}>
+      <div>
+        <h2 id={`${id}-heading`} className="text-sm font-semibold">
+          {title}
+        </h2>
+        {description ? <p className="text-xs text-muted">{description}</p> : null}
+      </div>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
+}
+
+/** Brand-coloured monogram (no third-party logo files are bundled). */
+const LOGO: Record<string, { bg: string; fg?: string; text: string }> = {
+  stripe: { bg: "#635bff", text: "S" },
+  lemonsqueezy: { bg: "#ffc233", fg: "#1c1917", text: "L" },
+  polar: { bg: "#1c1917", text: "P" },
+  paddle: { bg: "#fdd835", fg: "#1c1917", text: "P" },
+  dodo: { bg: "#0ea5e9", text: "D" },
+  creem: { bg: "#ff6b35", text: "C" },
+  shopify: { bg: "#5e8e3e", text: "S" },
+  woocommerce: { bg: "#7f54b3", text: "W" },
+  "google-search-console": { bg: "#4285f4", text: "G" },
+  github: { bg: "#24292f", text: "G" },
+  x: { bg: "#000000", text: "X" },
+  "meta-ads": { bg: "#0866ff", text: "M" },
+};
+
+function LogoTile({ id }: { id: string }) {
+  const l = LOGO[id] ?? { bg: "var(--dg-neutral)", text: id[0]?.toUpperCase() ?? "?" };
+  return (
+    <span
+      aria-hidden="true"
+      className="grid size-9 shrink-0 place-items-center rounded-lg text-sm font-bold ring-1 ring-line-strong ring-inset"
+      style={{ background: l.bg, color: l.fg ?? "#ffffff" }}
+    >
+      {l.text}
+    </span>
+  );
+}
+
+/**
+ * One integration: header (logo, name, status, summary, actions) and an optional body for setup
+ * steps, forms and notices.
+ */
+function IntegrationRow({
+  id,
+  name,
+  status,
+  summary,
+  actions,
+  children,
+}: {
+  id: string;
+  name: string;
+  status?: ReactNode;
+  summary: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <section
+      id={`integration-${id}`}
+      aria-labelledby={`integration-${id}-name`}
+      className="min-w-0 scroll-mt-4 overflow-hidden rounded-xl border border-line bg-surface"
+    >
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5">
+        <LogoTile id={id} />
+        <div className="min-w-0 flex-1 basis-56">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 id={`integration-${id}-name`} className="text-sm font-semibold">
+              {name}
+            </h3>
+            {status}
+          </div>
+          <div className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-muted">{summary}</div>
+        </div>
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      </div>
+      {children ? (
+        <div className="space-y-3 border-t border-line bg-surface-2/50 px-4 py-4 text-sm">
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+const Dot = () => <span aria-hidden="true">·</span>;
 
 // ---------------------------------------------------------------------------
 // Payment providers
@@ -112,7 +338,8 @@ function providerState(status: IntegrationsStatus, id: ProviderDef["id"]) {
 }
 
 function StatusBadge({ connected, detail }: { connected: boolean; detail?: Detail }) {
-  if (!connected) return <Badge>Not connected</Badge>;
+  // Rows that are not connected say so with their Connect button; no badge needed.
+  if (!connected) return null;
   if (detail?.status === "error") return <Badge tone="error">Error</Badge>;
   if (detail?.status === "pending") return <Badge tone="warning">Connecting</Badge>;
   return <Badge tone="success">Connected</Badge>;
@@ -151,91 +378,99 @@ function ProviderCard({
       },
     );
 
+  const notices =
+    detail?.lastError || message || (action.error && !confirming) ? (
+      <>
+        {detail?.lastError ? <Notice tone="error">{detail.lastError}</Notice> : null}
+        {message ? <Notice tone="success">{message}</Notice> : null}
+        {action.error && !confirming ? <Notice tone="error">{action.error.message}</Notice> : null}
+      </>
+    ) : null;
+  const panel =
+    open && !connected && !disabled ? (
+      <ConnectPanel
+        provider={provider}
+        siteId={siteId}
+        siteCurrency={siteCurrency}
+        onConnected={(msg) => {
+          setMessage(msg);
+          setOpen(false);
+        }}
+      />
+    ) : null;
+
   return (
-    <div id={`integration-${provider.id}`} className="min-w-0 scroll-mt-4">
-      <Card
-        title={
-          <span className="flex flex-wrap items-center justify-between gap-2">
-            <span>{provider.name}</span>
-            <StatusBadge connected={connected} detail={detail} />
-          </span>
-        }
-        className="h-full"
-      >
-        <div className="space-y-3 text-sm">
-          <p className="text-muted">{provider.description}</p>
-          {connected ? (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+    <div className="min-w-0">
+      <IntegrationRow
+        id={provider.id}
+        name={provider.name}
+        status={<StatusBadge connected={connected} detail={detail} />}
+        summary={
+          connected ? (
+            <>
               {detail?.accountName ? (
                 <>
-                  <dt className="text-muted">Account</dt>
-                  <dd>{detail.accountName}</dd>
+                  <span>{detail.accountName}</span>
+                  <Dot />
                 </>
               ) : null}
-              <dt className="text-muted">Last sync</dt>
-              <dd>{formatRelative(detail?.lastSyncedAt ?? null)}</dd>
+              <span>Last sync {formatRelative(detail?.lastSyncedAt ?? null)}</span>
               {detail && !detail.backfillComplete ? (
                 <>
-                  <dt className="text-muted">History</dt>
-                  <dd>Importing past payments…</dd>
+                  <Dot />
+                  <span>Importing past payments…</span>
                 </>
               ) : null}
               {paddleExpiry ? (
                 <>
-                  <dt className="text-muted">Key expires</dt>
-                  <dd>{formatDate(paddleExpiry)}</dd>
+                  <Dot />
+                  <span>Key expires {formatDate(paddleExpiry)}</span>
                 </>
               ) : null}
-            </dl>
-          ) : null}
-          {detail?.lastError ? <Notice tone="error">{detail.lastError}</Notice> : null}
-          {message ? <Notice tone="success">{message}</Notice> : null}
-          {action.error && !confirming ? (
-            <Notice tone="error">{action.error.message}</Notice>
-          ) : null}
-          {!disabled ? (
-            connected ? (
-              <div className="flex flex-wrap gap-2">
-                {provider.resync ? (
-                  <Button
-                    variant="secondary"
-                    disabled={action.isPending}
-                    onClick={() => run("resync")}
-                  >
-                    Re-sync
-                  </Button>
-                ) : null}
+            </>
+          ) : (
+            <span>{provider.description}</span>
+          )
+        }
+        actions={
+          disabled ? null : connected ? (
+            <>
+              {provider.resync ? (
                 <Button
-                  variant="ghost"
-                  className="text-error-text"
-                  onClick={() => setConfirming(true)}
+                  variant="secondary"
+                  disabled={action.isPending}
+                  onClick={() => run("resync")}
                 >
-                  Disconnect
+                  Re-sync
                 </Button>
-              </div>
-            ) : (
+              ) : null}
               <Button
-                variant={open ? "secondary" : "primary"}
-                aria-expanded={open}
-                onClick={() => setOpen(!open)}
+                variant="ghost"
+                className="text-error-text"
+                onClick={() => setConfirming(true)}
               >
-                {open ? "Cancel" : `Connect ${provider.name}`}
+                Disconnect
               </Button>
-            )
-          ) : null}
-          {open && !connected && !disabled ? (
-            <ConnectPanel
-              provider={provider}
-              siteId={siteId}
-              siteCurrency={siteCurrency}
-              onConnected={(msg) => {
-                setMessage(msg);
-                setOpen(false);
-              }}
-            />
-          ) : null}
-        </div>
-      </Card>
+            </>
+          ) : (
+            <Button
+              variant="secondary"
+              aria-expanded={open}
+              aria-label={open ? "Cancel" : `Connect ${provider.name}`}
+              onClick={() => setOpen(!open)}
+            >
+              {open ? "Cancel" : "Connect"}
+            </Button>
+          )
+        }
+      >
+        {notices || panel ? (
+          <>
+            {notices}
+            {panel}
+          </>
+        ) : null}
+      </IntegrationRow>
       <ConfirmDialog
         open={confirming}
         title={`Disconnect ${provider.name}?`}
@@ -310,7 +545,7 @@ function ConnectPanel({
   };
 
   return (
-    <div className="space-y-3 rounded-md border border-line bg-surface-2 p-3">
+    <div className="space-y-3">
       <ol className="list-decimal space-y-1 pl-5">
         {provider.steps.map((s) => (
           <li key={s}>{s}</li>
@@ -405,69 +640,88 @@ function GrowthShell({
   const status = useGrowthIntegration(siteId, kind);
   const save = useSaveGrowthIntegration(siteId, kind);
   const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(() => window.location.hash === `#${kind}`);
   const s = status.data;
+  const badge = s ? (
+    s.connected ? (
+      s.status === "error" ? (
+        <Badge tone="error">Error</Badge>
+      ) : (
+        <Badge tone="success">Connected</Badge>
+      )
+    ) : null
+  ) : null;
+  const oauth = s && !s.connected && s.oauthConfigured !== false && !disabled;
   return (
-    <div id={`integration-${kind}`} className="min-w-0 scroll-mt-4">
-      <Card
-        className="h-full"
-        title={
-          <span className="flex flex-wrap items-center justify-between gap-2">
-            <span>{title}</span>
-            {s ? (
-              s.connected ? (
-                s.status === "error" ? (
-                  <Badge tone="error">Error</Badge>
-                ) : (
-                  <Badge tone="success">Connected</Badge>
-                )
-              ) : (
-                <Badge>Not connected</Badge>
-              )
-            ) : null}
-          </span>
+    <div className="min-w-0">
+      <IntegrationRow
+        id={kind}
+        name={title}
+        status={badge}
+        summary={
+          s?.connected ? (
+            <span>Last sync {formatRelative(s.lastSyncedAt)}</span>
+          ) : (
+            <span>{description}</span>
+          )
+        }
+        actions={
+          s ? (
+            <>
+              {oauth ? (
+                <a
+                  href={connectUrl(kind, siteId)}
+                  aria-label={`Connect ${title}`}
+                  className="inline-flex items-center rounded-md border border-line bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
+                >
+                  Connect
+                </a>
+              ) : null}
+              <Button
+                variant={oauth ? "ghost" : "secondary"}
+                aria-expanded={open}
+                onClick={() => setOpen(!open)}
+              >
+                {open ? "Close" : s.connected ? "Manage" : oauth ? "Details" : "Set up"}
+              </Button>
+            </>
+          ) : null
         }
       >
-        <div className="space-y-3 text-sm">
-          <p className="text-muted">{description}</p>
-          {s ? (
-            <>
-              {s.lastError ? <Notice tone="error">{s.lastError}</Notice> : null}
-              {s.connected ? (
-                <p className="text-xs text-muted">Last sync {formatRelative(s.lastSyncedAt)}.</p>
-              ) : (
-                <ol className="list-decimal space-y-1 pl-5">
-                  {steps.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
-              )}
-              {children?.(s)}
-              {!disabled ? (
-                s.connected ? (
+        {!s ? (
+          <QueryState query={status} />
+        ) : s.lastError || open ? (
+          <>
+            {s.lastError ? <Notice tone="error">{s.lastError}</Notice> : null}
+            {open ? (
+              <>
+                {s.connected ? (
+                  <p className="text-muted">{description}</p>
+                ) : (
+                  <ol className="list-decimal space-y-1 pl-5">
+                    {steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                )}
+                {children?.(s)}
+                {!disabled && !s.connected && s.oauthConfigured === false ? (
+                  <p className="text-xs text-muted">{oauthHint}</p>
+                ) : null}
+                {!disabled && s.connected ? (
                   <Button
                     variant="ghost"
-                    className="text-error-text"
+                    className="-ml-3 text-error-text"
                     onClick={() => setConfirming(true)}
                   >
-                    Disconnect
+                    Disconnect {title}
                   </Button>
-                ) : s.oauthConfigured === false ? (
-                  <p className="text-xs text-muted">{oauthHint}</p>
-                ) : (
-                  <a
-                    href={connectUrl(kind, siteId)}
-                    className="inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-fg"
-                  >
-                    Connect {title}
-                  </a>
-                )
-              ) : null}
-            </>
-          ) : (
-            <QueryState query={status} />
-          )}
-        </div>
-      </Card>
+                ) : null}
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </IntegrationRow>
       <ConfirmDialog
         open={confirming}
         title={`Disconnect ${title}?`}

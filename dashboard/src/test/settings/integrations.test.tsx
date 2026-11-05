@@ -15,6 +15,35 @@ const provider = (id: string) =>
     return el;
   });
 
+/** Open a growth integration's row (Manage, Set up or Details). */
+async function openRow(kind: string) {
+  const row = await provider(kind);
+  await userEvent.click(within(row).getByRole("button", { name: /^(Manage|Set up|Details)$/ }));
+  return row;
+}
+
+describe("integrations directory", () => {
+  it("lists connected integrations first, filters by category and searches", async () => {
+    openPage(`/app/${SITE}/integrations`);
+    const connected = await screen.findByRole("region", { name: "Connected" });
+    expect(within(connected).getByRole("heading", { name: "Stripe" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Payments" })).toHaveTextContent("Lemon Squeezy");
+    expect(screen.getByText(/\d+ connected/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: /^Growth/ }));
+    expect(screen.queryByRole("region", { name: "Payments" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Stripe" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Meta Ads" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: /^All/ }));
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search integrations" }), "lemon");
+    expect(screen.getByRole("heading", { name: "Lemon Squeezy" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Paddle" })).not.toBeInTheDocument();
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search integrations" }), "zzz");
+    expect(screen.getByText(/No integrations match/)).toBeInTheDocument();
+  });
+});
+
 describe("payment providers", () => {
   it("shows a connected provider's status, re-syncs and disconnects it", async () => {
     openPage(`/app/${SITE}/integrations`);
@@ -26,7 +55,9 @@ describe("payment providers", () => {
     await userEvent.click(within(stripe).getByRole("button", { name: "Disconnect" }));
     const dialog = screen.getByRole("dialog", { name: "Disconnect Stripe?" });
     await userEvent.click(within(dialog).getByRole("button", { name: "Disconnect" }));
-    expect(await within(stripe).findByText("Not connected")).toBeInTheDocument();
+    expect(
+      await within(stripe).findByRole("button", { name: "Connect Stripe" }),
+    ).toBeInTheDocument();
     expect(state.integrations[SITE]?.stripe.connected).toBe(false);
   });
 
@@ -124,8 +155,7 @@ describe("growth integrations", () => {
   it("saves the GitHub repository and disconnects", async () => {
     const log = recordRequests();
     openPage(`/app/${SITE}/integrations`);
-    const github = await screen.findByRole("heading", { name: /GitHub/ });
-    const card = github.closest("section") as HTMLElement;
+    const card = await openRow("github");
     const repo = await within(card).findByLabelText("Repository");
     await userEvent.type(repo, "not a repo");
     await userEvent.click(within(card).getByRole("button", { name: "Save" }));
@@ -136,7 +166,7 @@ describe("growth integrations", () => {
     await waitFor(() =>
       expect(writes(log, "PUT", "/integrations/github")[0]?.body).toEqual({ repo: "acme/site" }),
     );
-    await userEvent.click(within(card).getByRole("button", { name: "Disconnect" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Disconnect GitHub" }));
     await userEvent.click(
       within(screen.getByRole("dialog", { name: "Disconnect GitHub?" })).getByRole("button", {
         name: "Disconnect",
@@ -157,6 +187,7 @@ describe("growth integrations", () => {
       "href",
       `/api/connect/meta-ads/start?websiteId=${SITE}`,
     );
+    await openRow("meta-ads");
     expect(screen.getByRole("figure", { name: "Meta URL parameters" })).toHaveTextContent(
       "utm_campaign={{campaign.id}}",
     );
@@ -183,9 +214,7 @@ describe("growth integrations", () => {
     );
     const log = recordRequests();
     openPage(`/app/${SITE}/integrations`);
-    const card = (await screen.findByRole("heading", { name: /GitHub/ })).closest(
-      "section",
-    ) as HTMLElement;
+    const card = await openRow("github");
     expect(await within(card).findByText(/Sign-in with GitHub is not set up/)).toBeInTheDocument();
     expect(within(card).queryByRole("link", { name: "Connect GitHub" })).not.toBeInTheDocument();
     await userEvent.type(within(card).getByLabelText("Repository"), "acme/private-site");
@@ -232,9 +261,7 @@ describe("growth integrations", () => {
     );
     const log = recordRequests();
     openPage(`/app/${SITE}/integrations`);
-    const card = (await screen.findByRole("heading", { name: /Meta Ads/ })).closest(
-      "section",
-    ) as HTMLElement;
+    const card = await openRow("meta-ads");
     expect(await within(card).findByText(/Facebook sign-in is not set up/)).toBeInTheDocument();
     await userEvent.type(
       within(card).getByRole("textbox", { name: "Ad account IDs" }),
@@ -260,6 +287,7 @@ describe("growth integrations", () => {
 
   it("keeps the copy button outside the wrapped Meta UTM template", async () => {
     openPage(`/app/${SITE}/integrations`);
+    await openRow("meta-ads");
     const figure = await screen.findByRole("figure", { name: "Meta URL parameters" });
     const pre = figure.querySelector("pre") as HTMLElement;
     expect(pre).toHaveTextContent("utm_source=meta&utm_medium=paid-social");
@@ -271,6 +299,7 @@ describe("growth integrations", () => {
   it("edits X and Reddit keywords and link-in-bio handles", async () => {
     const log = recordRequests();
     openPage(`/app/${SITE}/integrations`);
+    await openRow("x");
     const keywords = await screen.findByRole("textbox", { name: "Mention keywords" });
     await userEvent.type(keywords, "abc{Enter}");
     expect(screen.getByText("Keywords are 4 to 15 characters.")).toBeInTheDocument();
