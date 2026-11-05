@@ -48,6 +48,8 @@ export interface DigestReport {
   referrers: Array<{ name: string; visitors: number }>;
   pages: Array<{ name: string; visitors: number; pageviews: number }>;
   countries: Array<{ name: string; visitors: number }>;
+  /** Revenue by the first-touch channel of each payment in the period (finisher). */
+  revenueChannels: Array<{ name: string; revenueMinor: number }>;
   dashboardUrl: string | null;
 }
 
@@ -152,6 +154,15 @@ export function buildReportStatements(
            GROUP BY country ORDER BY visitors DESC LIMIT 5`,
         )
         .bind(...range),
+      db
+        .prepare(
+          `SELECT COALESCE(s.channel, 'Unattributed') AS name, SUM(p.reporting_minor) AS revenue_minor
+           FROM payments p LEFT JOIN sessions s ON s.site_id = p.site_id AND s.id = p.first_session_id
+           WHERE p.site_id = ?1 AND p.occurred_at >= ?2 AND p.occurred_at < ?3
+             AND p.kind IN ${kinds(revenueKinds(site.include_renewal_revenue === 1))}
+           GROUP BY 1 HAVING SUM(p.reporting_minor) > 0 ORDER BY revenue_minor DESC LIMIT 3`,
+        )
+        .bind(...range),
     ],
   };
 }
@@ -182,6 +193,10 @@ export function reportFromResults(
       pageviews: Number(r.pageviews ?? 0),
     })),
     countries: named(5).map((c) => ({ ...c, name: countryName(c.name) })),
+    revenueChannels: rows(6).map((r) => ({
+      name: String(r.name ?? "Unattributed"),
+      revenueMinor: Number(r.revenue_minor ?? 0),
+    })),
     dashboardUrl: base ? `${base}/app/${site.id}/overview` : null,
   };
 }
@@ -211,6 +226,54 @@ function kpis(r: DigestReport) {
   ];
 }
 
+/**
+ * "Insights to grow your startup" (DataFast's weekly email when revenue is connected): a few plain
+ * sentences derived from the report's own numbers, no extra queries.
+ */
+export function insightsFor(r: DigestReport): string[] {
+  const out: string[] = [];
+  const c = r.current;
+  const p = r.previous;
+  const unit = r.period === "daily" ? "day" : "week";
+  const [best] = r.revenueChannels.filter((x) => x.name !== "Unattributed");
+  if (best && c.revenueMinor > 0) {
+    const share = Math.round((best.revenueMinor / c.revenueMinor) * 100);
+    const visitors = r.channels.find((x) => x.name === best.name)?.visitors ?? 0;
+    const perVisitor =
+      visitors > 0
+        ? `, ${formatMoney(Math.round(best.revenueMinor / visitors), r.site.currency)} per visitor`
+        : "";
+    out.push(
+      `${best.name} brought the most revenue: ${formatMoney(best.revenueMinor, r.site.currency)} (${share}% of the ${unit}'s revenue${perVisitor}). Double down on it.`,
+    );
+  }
+  if (c.visitors > 0 && p.visitors > 0) {
+    const rateNow = c.payments / c.visitors;
+    const ratePrev = p.payments / p.visitors;
+    if (c.payments > 0 && rateNow > ratePrev * 1.2) {
+      out.push(
+        `Conversion improved to ${(rateNow * 100).toFixed(1)}% from ${(ratePrev * 100).toFixed(1)}% the ${unit} before.`,
+      );
+    } else if (p.payments > 0 && rateNow < ratePrev * 0.8) {
+      out.push(
+        `Conversion fell to ${(rateNow * 100).toFixed(1)}% from ${(ratePrev * 100).toFixed(1)}%: check your pricing and checkout pages.`,
+      );
+    }
+  }
+  if (c.visitors > p.visitors * 1.3 && p.visitors > 0 && r.referrers[0]) {
+    out.push(
+      `Traffic grew ${change(c.visitors, p.visitors)}; ${r.referrers[0].name} was your top source.`,
+    );
+  }
+  const unattributed = r.revenueChannels.find((x) => x.name === "Unattributed");
+  if (unattributed && c.revenueMinor > 0 && unattributed.revenueMinor / c.revenueMinor >= 0.25) {
+    out.push(
+      `${Math.round((unattributed.revenueMinor / c.revenueMinor) * 100)}% of revenue has no visitor attached: pass the visitor id to your checkout metadata to see where it came from.`,
+    );
+  }
+  return out.slice(0, 3);
+}
+
 export function renderReportText(r: DigestReport): string {
   const title = `${r.period === "daily" ? "Daily" : "Weekly"} report for ${siteLabel(r.site)} (${r.label})`;
   const lines = [title, ""];
@@ -225,8 +288,20 @@ export function renderReportText(r: DigestReport): string {
   section("Top referrers", r.referrers);
   section("Top pages", r.pages);
   section("Top countries", r.countries);
+  const insights = insightsFor(r);
+  if (insights.length) {
+    lines.push("", "Insights:");
+    for (const i of insights) lines.push(`  - ${i}`);
+  }
   if (r.dashboardUrl) lines.push("", r.dashboardUrl);
   return lines.join("\n");
+}
+
+function insightsHtml(list: string[]): string {
+  if (!list.length) return "";
+  return `<h2 style="font-size:15px;margin:20px 0 6px">Insights</h2><ul style="margin:0;padding-left:18px;font-size:14px">${list
+    .map((i) => `<li style="margin:4px 0">${escapeHtml(i)}</li>`)
+    .join("")}</ul>`;
 }
 
 export function renderReportHtml(r: DigestReport, footer: string): string {
@@ -252,7 +327,7 @@ export function renderReportHtml(r: DigestReport, footer: string): string {
               `<tr><td style="padding:4px 0;border-bottom:1px solid rgba(0,0,0,.06)">${escapeHtml(i.name)}</td><td style="padding:4px 0;text-align:right;border-bottom:1px solid rgba(0,0,0,.06)">${i.visitors}</td></tr>`,
           )
           .join("")}</table>`;
-  const body = `<p style="margin:0 0 12px;color:#5c5c5c">${escapeHtml(r.label)}</p><table style="width:100%;border-collapse:collapse">${kpiCells}</table>${table("Top channels", r.channels)}${table("Top referrers", r.referrers)}${table("Top pages", r.pages)}${table("Top countries", r.countries)}`;
+  const body = `<p style="margin:0 0 12px;color:#5c5c5c">${escapeHtml(r.label)}</p><table style="width:100%;border-collapse:collapse">${kpiCells}</table>${table("Top channels", r.channels)}${table("Top referrers", r.referrers)}${table("Top pages", r.pages)}${table("Top countries", r.countries)}${insightsHtml(insightsFor(r))}`;
   return emailLayout({
     title: `${r.period === "daily" ? "Daily" : "Weekly"} report for ${siteLabel(r.site)}`,
     bodyHtml: body,

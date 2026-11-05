@@ -1,7 +1,7 @@
 import { createExecutionContext, env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { growthJobs } from "../../../src/growth";
-import { runDigests } from "../../../src/growth/alerts/digest";
+import { insightsFor, runDigests } from "../../../src/growth/alerts/digest";
 import { evaluateEventAlerts, PER_RUN_CAP } from "../../../src/growth/alerts/evaluate";
 import { evaluateTrafficSpikes } from "../../../src/growth/alerts/spike";
 import {
@@ -464,10 +464,62 @@ describe("alerts.digest and weekly reports", () => {
     expect(p.text).toContain("Organic Search — 4 visitors");
     expect(p.text).toContain("/blog — 4 visitors");
     expect(p.text).toContain("United States — 4 visitors");
+    // Insights: this payment has no visitor, so the report says how to attribute it.
+    expect(p.text).toContain("Insights:");
+    expect(p.text).toContain("100% of revenue has no visitor attached");
+    expect(p.html).toContain('<h2 style="font-size:15px;margin:20px 0 6px">Insights</h2>');
     expect(p.html).toContain("<table");
     // Re-running the same Monday sends nothing more.
     await runDigests(jobCtx({ now: NOW + 600_000, env: emailEnv(), state: ctx.saved }));
     expect(await outbox()).toHaveLength(1);
+  });
+
+  it("derives insights from the report's numbers", () => {
+    const base = {
+      site: { id: "s", domain: "shop.example", name: "Shop", timezone: "UTC", currency: "USD" },
+      period: "weekly",
+      label: "",
+      from: "",
+      to: "",
+      referrers: [{ name: "Hacker News", visitors: 300 }],
+      pages: [],
+      countries: [],
+      dashboardUrl: null,
+    } as unknown as Parameters<typeof insightsFor>[0];
+    const stats = (visitors: number, payments: number, revenueMinor: number) => ({
+      visitors,
+      sessions: visitors,
+      pageviews: visitors,
+      bounces: 0,
+      durationSum: 0,
+      revenueMinor,
+      payments,
+    });
+    const out = insightsFor({
+      ...base,
+      current: stats(1000, 30, 90000),
+      previous: stats(500, 5, 15000),
+      channels: [{ name: "Organic Search", visitors: 400 }],
+      revenueChannels: [
+        { name: "Organic Search", revenueMinor: 60000 },
+        { name: "Unattributed", revenueMinor: 30000 },
+      ],
+    });
+    expect(out).toEqual([
+      "Organic Search brought the most revenue: $600.00 (67% of the week's revenue, $1.50 per visitor). Double down on it.",
+      "Conversion improved to 3.0% from 1.0% the week before.",
+      "Traffic grew +100%; Hacker News was your top source.",
+    ]);
+    // No revenue, flat traffic: nothing to say.
+    expect(
+      insightsFor({
+        ...base,
+        current: stats(100, 0, 0),
+        previous: stats(100, 0, 0),
+        channels: [],
+        revenueChannels: [],
+      }),
+    ).toEqual([]);
   });
 
   it("delivers daily digest rules for the previous local day and pages through many sites", async () => {
