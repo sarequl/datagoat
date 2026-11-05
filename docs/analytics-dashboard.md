@@ -93,7 +93,10 @@ goal, visit count…) apply; others are listed as not applied. A **profile** sho
 (location, device, browser and OS versions, viewport, first-touch parameters), activity, the purchase
 prediction (or lifetime revenue for customers and profile data from `identify`), goals, payments, a
 GitHub-style activity grid (orange = goal or payment days; click a day to jump to it) and the
-journey timeline grouped by day with each day's source.
+journey timeline grouped by day with each day's source. Sessions from Google search show the
+queries that most likely brought the visitor ("Likely searched: “pricing tool” 62%"): Search
+Console's queries for that landing page within three days of the visit, by share of clicks (needs
+the Search Console integration).
 
 ## Goals
 

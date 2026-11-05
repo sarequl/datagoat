@@ -146,6 +146,15 @@ export function visitorProfileFor(visitorId: string, now = Date.now()): VisitorP
       referrer: ref,
       entryPath: PAGES[(n * 3) % PAGES.length] ?? "/",
       pageviews,
+      // Search Console keyword guesses for the Google session (DG).
+      ...(ref === "Google"
+        ? {
+            searchKeywords: [
+              { query: "revenue analytics", probability: 62 },
+              { query: "datagoat", probability: 38 },
+            ],
+          }
+        : {}),
     };
   });
   const visitedPages = sessions.flatMap((s, n) =>

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetDb } from "../../helpers/db";
-import { createApiKey, createSite, createUser } from "../../helpers/factories";
+import { createApiKey, createSession, createSite, createUser } from "../../helpers/factories";
 import { api } from "../../helpers/http";
 import { RANGE, seedFixture, V1, V2, V3 } from "./fixture";
 
@@ -202,5 +202,44 @@ describe("GET /api/v1/visitors/:visitorId", () => {
     expect(
       (await api("/api/v1/visitors/abcdef0123456789abcdef0123456789", { token: key })).status,
     ).toBe(404);
+  });
+});
+
+describe("Google keyword probability in journeys", () => {
+  it("guesses the search queries of Google sessions from Search Console clicks", async () => {
+    const owner = await createUser();
+    const site = await createSite(owner.id, { domain: "example.com", timezone: "UTC" });
+    const key = (await createApiKey({ userId: owner.id, siteId: site.id })).secret;
+    const visitorId = "55555555-5555-4555-8555-555555555555";
+    const at = Date.UTC(2026, 9, 14, 10);
+    await createSession({
+      siteId: site.id,
+      visitorId,
+      startedAt: at,
+      channel: "Organic Search",
+      source: "Google",
+      entryPath: "/pricing?ref=x",
+    });
+    await createSession({ siteId: site.id, visitorId, startedAt: at + 86_400_000 });
+    const gsc = env.DB.prepare(
+      "INSERT INTO gsc_daily (site_id, day, query, page, clicks, impressions) VALUES (?, ?, ?, ?, ?, 100)",
+    );
+    await env.DB.batch([
+      gsc.bind(site.id, "2026-10-13", "datagoat pricing", "https://example.com/pricing", 4),
+      gsc.bind(site.id, "2026-10-15", "datagoat pricing", "https://example.com/pricing/", 2),
+      gsc.bind(site.id, "2026-10-14", "analytics tool", "https://example.com/pricing", 2),
+      gsc.bind(site.id, "2026-10-14", "elsewhere", "https://example.com/blog", 50),
+      gsc.bind(site.id, "2026-09-01", "too early", "https://example.com/pricing", 50),
+      gsc.bind(site.id, "2026-10-14", "", "", 500),
+    ]);
+    const res = await api(`/api/v1/visitors/${visitorId}`, { token: key });
+    expect(res.status).toBe(200);
+    const sessions = res.body.data.sessions as Array<Record<string, unknown>>;
+    const google = sessions.find((s) => s.channel === "Organic Search");
+    expect(google?.searchKeywords).toEqual([
+      { query: "datagoat pricing", probability: 75 },
+      { query: "analytics tool", probability: 25 },
+    ]);
+    expect(sessions.find((s) => s.channel === "Direct")).not.toHaveProperty("searchKeywords");
   });
 });

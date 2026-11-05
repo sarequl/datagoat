@@ -699,6 +699,11 @@ export interface VisitorProfile {
     referrer: string | null;
     entryPath: string;
     pageviews: number;
+    /**
+     * DG: for sessions from Google search, the Search Console queries that brought clicks to the
+     * landing page around that day, with their share of those clicks in percent (top 3).
+     */
+    searchKeywords?: Array<{ query: string; probability: number }>;
   }>;
   payments?: Array<{
     id: string;

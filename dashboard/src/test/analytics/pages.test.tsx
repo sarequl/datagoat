@@ -74,6 +74,10 @@ describe("visitors", () => {
     expect(await screen.findByRole("list", { name: "Journey timeline" })).toHaveTextContent(
       /Day 1/,
     );
+    // Google sessions show Search Console keyword guesses (DataFast's keyword probability).
+    expect(screen.getByTestId("search-keywords")).toHaveTextContent(
+      "Likely searched: “revenue analytics” 62%, “datagoat” 38%",
+    );
     expect(screen.getByRole("group", { name: "Activity by day" })).toBeInTheDocument();
     expect(screen.getByText("Identity")).toBeInTheDocument();
   });

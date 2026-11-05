@@ -441,6 +441,10 @@ export function visitorProfile(visitorId: string): VisitorProfile {
         referrer: "Google",
         entryPath: "/",
         pageviews: 4,
+        searchKeywords: [
+          { query: "revenue analytics", probability: 62 },
+          { query: "datagoat", probability: 38 },
+        ],
       },
       {
         id: "s2",
