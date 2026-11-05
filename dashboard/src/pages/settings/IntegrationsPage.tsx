@@ -35,7 +35,7 @@ import {
  * is one row (`#integration-<id>`) with a logo tile, status, a one-line summary and its actions;
  * setup steps and forms open inside the row.
  */
-type Category = "all" | "payments" | "growth";
+type Category = "payments" | "growth";
 
 const GROWTH: ReadonlyArray<{ kind: GrowthKind; name: string; description: string }> = [
   {
@@ -59,7 +59,9 @@ export default function IntegrationsPage() {
   const website = useWebsite(siteId);
   const disabled = !access.canEditSettings;
   const [hash] = useState(() => window.location.hash.replace(/^#/, ""));
-  const [category, setCategory] = useState<Category>("all");
+  const [category, setCategory] = useState<Category>(() =>
+    GROWTH.some((g) => g.kind === hash) ? "growth" : "payments",
+  );
   const [query, setQuery] = useState("");
   const gsc = useGrowthIntegration(siteId, "google-search-console");
   const github = useGrowthIntegration(siteId, "github");
@@ -106,11 +108,8 @@ export default function IntegrationsPage() {
         connected: wasConnected(g.kind),
       }))
     : [];
-  const showPayments = category !== "growth";
-  const showGrowth = category !== "payments";
-  const connectedCount =
-    (status.data ? PROVIDERS.filter((p) => providerState(status.data, p.id).connected).length : 0) +
-    GROWTH.filter((g) => growthStatus[g.kind]?.connected).length;
+  const showPayments = category === "payments";
+  const showGrowth = category === "growth";
 
   const providerRow = (p: ProviderDef) =>
     status.data ? (
@@ -131,16 +130,14 @@ export default function IntegrationsPage() {
     if (kind === "x") return <MentionsCard {...props} domain={website.data?.domain} />;
     return <MetaAdsCard {...props} />;
   };
-  const connected = [
-    ...(showPayments ? providers.filter((r) => r.connected).map((r) => providerRow(r.p)) : []),
-    ...(showGrowth ? growth.filter((r) => r.connected).map((r) => growthRow(r.g.kind)) : []),
-  ];
-  const availablePayments = showPayments ? providers.filter((r) => !r.connected) : [];
-  const availableGrowth = showGrowth ? growth.filter((r) => !r.connected) : [];
-  const tabs: Array<{ id: Category; label: string; count: number }> = [
-    { id: "all", label: "All", count: PROVIDERS.length + GROWTH.length },
-    { id: "payments", label: "Payments", count: PROVIDERS.length },
-    { id: "growth", label: "Growth", count: GROWTH.length },
+  // One list per tab; connected integrations first (stable sort keeps the catalogue order).
+  const byConnected = <T extends { connected: boolean }>(rows: T[]) =>
+    [...rows].sort((a, b) => Number(b.connected) - Number(a.connected));
+  const paymentRows = showPayments ? byConnected(providers) : [];
+  const growthRows = showGrowth ? byConnected(growth) : [];
+  const tabs: Array<{ id: Category; label: string }> = [
+    { id: "payments", label: "Payments" },
+    { id: "growth", label: "Growth" },
   ];
 
   return (
@@ -169,11 +166,10 @@ export default function IntegrationsPage() {
                   : "text-muted hover:text-text"
               }`}
             >
-              {t.label} <span className="tabular-nums text-muted">{t.count}</span>
+              {t.label}
             </button>
           ))}
         </div>
-        <span className="text-sm text-muted">{connectedCount} connected</span>
         <Input
           type="search"
           aria-label="Search integrations"
@@ -184,30 +180,25 @@ export default function IntegrationsPage() {
         />
       </div>
       {!status.data ? <QueryState query={status} /> : !initial ? <Spinner /> : null}
-      {connected.length ? (
-        <IntegrationSection id="connected" title="Connected">
-          {connected}
-        </IntegrationSection>
-      ) : null}
-      {availablePayments.length ? (
+      {paymentRows.length ? (
         <IntegrationSection
           id="payments"
           title="Payments"
           description="Revenue, refunds and subscriptions, matched to the visit that brought each customer."
         >
-          {availablePayments.map((r) => providerRow(r.p))}
+          {paymentRows.map((r) => providerRow(r.p))}
         </IntegrationSection>
       ) : null}
-      {availableGrowth.length ? (
+      {growthRows.length ? (
         <IntegrationSection
           id="growth"
           title="Growth"
           description="Search, code, social and ad data shown next to your traffic."
         >
-          {availableGrowth.map((r) => growthRow(r.g.kind))}
+          {growthRows.map((r) => growthRow(r.g.kind))}
         </IntegrationSection>
       ) : null}
-      {initial && !connected.length && !availablePayments.length && !availableGrowth.length ? (
+      {initial && !paymentRows.length && !growthRows.length ? (
         <p className="py-8 text-center text-sm text-muted">No integrations match “{query}”.</p>
       ) : null}
       <p className="text-xs text-muted">
@@ -236,7 +227,8 @@ function IntegrationSection({
   return (
     <section className="space-y-3" aria-labelledby={`${id}-heading`}>
       <div>
-        <h2 id={`${id}-heading`} className="text-sm font-semibold">
+        {/* The tab already names the list; the heading labels the region for screen readers. */}
+        <h2 id={`${id}-heading`} className="sr-only">
           {title}
         </h2>
         {description ? <p className="text-xs text-muted">{description}</p> : null}

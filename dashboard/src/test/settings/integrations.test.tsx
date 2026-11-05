@@ -15,27 +15,41 @@ const provider = (id: string) =>
     return el;
   });
 
-/** Open a growth integration's row (Manage, Set up or Details). */
+/** Switch to the Growth tab and open a growth integration's row (Manage, Set up or Details). */
 async function openRow(kind: string) {
+  await userEvent.click(await screen.findByRole("tab", { name: "Growth" }));
   const row = await provider(kind);
   await userEvent.click(within(row).getByRole("button", { name: /^(Manage|Set up|Details)$/ }));
   return row;
 }
 
 describe("integrations directory", () => {
-  it("lists connected integrations first, filters by category and searches", async () => {
+  it("shows Payments and Growth tabs, connected first in each list, and searches", async () => {
     openPage(`/app/${SITE}/integrations`);
-    const connected = await screen.findByRole("region", { name: "Connected" });
-    expect(within(connected).getByRole("heading", { name: "Stripe" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Payments" })).toHaveTextContent("Lemon Squeezy");
-    expect(screen.getByText(/\d+ connected/)).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Payments" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.queryByRole("tab", { name: /^All/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+ connected/)).not.toBeInTheDocument();
+    const payments = await screen.findByRole("region", { name: "Payments" });
+    const names = within(payments)
+      .getAllByRole("heading", { level: 3 })
+      .map((h) => h.textContent);
+    // Stripe is connected, so it leads the list; the others keep their order.
+    expect(names[0]).toBe("Stripe");
+    expect(names).toContain("Lemon Squeezy");
+    expect(screen.queryByRole("region", { name: "Connected" })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("tab", { name: /^Growth/ }));
+    await userEvent.click(screen.getByRole("tab", { name: "Growth" }));
     expect(screen.queryByRole("region", { name: "Payments" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Stripe" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Meta Ads" })).toBeInTheDocument();
+    const growth = screen.getByRole("region", { name: "Growth" });
+    const growthNames = within(growth)
+      .getAllByRole("heading", { level: 3 })
+      .map((h) => h.textContent);
+    expect(growthNames.slice(0, 2).sort()).toEqual(["GitHub", "X and Reddit"]);
 
-    await userEvent.click(screen.getByRole("tab", { name: /^All/ }));
+    await userEvent.click(screen.getByRole("tab", { name: "Payments" }));
     await userEvent.type(screen.getByRole("searchbox", { name: "Search integrations" }), "lemon");
     expect(screen.getByRole("heading", { name: "Lemon Squeezy" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Paddle" })).not.toBeInTheDocument();
@@ -180,6 +194,7 @@ describe("growth integrations", () => {
 
   it("starts the Search Console and Meta Ads OAuth flows", async () => {
     openPage(`/app/${SITE}/integrations`);
+    await userEvent.click(await screen.findByRole("tab", { name: "Growth" }));
     expect(
       await screen.findByRole("link", { name: "Connect Google Search Console" }),
     ).toHaveAttribute("href", `/api/connect/google-search-console/start?websiteId=${SITE}`);

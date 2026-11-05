@@ -107,8 +107,9 @@ test("team invite, API key shown once, and integrations", async ({ page }) => {
   await expect(polar.getByText("Connected", { exact: true })).toBeVisible();
 });
 
-/** Integrations rows open their setup with Manage, Set up or Details. */
+/** Growth tab, then the Meta Ads row (setup opens with Manage, Set up or Details). */
 async function openMetaRow(page: Page) {
+  await page.getByRole("tab", { name: "Growth" }).click();
   await page
     .locator("#integration-meta-ads")
     .getByRole("button", { name: /^(Manage|Set up|Details)$/ })
