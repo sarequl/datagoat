@@ -49,6 +49,8 @@ export interface TrackerBody {
   extraData: Record<string, unknown>;
   trackHash: boolean;
   cookieless: boolean;
+  /** DataGoat: the browser already had a `datafast_visitor_id` cookie (site came from DataFast). */
+  datafastCookie: boolean;
 }
 
 /** Read at most `limit` bytes of the request body; larger bodies are rejected with 413. */
@@ -161,5 +163,6 @@ export function parseBody(text: string): TrackerBody {
     extraData: isObject(raw.extraData) ? raw.extraData : {},
     trackHash: raw.trackHash === true,
     cookieless: raw.cookieless === true,
+    datafastCookie: raw.datafastCookie === true,
   };
 }

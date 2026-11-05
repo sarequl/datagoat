@@ -195,7 +195,8 @@ kpiColorScheme, revenueMetric, isCookieless, isAttackModeEnabled, includeRenewal
 allowedHostnames, isAllHostnamesAllowed, excludedIps, excludedPaths, excludedCountries,
 excludedHostnames, sendWeeklyReports, sendViralTrafficAlerts, isPublicDashboardEnabled,
 isPublicDataEnabled, createdAt`) plus DG `privacyMode (cookie|cookieless|consent), attributionModel,
-botLevel (off|standard|strict; strict = attack mode), honorGpc, storeCustomerEmails, retentionDays
+botLevel (off|standard|strict; strict = attack mode), honorGpc, datafastCompat (also write DataFast's
+cookies; turned on automatically when detected, `false` keeps it off), storeCustomerEmails, retentionDays
 (30–36500|null), shareToken, updatedAt, role`. `isCookieless`/`isAttackModeEnabled` map onto
 `privacyMode`/`botLevel` (the explicit DG field wins). `kpi: "revenue"` or `null` means revenue.
 `excludedCountries` accepts names or codes and stores ISO codes. `isPublicDashboardEnabled: true`

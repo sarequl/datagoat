@@ -1,8 +1,13 @@
 # Switching from DataFast
 
-DataGoat's tracker and collector speak DataFast's protocol, so a site moves by changing one URL
-and adding `data-compat="datafast"` to the tag. Your visitors keep their ids, your checkout code
-keeps working, and DataFast's own script can even send to DataGoat during the move.
+DataGoat's tracker and collector speak DataFast's protocol, so a site moves by changing the
+script URL and website id in its tag. Your visitors keep their ids, your checkout code keeps
+working, and DataFast's own script can even send to DataGoat during the move.
+
+DataGoat notices that the site came from DataFast (returning visitors still carry DataFast's
+cookie) and turns on **DataFast compatibility** for it automatically: the tracker then keeps
+writing the `datafast_*` cookies your checkout code reads. Adding `data-compat="datafast"` to the
+tag turns it on from the very first visit, before any returning visitor arrives.
 
 New sites use DataGoat's own names by default: `datagoat_*` cookies, `window.datagoat(...)`,
 `datagoat_visitor_id` metadata, `dgid_` tracking ids and `dg_`/`dgt_` API keys. DataFast's names are
@@ -29,7 +34,10 @@ countries and hostnames, the cookieless toggle (privacy mode) and attack mode (b
 - `data-compat="datafast"` makes the tracker also write DataFast's `datafast_visitor_id`,
   `datafast_session_id`, `datafast_visitor_first_seen_at` and `datafast_visitor_session_count`
   cookies, next to its own `datagoat_*` cookies. Checkout code that reads `datafast_visitor_id`
-  keeps working unchanged. Once your code reads `datagoat_visitor_id`, you can drop the attribute.
+  keeps working unchanged. Once your code reads `datagoat_visitor_id`, you can drop the attribute
+  and turn the setting off (Settings → Tracking & privacy).
+- Without the attribute the same happens automatically once the first returning DataFast visitor
+  arrives (see [tracking.md](tracking.md#browser-storage)).
 
 - Keep every other attribute as it is: `data-allowed-hostnames`, `data-api-url`,
   `data-allow-localhost`, `data-allow-file-protocol`, `data-debug`, `data-disable-console`,

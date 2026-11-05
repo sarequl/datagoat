@@ -287,6 +287,34 @@ describe("cookies", () => {
     }
   });
 
+  it("reports DataFast's cookie and adopts compatibility when the server says so", async () => {
+    const legacy = "datafast_visitor_id=72de85b4-8d8a-48d6-a920-c50470a86a1a";
+    const t = setup({ before: (w) => restore(w, legacy), response: { compat: "datafast" } });
+    expect(t.sent[0]?.transport).toBe("fetch");
+    expect(t.last()).toMatchObject({ datafastCookie: true });
+    await new Promise((r) => setTimeout(r, 0));
+    // The reply turned compatibility on: our ids are mirrored into datafast_* and remembered.
+    expect(t.cookie("datafast_session_id")).toBe(t.cookie("datagoat_session_id"));
+    expect(t.win.localStorage.getItem("datagoat_compat")).toBe("datafast");
+  });
+
+  it("asks once per tab, and a remembered compatibility writes both cookie sets at once", async () => {
+    // A brand-new visitor on a site the server already knows came from DataFast.
+    const fresh = setup({ response: { compat: "datafast" } });
+    expect(fresh.last()).not.toHaveProperty("datafastCookie");
+    expect(fresh.sent[0]?.transport).toBe("fetch");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fresh.cookie("datafast_visitor_id")).toBe(fresh.last().visitorId);
+    // Next page load: known from localStorage, so no question and both cookies straight away.
+    const next = setup({ before: (w) => w.localStorage.setItem("datagoat_compat", "datafast") });
+    expect(next.sent[0]?.transport).toBe("beacon");
+    expect(next.cookie("datafast_visitor_id")).toBe(next.last().visitorId);
+    // A site that never used DataFast: the server says nothing, so only datagoat_ cookies.
+    const plain = setup({ response: {} });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(plain.cookie("datafast_visitor_id")).toBeUndefined();
+  });
+
   it("adopts DataFast's _df_ cross-domain parameters too", () => {
     const vid = "0d6b2c1e-8a8e-4f5b-9b0a-6c8d1e2f3a4b";
     const t = setup({ url: `https://www.example.com/?_df_vid=${vid}&_df_sid=s${vid}` });
@@ -768,7 +796,9 @@ describe("payment success pages", () => {
 
 describe("transport", () => {
   it("uses sendBeacon with the JSON body (sent as text/plain, no preflight)", () => {
-    const t = setup();
+    // The first pageview of a tab asks the server about DataFast compatibility (fetch); after
+    // that, events go by sendBeacon.
+    const t = setup({ before: (w) => w.sessionStorage.setItem("datagoat_compat_checked", "1") });
     expect(t.sent[0]?.transport).toBe("beacon");
   });
 

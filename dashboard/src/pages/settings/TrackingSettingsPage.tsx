@@ -113,6 +113,7 @@ function PrivacyCard({ website, disabled }: { website: Website; disabled: boolea
       </form>
       <div className="mt-5 border-t border-line pt-4">
         <GpcToggle website={website} disabled={disabled} />
+        <DatafastCompatToggle website={website} disabled={disabled} />
       </div>
     </Card>
   );
@@ -128,6 +129,22 @@ function GpcToggle({ website, disabled }: { website: Website; disabled: boolean 
         checked={website.honorGpc}
         disabled={disabled || update.isPending}
         onChange={(v) => update.mutate({ honorGpc: v })}
+      />
+      {update.error ? <Notice tone="error">{update.error.message}</Notice> : null}
+    </div>
+  );
+}
+
+function DatafastCompatToggle({ website, disabled }: { website: Website; disabled: boolean }) {
+  const update = useUpdateWebsite(website._id);
+  return (
+    <div className="space-y-2">
+      <Toggle
+        label="DataFast compatibility"
+        description="Also write DataFast's datafast_visitor_id cookie, so checkout code written for DataFast keeps working. Turns on by itself when visitors arrive with DataFast's cookie; turning it off keeps it off."
+        checked={website.datafastCompat}
+        disabled={disabled || update.isPending}
+        onChange={(v) => update.mutate({ datafastCompat: v })}
       />
       {update.error ? <Notice tone="error">{update.error.message}</Notice> : null}
     </div>

@@ -90,6 +90,15 @@ returning visitors keep their id; the values are copied onto the `datagoat_*` co
 `data-compat="datafast"` on the tag it also keeps writing the `datafast_*` cookies, so checkout code
 that reads `datafast_visitor_id` keeps working unchanged. Use it when switching from DataFast.
 
+**Automatic DataFast compatibility.** You do not have to add the attribute. When a browser
+arrives with DataFast's `datafast_visitor_id` cookie, the pageview says so (`datafastCookie: true`)
+and the collector turns on the website's **DataFast compatibility** setting (one write, ever).
+Replies to pageviews then carry `compat: "datafast"`, and the tracker writes the `datafast_*`
+cookies next to its own for every visitor, new ones included, and remembers it in
+`localStorage.datagoat_compat`. To learn the setting, the first pageview of each tab session goes
+by `fetch` instead of `sendBeacon`. Owners can switch it in **Settings → Tracking & privacy**; turning
+it off keeps it off. `data-compat="datafast"` still turns it on from the very first visit.
+
 ## JavaScript API
 
 `window.datagoat` and its alias `window.datafast` are the same function. Add the queue snippet to

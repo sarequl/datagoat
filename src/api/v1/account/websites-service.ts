@@ -56,6 +56,7 @@ export function websiteDto(site: Site, role?: Role) {
     attributionModel: site.attributionModel,
     botLevel: site.botLevel,
     honorGpc: site.honorGpc,
+    datafastCompat: site.datafastCompat,
     storeCustomerEmails: site.storeCustomerEmails,
     retentionDays: site.retentionDays,
     shareToken: site.shareToken,
@@ -237,6 +238,7 @@ export const UpdateWebsiteBody = z
     attributionModel: z.enum(ATTRIBUTION_MODELS as [string, ...string[]]),
     botLevel: z.enum(BOT_LEVELS as [string, ...string[]]),
     honorGpc: z.boolean(),
+    datafastCompat: z.boolean(),
     storeCustomerEmails: z.boolean(),
     retentionDays: z.number().int().min(30).max(36500).nullable(),
   })
@@ -308,6 +310,9 @@ export function settingsAssignments(
     set.push(["excluded_user_agents", json(input.excludedUserAgents)]);
   if (input.attributionModel !== undefined) set.push(["attribution_model", input.attributionModel]);
   if (input.honorGpc !== undefined) set.push(["honor_gpc", flag(input.honorGpc)]);
+  if (input.datafastCompat !== undefined)
+    // 2 = off by the owner's choice, so ingest's automatic detection leaves it off.
+    set.push(["datafast_compat", input.datafastCompat ? 1 : 2]);
   if (input.storeCustomerEmails !== undefined)
     set.push(["store_customer_emails", flag(input.storeCustomerEmails)]);
   if (input.retentionDays !== undefined) set.push(["retention_days", input.retentionDays]);

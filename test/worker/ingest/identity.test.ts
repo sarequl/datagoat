@@ -53,6 +53,41 @@ async function postAt(now: number, body: unknown, ip: string, ua = UA_CHROME) {
 describe("cookie mode", () => {
   beforeEach(resetIngest);
 
+  it("turns on DataFast compatibility once a browser reports DataFast's cookie", async () => {
+    const site = await ingestSite({ domain: "example.com" });
+    // A site that never used DataFast: plain reply, setting stays off.
+    expect((await postEvent(eventBody({ websiteId: site.publicId }))).body).toEqual({});
+    const off = await rows("SELECT datafast_compat FROM sites WHERE id = ?", site.id);
+    expect(off[0]).toEqual({ datafast_compat: 0 });
+
+    // A returning DataFast visitor: the site switches to compatibility, in one write.
+    const res = await postEvent(eventBody({ websiteId: site.publicId, datafastCookie: true }));
+    expect(res.body).toEqual({ compat: "datafast" });
+    const on = await rows("SELECT datafast_compat FROM sites WHERE id = ?", site.id);
+    expect(on[0]).toEqual({ datafast_compat: 1 });
+
+    // From now on even brand-new visitors are told to write datafast_* cookies too.
+    siteCache.invalidate(site);
+    const fresh = await postEvent(
+      eventBody({
+        websiteId: site.publicId,
+        visitorId: "33333333-3333-4333-8333-333333333333",
+        sessionId: "s44444444-4444-4444-8444-444444444444",
+      }),
+    );
+    expect(fresh.body).toEqual({ compat: "datafast" });
+  });
+
+  it("leaves compatibility off when the owner turned it off", async () => {
+    const site = await ingestSite({ domain: "example.com" });
+    await env.DB.prepare("UPDATE sites SET datafast_compat = 2 WHERE id = ?").bind(site.id).run();
+    siteCache.invalidate(site);
+    const res = await postEvent(eventBody({ websiteId: site.publicId, datafastCookie: true }));
+    expect(res.body).toEqual({});
+    const [row] = await rows("SELECT datafast_compat FROM sites WHERE id = ?", site.id);
+    expect(row).toEqual({ datafast_compat: 2 });
+  });
+
   it("uses the tracker's visitor and session ids and session number", async () => {
     const site = await ingestSite({ domain: "example.com" });
     const res = await postEvent(eventBody({ websiteId: site.publicId, sessionNumber: 3 }));

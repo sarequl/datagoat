@@ -210,6 +210,26 @@ describe("websites", () => {
     expect(read.body.data[0].excludedIps).toEqual(["203.0.113.10", "10.0.0.0/8", "2001:db8::/32"]);
   });
 
+  it("switches DataFast compatibility, and an owner's 'off' sticks", async () => {
+    const user = await createUser();
+    const site = await createSite(user.id);
+    const cookie = await sessionCookie(user.id);
+    const put = (datafastCompat: boolean) =>
+      api(`/api/v1/admin/websites/${site.id}`, { method: "PUT", cookie, body: { datafastCompat } });
+    const stored = async () =>
+      env.DB.prepare("SELECT datafast_compat FROM sites WHERE id = ?")
+        .bind(site.id)
+        .first("datafast_compat");
+    expect(
+      (await api(`/api/v1/admin/websites/${site.id}`, { cookie })).body.data[0].datafastCompat,
+    ).toBe(false);
+    expect((await put(true)).body.data[0].datafastCompat).toBe(true);
+    expect(await stored()).toBe(1);
+    // Off by choice is stored as 2, so ingest's automatic detection will not turn it back on.
+    expect((await put(false)).body.data[0].datafastCompat).toBe(false);
+    expect(await stored()).toBe(2);
+  });
+
   it("rejects invalid settings and empty updates", async () => {
     const user = await createUser();
     const site = await createSite(user.id);

@@ -148,6 +148,21 @@ async function process(req: Request, ctx: IngestContext): Promise<Response> {
     return json({});
   }
 
+  // DataFast compatibility: a browser with DataFast's cookie means the site came from DataFast.
+  // Turn the setting on once (one write per website, ever); replies then tell the tracker to
+  // also write `datafast_*` cookies, so checkout code reading `datafast_visitor_id` keeps working.
+  const datafastCompat = site.datafastCompat || (body.datafastCookie && !site.datafastCompatOptOut);
+  if (body.datafastCookie && !site.datafastCompat && !site.datafastCompatOptOut) {
+    site.datafastCompat = true;
+    run(ctx, "datafast-compat", async () => {
+      await db
+        .prepare("UPDATE sites SET datafast_compat = 1 WHERE id = ? AND datafast_compat = 0")
+        .bind(site.id)
+        .run();
+      siteCache.invalidate(site);
+    });
+  }
+
   // 7–8. GPC and identity.
   const gpc = req.headers.get("sec-gpc") === "1";
   const identity = await resolveIdentity({ db, site, body, gpc, ip, ua, now });
@@ -173,7 +188,8 @@ async function process(req: Request, ctx: IngestContext): Promise<Response> {
 
   // 11. Respond. Cookieless hits learn their server ids (DataFast's cookieless script stores
   // `visitorId`; ours also keeps `sessionId` so consent can continue the same session).
-  return json(identity.mode === "cookieless" ? cookielessResponse(identity) : {});
+  if (identity.mode === "cookieless") return json(cookielessResponse(identity));
+  return json(datafastCompat ? { compat: "datafast" } : {});
 }
 
 function cookielessResponse(identity: Identity) {

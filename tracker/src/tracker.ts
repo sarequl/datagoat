@@ -74,7 +74,7 @@ export type Api = ((command?: unknown, options?: unknown) => void) & {
 
 type TrackerWindow = Window & { datafast?: Api; datagoat?: Api } & Record<string, unknown>;
 type Body = Record<string, unknown>;
-type Ids = { visitorId?: string; sessionId?: string };
+type Ids = { visitorId?: string; sessionId?: string; compat?: string };
 
 /** UUID v4 from getRandomValues (randomUUID needs a secure context; plain-http sites have none). */
 export function uuid(): string {
@@ -170,7 +170,22 @@ export function init(w: TrackerWindow): Api | undefined {
     }; SameSite=Lax${l.protocol === "https:" ? "; Secure" : ""}`;
   };
   // Identity cookies: ours first, then DataFast's (a visitor from before the switch keeps their id).
-  const compat = attr("compat") === "datafast";
+  // DataFast compatibility: from data-compat="datafast", or learned from the server (which turns it
+  // on for a site once any browser reports DataFast's cookie) and remembered in localStorage.
+  const COMPAT_KEY = `${DG}compat`;
+  const remembered = () => {
+    try {
+      return w.localStorage.getItem(COMPAT_KEY) === "datafast";
+    } catch {
+      return false;
+    }
+  };
+  let compat = !__DG_COOKIELESS__ && (attr("compat") === "datafast" || remembered());
+  /** The browser had DataFast's cookie before we touched anything: the site came from DataFast. */
+  const fromDatafast = !__DG_COOKIELESS__ && !compat && getCookie(`${DF}visitor_id`) !== null;
+  /** Ask the server about compatibility once per tab session (or while DataFast's cookie is here). */
+  const CHECKED_KEY = `${DG}compat_checked`;
+  const shouldAsk = () => !compat && (fromDatafast || !sget(CHECKED_KEY));
   const getId = (key: string) => getCookie(DG + key) || getCookie(DF + key);
   const setId = (key: string, value: string, days: number) => {
     setCookie(DG + key, value, days);
@@ -254,6 +269,26 @@ export function init(w: TrackerWindow): Api | undefined {
     exposed(res.visitorId);
   };
 
+  /** The server says this site runs in DataFast compatibility: mirror our ids into datafast_*. */
+  const adoptCompat = (res: Ids) => {
+    if (res.compat !== "datafast" || compat) return;
+    compat = true;
+    try {
+      w.localStorage.setItem(COMPAT_KEY, "datafast");
+    } catch {
+      // storage blocked: the next pageview asks again
+    }
+    for (const [key, days] of [
+      [VID, 365],
+      [SID, 1 / 48],
+      [VFS, 365],
+      [VSN, 365],
+    ] as const) {
+      const value = getCookie(DG + key);
+      if (value) setCookie(DF + key, value, days);
+    }
+  };
+
   // ---- transport ------------------------------------------------------------------------------
   const send = (body: Body, onResponse?: (res: Ids) => void) => {
     const data = JSON.stringify(body);
@@ -326,7 +361,11 @@ export function init(w: TrackerWindow): Api | undefined {
     if (__DG_HASH__) body.trackHash = true;
     if (cookieless) body.cookieless = true;
     if (extraData) body.extraData = extraData;
-    send(body, cookieless ? learn : undefined);
+    if (fromDatafast) body.datafastCookie = true;
+    // Pageviews read the reply until compatibility is known; other events stay fire-and-forget.
+    const ask = !cookieless && type === "pageview" && shouldAsk();
+    if (ask) sset(CHECKED_KEY, "1");
+    send(body, cookieless ? learn : ask ? adoptCompat : undefined);
   };
 
   // ---- events ---------------------------------------------------------------------------------

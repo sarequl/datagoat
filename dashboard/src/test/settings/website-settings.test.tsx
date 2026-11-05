@@ -40,6 +40,17 @@ describe("tracking & privacy", () => {
     await waitFor(() => expect(site().botLevel).toBe("strict"));
   });
 
+  it("turns DataFast compatibility on and off", async () => {
+    openPage(`/app/${SITE}/settings/tracking`);
+    const compat = await screen.findByRole("switch", { name: "DataFast compatibility" });
+    expect(compat).not.toBeChecked();
+    expect(
+      screen.getByText(/Turns on by itself when visitors arrive with DataFast's cookie/),
+    ).toBeInTheDocument();
+    await userEvent.click(compat);
+    await waitFor(() => expect(site().datafastCompat).toBe(true));
+  });
+
   it("edits allowed hostnames with validation", async () => {
     const log = recordRequests();
     openPage(`/app/${SITE}/settings/tracking`);

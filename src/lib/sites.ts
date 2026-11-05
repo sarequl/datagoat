@@ -29,6 +29,10 @@ export interface Site {
   attributionModel: AttributionModel;
   botLevel: BotLevel;
   honorGpc: boolean;
+  /** W1 (migration 0101): also write DataFast's `datafast_*` cookies (see tracker). */
+  datafastCompat: boolean;
+  /** The owner turned compatibility off: detection must not turn it back on. */
+  datafastCompatOptOut: boolean;
   allowedHostnames: string[];
   allHostnamesAllowed: boolean;
   excludedIps: string[];
@@ -72,6 +76,8 @@ export function rowToSite(row: SiteRow): Site {
     attributionModel: (row.attribution_model as AttributionModel) ?? "first_touch",
     botLevel: (row.bot_level as BotLevel) ?? "standard",
     honorGpc: bool(row.honor_gpc),
+    datafastCompat: Number(row.datafast_compat) === 1,
+    datafastCompatOptOut: Number(row.datafast_compat) === 2,
     allowedHostnames: parseJsonColumn<string[]>(row.allowed_hostnames, []),
     allHostnamesAllowed: bool(row.all_hostnames_allowed),
     excludedIps: parseJsonColumn<string[]>(row.excluded_ips, []),

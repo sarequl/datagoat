@@ -41,8 +41,9 @@ whichever host serves the script.
 ### Switching from DataFast
 
 Keep your tag and change four things: `src` (to this instance's `/js/script.js`), `data-website-id`
-(to the new ID), a new `data-api-url`, and add `data-compat="datafast"`. With that attribute the
-tracker also writes the `datafast_visitor_id` cookie, so `window.datafast(...)` calls,
+(to the new ID), a new `data-api-url`, and add `data-compat="datafast"` (optional: DataGoat turns
+DataFast compatibility on by itself when returning DataFast visitors arrive). Then the tracker also
+writes the `datafast_visitor_id` cookie, so `window.datafast(...)` calls,
 `data-fast-goal` attributes and checkout code that reads `datafast_*` cookies keep working. New
 sites use DataGoat's own names (`datagoat_visitor_id`, `window.datagoat(...)`). Server code that uses
 DataFast's API needs this instance's `/api/v1` base URL and a DataGoat API key.

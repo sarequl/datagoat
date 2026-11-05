@@ -209,6 +209,8 @@ export interface Website {
   attributionModel: AttributionModel;
   botLevel: BotLevel;
   honorGpc: boolean;
+  /** Also write DataFast's `datafast_*` cookies; turned on automatically when detected. */
+  datafastCompat: boolean;
   storeCustomerEmails: boolean;
   retentionDays: number | null;
   shareToken: string | null;
@@ -249,6 +251,7 @@ export type WebsiteUpdate = Partial<
     | "attributionModel"
     | "botLevel"
     | "honorGpc"
+    | "datafastCompat"
     | "storeCustomerEmails"
     | "retentionDays"
   > & { revenueMetric: "revenue" | "mrr" }
