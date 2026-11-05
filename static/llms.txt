@@ -1,0 +1,46 @@
+# DataGoat
+
+> Open-source, revenue-first web analytics running on this Cloudflare Worker. The tracker, the
+> REST API and the MCP server speak DataFast's protocol, so DataFast clients, scripts and agents
+> work here by changing the base URL.
+
+All paths below are relative to this host. Authenticate with `Authorization: Bearer <key>`:
+a `df_` website key (one website, inferred) or a `dft_` account token (pass `websiteId=`).
+Responses are `{"status": "success", "data": ...}`; errors are `{"status": "error", "error": {"code", "message"}}`.
+Rate limit: 60 requests per minute per key.
+
+## MCP
+
+- `/mcp` (also `/api/mcp`): Streamable HTTP MCP server with DataFast's tool catalog (`analytics_overview`, `visitors_get`, `funnels_create`, …; `datafast_*` names are accepted). Sign in with OAuth (discovery at `/.well-known/oauth-authorization-server`) or a `dft_` token. Write tools return a dry run unless `confirm: true`.
+
+## Analytics (GET, analytics:read)
+
+- `/api/v1/analytics/overview`: visitors, sessions, bounce rate, revenue, conversion rate (`startAt`, `endAt`, `timezone`, `filter_*`)
+- `/api/v1/analytics/timeseries`: metrics per `interval` (hour, day, week, month) with `fields`
+- `/api/v1/analytics/realtime`, `/api/v1/analytics/realtime/map`: visitors active now
+- Breakdowns with visitors, revenue and payments: `/api/v1/analytics/pages`, `entry-pages`, `exit-pages`, `exit-clicks`, `referrers`, `channels`, `campaigns`, `countries`, `regions`, `cities`, `devices`, `browsers`, `operating-systems`, `hostnames`, `goals`, `goals/properties?eventName=`
+- `/api/v1/analytics/funnels/{funnelId}`: funnel steps, conversion and revenue
+- `/api/v1/analytics/revenue`, `/api/v1/analytics/revenue/sources`, `/api/v1/analytics/revenue/mrr`: revenue attribution
+- Filters: `filter_country`, `filter_region`, `filter_city`, `filter_device`, `filter_browser`, `filter_os`, `filter_referrer`, `filter_channel`, `filter_page`, `filter_entry_page`, `filter_hostname`, `filter_goal`, `filter_visit_count`, `filter_utm_source` … `filter_utm_content`, `filter_ref`, `filter_source`, `filter_via`; value `[is|is_not|contains|does_not_contain|gte|lte:]value[,value]`
+
+## Visitors
+
+- `/api/v1/visitors`: list and search visitors (`visitedPage`, `completedGoal`, `isCustomer`, …)
+- `/api/v1/visitors/{visitorId}`: profile, journey, goals, payments and purchase prediction
+
+## Server-side events (POST)
+
+- `/api/v1/goals`: `{datafast_visitor_id, name, metadata?}` (goals:write)
+- `/api/v1/identify`: `{datafast_visitor_id, user_id, ...profile}` (identify:write)
+- `/api/v1/payments`: `{amount, currency, transaction_id, datafast_visitor_id?, email?, renewal?, refunded?, is_free_trial?}` (payments:write); `DELETE` by `transaction_id`, visitor or range
+
+## Account and website admin (dft_ tokens)
+
+- `/api/v1/admin/account`, `/api/v1/admin/access-tokens`, `/api/v1/admin/websites`
+- `/api/v1/admin/websites/{id}/apikeys`, `/team`, `/goals`, `/goals/customizations`, `/funnels`, `/notes`, `/alerts`, `/integrations`, `/bot-traffic/settings`
+
+## Tracking
+
+- `/js/script.js` (also `script.cookieless.js`, `script.hash.js`): `<script defer data-website-id="…" data-domain="…" src="/js/script.js"></script>`; `window.datafast("goal_name", {…})`, `datafast("identify", {user_id})`, `datafast("payment", {email})`
+- `POST /api/events`: the tracker's collector (DataFast's body)
+- `POST /api/ai-crawls`: server-side AI crawler requests
