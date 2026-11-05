@@ -217,6 +217,23 @@ describe("mentions.sync", () => {
     expect(conn).toMatchObject({ status: "error", last_error: "Reddit: Too Many Requests" });
   });
 
+  it("reports the same X error once when several X calls fail alike", async () => {
+    const owner = await createUser();
+    const site = await createSite(owner.id, { domain: "example.com" });
+    await connectX(site.id, { keywords: [], handles: ["@founder"] });
+    const depleted = () =>
+      jsonResponse({ title: "CreditsDepleted", detail: "credits depleted" }, 402);
+    const fetch = mockFetch()
+      .on("https://api.x.com/2/tweets/search/recent", depleted)
+      .on("https://api.x.com/2/users/by", depleted);
+    const e = { ...env, X_BEARER_TOKEN: "x-app-token-0123456789" } as Cloudflare.Env;
+    await syncMentions(jobCtx({ now: NOW, fetch, env: e }));
+    const conn = await env.DB.prepare("SELECT last_error FROM integration_connections").first<{
+      last_error: string;
+    }>();
+    expect(conn?.last_error).toBe("X: credits depleted");
+  });
+
   it("skips Reddit without app credentials (Reddit blocks anonymous server requests)", async () => {
     const owner = await createUser();
     const site = await createSite(owner.id, { domain: "example.com" });

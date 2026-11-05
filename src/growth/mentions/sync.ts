@@ -169,7 +169,8 @@ export async function syncMentionsForSite(
     ...dedupeLinks(links).map((l) => xLinkUpsert(db, site.id, l, now)),
     syncResultStatement(db, site.id, "x", {
       now,
-      error: errors.length ? errors.join("; ").slice(0, 500) : null,
+      // Two X calls failing the same way (e.g. "credits depleted") read as one message.
+      error: errors.length ? [...new Set(errors)].join("; ").slice(0, 500) : null,
       cursor,
       credentialsEnc,
     }),
