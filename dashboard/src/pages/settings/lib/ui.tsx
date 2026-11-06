@@ -736,11 +736,17 @@ export function Modal({
   title,
   onClose,
   children,
+  icon,
+  footer,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Shown beside the title (e.g. a warning sign for destructive actions). */
+  icon?: ReactNode;
+  /** Action row on a tinted bar at the bottom. */
+  footer?: ReactNode;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -792,12 +798,22 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-line bg-surface p-5 shadow-xl"
+        className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-line bg-surface shadow-2xl"
       >
-        <h2 id={titleId} className="mb-3 text-base font-semibold">
-          {title}
-        </h2>
-        {children}
+        <div className="flex gap-4 p-5 sm:p-6">
+          {icon}
+          <div className="min-w-0 flex-1">
+            <h2 id={titleId} className="text-base font-semibold leading-6">
+              {title}
+            </h2>
+            <div className="mt-1.5">{children}</div>
+          </div>
+        </div>
+        {footer ? (
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-surface-2 px-5 py-3 sm:px-6">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -831,43 +847,95 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   const [typed, setTyped] = useState("");
+  const formId = useId();
   useEffect(() => {
     if (!open) setTyped("");
   }, [open]);
   const blocked = confirmText !== undefined && typed.trim() !== confirmText;
+  const danger = tone === "danger";
   return (
-    <Modal open={open} title={title} onClose={onCancel}>
+    <Modal
+      open={open}
+      title={title}
+      onClose={onCancel}
+      icon={
+        danger ? (
+          <span
+            aria-hidden="true"
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--dg-danger)_12%,transparent)] text-error-text"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="size-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+              <path d="M12 9v4M12 17h.01" />
+            </svg>
+          </span>
+        ) : null
+      }
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            variant={tone}
+            disabled={blocked || pending}
+            className={cx(
+              blocked &&
+                "disabled:cursor-not-allowed disabled:border disabled:border-line disabled:bg-surface disabled:text-muted disabled:opacity-100",
+            )}
+          >
+            {pending ? "Working…" : confirmLabel}
+          </Button>
+        </>
+      }
+    >
       <form
+        id={formId}
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           if (!blocked && !pending) onConfirm();
         }}
       >
-        <div className="space-y-2 text-sm text-muted">{children}</div>
+        <div className="space-y-2 text-sm leading-6 text-muted">{children}</div>
         {confirmText !== undefined ? (
           // biome-ignore lint/a11y/noLabelWithoutControl: the input is inside the label
-          <label className="block space-y-1 text-sm">
-            <span>
-              Type <strong className="font-mono text-text">{confirmText}</strong> to confirm
+          <label className="block space-y-1.5 text-sm">
+            <span className="text-muted">
+              To confirm, type{" "}
+              <code className="rounded border border-line bg-surface-2 px-1.5 py-0.5 font-mono text-[13px] text-text">
+                {confirmText}
+              </code>{" "}
+              below
             </span>
             <Input
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
               autoComplete="off"
               spellCheck={false}
+              aria-describedby={blocked && typed ? `${formId}-hint` : undefined}
+              style={{ outline: "none" }}
+              className="h-10 border-line-strong focus:border-[color-mix(in_srgb,var(--dg-text)_35%,transparent)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--dg-text)_8%,transparent)]"
             />
+            {blocked && typed ? (
+              <span id={`${formId}-hint`} className="block text-xs text-muted">
+                Keep typing: it must match exactly.
+              </span>
+            ) : null}
           </label>
         ) : null}
         {error ? <Notice tone="error">{error.message}</Notice> : null}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" variant={tone} disabled={blocked || pending}>
-            {pending ? "Working…" : confirmLabel}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

@@ -211,11 +211,15 @@ describe("danger zone", () => {
     const dialog = screen.getByRole("dialog", { name: "Delete example.com?" });
     const confirm = within(dialog).getByRole("button", { name: "Delete website" });
     expect(confirm).toBeDisabled();
-    await userEvent.type(within(dialog).getByRole("textbox"), "example.co");
+    const field = within(dialog).getByRole("textbox", { name: /To confirm, type example\.com/ });
+    await userEvent.type(field, "example.co");
     expect(confirm).toBeDisabled();
-    await userEvent.type(within(dialog).getByRole("textbox"), "m");
+    expect(field).toHaveAccessibleDescription("Keep typing: it must match exactly.");
+    await userEvent.type(field, "m");
     expect(confirm).toBeEnabled();
-    await userEvent.click(confirm);
+    expect(within(dialog).queryByText(/Keep typing/)).not.toBeInTheDocument();
+    // Enter in the field submits, like the button (which sits in the footer, outside the form).
+    await userEvent.type(field, "{Enter}");
     await waitFor(() => expect(state.websites.map((w) => w._id)).not.toContain(SITE));
     await waitFor(() => expect(window.location.pathname).toBe(`/app/${SITE2}/overview`));
   });
