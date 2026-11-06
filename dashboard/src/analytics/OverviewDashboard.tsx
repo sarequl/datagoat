@@ -11,10 +11,10 @@ import { adsTab, locationTabs, pageTabs, sourceTabs, systemTabs } from "./cards"
 import { ActivityHeatmap } from "./components/ActivityHeatmap";
 import { BreakdownCard } from "./components/BreakdownCard";
 import { FilterBar } from "./components/FilterBar";
-import { type ExtraTile, KpiRow } from "./components/KpiRow";
+import { type ExtraTile, KpiRow, MORE_METRICS_ID, moreMetricsCount } from "./components/KpiRow";
 import { type ChartMarker, MainChart } from "./components/MainChart";
 import { PeriodSelector } from "./components/PeriodSelector";
-import { EmptyState, ErrorState, Segmented, Skeleton } from "./components/primitives";
+import { EmptyState, ErrorState, Skeleton } from "./components/primitives";
 import {
   useAdsSummary,
   useCommits,
@@ -35,6 +35,10 @@ import { addDays, endOfMonth, ymdInTz } from "./lib/tz";
 import { OverviewHub } from "./OverviewHub";
 import { showRevenue, sourceKey, useAnalytics, useSource } from "./source";
 import { type DashboardState, rangeToParams, useDashboardState } from "./state";
+
+const TAG = "rounded-md px-2 py-[3px] text-xs disabled:opacity-40";
+const TAG_ON = "bg-surface text-text shadow-[0_0_0_1px_var(--dg-line-strong)]";
+const TAG_OFF = "bg-surface-2 text-muted hover:text-text";
 
 export const TIMESERIES_FIELDS =
   "visitors,new_visitors,returning_visitors,pageviews,sessions,revenue,payments,conversion_rate,bounce_rate,avg_session_duration,refunds";
@@ -460,6 +464,9 @@ export function OverviewDashboard({
   const prevGoalRow = prevGoals.data?.data.find((g) => g.goal === kpiGoalName);
   const mode = state.metric === "visitors" ? "visitors" : (state.metric ?? "default");
 
+  const [moreMetrics, setMoreMetrics] = useState(() => readPref<boolean>("kpi:more", false));
+  const moreCount = ov ? moreMetricsCount(money, Boolean(kpiGoalName), extras.length) : 0;
+
   const drill = (p: TimeseriesPoint) => {
     const day = ymdInTz(Date.parse(p.timestamp), state.timezone);
     if (state.interval === "day") state.setPeriod({ key: "custom", from: day, to: day });
@@ -495,35 +502,52 @@ export function OverviewDashboard({
 
   return (
     <div className="space-y-4">
-      <AnalyticsHeader
-        title={title}
-        logo={logo}
-        state={state}
-        segments={source.kind === "site"}
-        actions={
-          siteId && liveCount.data !== undefined ? (
-            <Link
-              to="/app/$siteId/realtime"
-              params={{ siteId }}
-              title="Open the live map (M)"
-              data-testid="kpi-live"
-              className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-sm text-muted hover:text-text"
-            >
-              <span
-                aria-hidden="true"
-                className={cx(
-                  "size-2 rounded-full",
-                  liveCount.data > 0 ? "animate-pulse bg-success" : "bg-muted",
-                )}
-              />
-              <span className="font-semibold tabular-nums text-text">
-                {formatNumber(liveCount.data)}
-              </span>
-              online now
-            </Link>
-          ) : null
-        }
-      />
+      <h1 className={siteId ? "sr-only" : "flex min-w-0 items-center gap-2 text-xl font-semibold"}>
+        {logo}
+        <span className="truncate">{title}</span>
+      </h1>
+      <div className="flex flex-wrap items-center gap-2" data-testid="overview-toolbar">
+        <PeriodSelector state={state} />
+        <button
+          type="button"
+          aria-pressed={state.compare}
+          disabled={!state.prevParams}
+          onClick={() => state.update({ compare: state.compare ? undefined : true })}
+          className={cx(
+            "inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3 text-[13.5px] font-medium disabled:opacity-40",
+            state.compare
+              ? "border-line-strong bg-surface text-text"
+              : "border-dashed border-line-strong text-muted hover:text-text",
+          )}
+        >
+          <span aria-hidden="true">{state.compare ? "✓" : "+"}</span>
+          Compare
+        </button>
+        <FilterBar state={state} segments={source.kind === "site"} />
+        {siteId && liveCount.data !== undefined ? (
+          <Link
+            to="/app/$siteId/realtime"
+            params={{ siteId }}
+            title="Open the live map (M)"
+            data-testid="kpi-live"
+            className="ml-auto inline-flex h-[34px] items-center gap-2 rounded-full border border-line bg-surface px-3 text-[13px] text-muted hover:text-text"
+          >
+            <span
+              aria-hidden="true"
+              className={cx(
+                "size-[7px] rounded-full",
+                liveCount.data > 0
+                  ? "bg-success shadow-[0_0_0_3px_color-mix(in_srgb,var(--dg-success)_22%,transparent)]"
+                  : "bg-muted",
+              )}
+            />
+            <span className="font-semibold tabular-nums text-text">
+              {formatNumber(liveCount.data)}
+            </span>
+            online now
+          </Link>
+        ) : null}
+      </div>
       {overview.error ? <ErrorState error={overview.error} /> : null}
       {siteId && ov && ov.visitors === 0 && ov.pageviews === 0 ? (
         <section
@@ -550,11 +574,10 @@ export function OverviewDashboard({
           </Link>
         </section>
       ) : null}
-      <div className="rounded-lg border border-line bg-surface">
+      <div className="rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <KpiRow
           overview={ov}
           prevOverview={prevOv}
-          points={points}
           currency={ov?.currency ?? source.currency}
           showRevenue={money}
           metric={state.metric}
@@ -573,90 +596,9 @@ export function OverviewDashboard({
               : null
           }
           extras={extras}
+          more={moreMetrics}
         />
-        <section className="p-4" aria-label="Main chart">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Segmented
-                label="Granularity"
-                value={state.interval}
-                onChange={(interval) => state.update({ interval })}
-                options={state.intervals.map((i) => ({ value: i, label: INTERVAL_LABELS[i] }))}
-              />
-              <button
-                type="button"
-                aria-pressed={state.compare}
-                disabled={!state.prevParams}
-                onClick={() => state.update({ compare: state.compare ? undefined : true })}
-                className={cx(
-                  "rounded-md border px-2 py-1 text-xs disabled:opacity-40",
-                  state.compare
-                    ? "border-primary text-primary-text"
-                    : "border-line text-muted hover:text-text",
-                )}
-              >
-                Compare
-              </button>
-              {state.metric ? (
-                <button
-                  type="button"
-                  onClick={() => state.update({ metric: undefined })}
-                  className="rounded-md px-2 py-1 text-xs text-muted hover:text-text"
-                >
-                  ← Visitors / Revenue
-                </button>
-              ) : null}
-            </div>
-            {site ? (
-              // biome-ignore lint/a11y/useSemanticElements: a group of toggle buttons
-              <div
-                role="group"
-                aria-label="Chart markers"
-                className="flex items-center gap-1 text-xs"
-              >
-                {(
-                  [
-                    ["notes", "📝 Notes"],
-                    ["commits", "GitHub"],
-                    ["mentions", "𝕏 Mentions"],
-                  ] as const
-                ).map(([k, label]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    aria-pressed={markerKinds[k]}
-                    onClick={() => toggleMarker(k)}
-                    className={cx(
-                      "rounded-md border px-2 py-1",
-                      markerKinds[k]
-                        ? "border-line-strong text-text"
-                        : "border-line text-muted line-through",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-                {markerKinds.commits ? (
-                  <select
-                    aria-label="Commit type"
-                    value={commitPrefix}
-                    onChange={(e) => {
-                      setCommitPrefix(e.target.value);
-                      writePref(`commit-prefix:${sourceKey(source)}`, e.target.value);
-                    }}
-                    className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
-                  >
-                    <option value="">All commits</option>
-                    <option value="feat:">feat:</option>
-                    <option value="fix:">fix:</option>
-                    <option value="perf:">perf:</option>
-                    <option value="refactor:">refactor:</option>
-                    <option value="docs:">docs:</option>
-                  </select>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+        <section className="px-4 pb-2 pt-3 md:px-[18px]" aria-label="Main chart">
           {ts.error ? (
             <ErrorState error={ts.error} />
           ) : ts.isPending ? (
@@ -675,6 +617,87 @@ export function OverviewDashboard({
               markers={markers}
               loading={ts.isFetching && ts.isPlaceholderData}
               onDrill={drill}
+              toolbar={
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  {moreCount ? (
+                    <button
+                      type="button"
+                      aria-expanded={moreMetrics}
+                      aria-controls={MORE_METRICS_ID}
+                      onClick={() => {
+                        setMoreMetrics(!moreMetrics);
+                        writePref("kpi:more", !moreMetrics);
+                      }}
+                      className={cx(TAG, moreMetrics ? TAG_ON : TAG_OFF)}
+                    >
+                      {moreMetrics ? "Fewer metrics" : `More metrics (${moreCount})`}
+                    </button>
+                  ) : null}
+                  {state.metric ? (
+                    <button
+                      type="button"
+                      onClick={() => state.update({ metric: undefined })}
+                      className={cx(TAG, "text-muted hover:text-text")}
+                    >
+                      ← Visitors / Revenue
+                    </button>
+                  ) : null}
+                  {/* biome-ignore lint/a11y/useSemanticElements: a group of toggle buttons */}
+                  <div role="group" aria-label="Granularity" className="flex gap-1.5">
+                    {state.intervals.map((i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        aria-pressed={state.interval === i}
+                        onClick={() => state.update({ interval: i })}
+                        className={cx(TAG, state.interval === i ? TAG_ON : TAG_OFF)}
+                      >
+                        {INTERVAL_LABELS[i]}
+                      </button>
+                    ))}
+                  </div>
+                  {site ? (
+                    // biome-ignore lint/a11y/useSemanticElements: a group of toggle buttons
+                    <div role="group" aria-label="Chart markers" className="flex gap-1.5">
+                      {(
+                        [
+                          ["notes", "Notes"],
+                          ["commits", "Commits"],
+                          ["mentions", "Mentions"],
+                        ] as const
+                      ).map(([k, label]) => (
+                        <button
+                          key={k}
+                          type="button"
+                          aria-pressed={markerKinds[k]}
+                          onClick={() => toggleMarker(k)}
+                          className={cx(TAG, markerKinds[k] ? TAG_ON : TAG_OFF)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      {markerKinds.commits ? (
+                        <select
+                          aria-label="Commit type"
+                          value={commitPrefix}
+                          onChange={(e) => {
+                            setCommitPrefix(e.target.value);
+                            writePref(`commit-prefix:${sourceKey(source)}`, e.target.value);
+                          }}
+                          className="rounded-md bg-surface-2 px-1.5 py-[3px] text-xs text-muted"
+                        >
+                          <option value="">All commits</option>
+                          <option value="feat:">feat:</option>
+                          <option value="fix:">fix:</option>
+                          <option value="perf:">perf:</option>
+                          <option value="refactor:">refactor:</option>
+                          <option value="docs:">docs:</option>
+                        </select>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              }
               onAddNote={
                 site?.canWrite
                   ? (timestamp, text) => noteMutations.create.mutateAsync({ timestamp, text })

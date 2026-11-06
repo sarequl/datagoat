@@ -16,6 +16,17 @@ describe("overview", () => {
     expect(visitors).toHaveTextContent(/new · .* returning/);
     // No manual refresh button: data refetches on its own.
     expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+    // Six headline tiles; the rest open from "More metrics" in the chart toolbar.
+    expect(
+      within(screen.getByRole("list", { name: "Key metrics" })).getAllByRole("listitem"),
+    ).toHaveLength(6);
+    const moreButton = await screen.findByRole("button", { name: /^More metrics \(\d+\)$/ });
+    expect(moreButton).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(moreButton);
+    expect(screen.getByRole("button", { name: "Fewer metrics" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
     for (const k of [
       "revenue",
       "payments",
@@ -89,6 +100,7 @@ describe("overview", () => {
       "listitem",
     );
     expect(tiles[1]).toBe(mrr.closest("li"));
+    await userEvent.click(await screen.findByRole("button", { name: /^More metrics/ }));
     expect(await screen.findByTestId("kpi-roas")).toHaveTextContent(/ROAS\s*2\.80x/);
     expect(screen.getByTestId("kpi-roas")).toHaveTextContent("$500 ad spend");
 
@@ -208,7 +220,7 @@ describe("overview", () => {
     await userEvent.click(screen.getByRole("button", { name: "Compare" }));
     await waitFor(() => expect(search().get("compare")).toBe("true"));
     await waitFor(() => expect(screen.getByTestId("previous-line")).toBeInTheDocument());
-    expect(screen.getByTestId("kpi-sessions")).toHaveTextContent(/was /);
+    expect(screen.getByTestId("kpi-avg_session_duration")).toHaveTextContent(/was /);
   });
 
   it("switches granularity", async () => {

@@ -83,6 +83,7 @@ export function MainChart({
   onDrill,
   renderMarkers,
   loading,
+  toolbar,
 }: {
   points: TimeseriesPoint[];
   prevPoints?: TimeseriesPoint[];
@@ -98,6 +99,8 @@ export function MainChart({
   onDrill?: (point: TimeseriesPoint) => void;
   renderMarkers?: (items: ChartMarker[], close: () => void) => ReactNode;
   loading?: boolean;
+  /** Controls shown at the right of the legend row (granularity, marker toggles). */
+  toolbar?: ReactNode;
 }) {
   const { ref, width } = useWidth<HTMLDivElement>(720);
   const gradId = useId().replace(/:/g, "");
@@ -261,46 +264,49 @@ export function MainChart({
 
   return (
     <div className="relative">
-      <div
-        className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted"
-        aria-hidden="true"
-      >
-        {metric ? (
-          <span className="flex items-center gap-1.5">
-            <span className="h-0.5 w-4 bg-visitors" /> {metric.label}
-          </span>
-        ) : mode === "visitors" ? (
-          <>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <div
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted"
+          aria-hidden="true"
+        >
+          {metric ? (
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-visitors" /> New
+              <span className="h-0.5 w-4 bg-visitors" /> {metric.label}
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-sm bg-accent" /> Returning
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="flex items-center gap-1.5">
-              <span className="h-0.5 w-4 bg-visitors" /> Visitors
-            </span>
-            {revenueOn ? (
+          ) : mode === "visitors" ? (
+            <>
               <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-sm" style={{ background: revenueColor }} />{" "}
-                Revenue
+                <span className="size-2.5 rounded-sm bg-visitors" /> New
               </span>
-            ) : null}
-            {revenueOn && series.refunds?.some((v) => v > 0) ? (
               <span className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-sm bg-muted/45" /> Refunds
+                <span className="size-2.5 rounded-sm bg-accent" /> Returning
               </span>
-            ) : null}
-          </>
-        )}
-        {prev ? (
-          <span className="flex items-center gap-1.5">
-            <span className="w-4 border-t border-dashed border-muted" /> Previous period
-          </span>
-        ) : null}
+            </>
+          ) : (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span className="h-0.5 w-4 bg-visitors" /> Visitors
+              </span>
+              {revenueOn ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-sm" style={{ background: revenueColor }} />{" "}
+                  Revenue
+                </span>
+              ) : null}
+              {revenueOn && series.refunds?.some((v) => v > 0) ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="size-2.5 rounded-sm bg-muted/45" /> Refunds
+                </span>
+              ) : null}
+            </>
+          )}
+          {prev ? (
+            <span className="flex items-center gap-1.5">
+              <span className="w-4 border-t border-dashed border-muted" /> Previous period
+            </span>
+          ) : null}
+        </div>
+        {toolbar ? <div className="ml-auto">{toolbar}</div> : null}
       </div>
       <div
         ref={ref}

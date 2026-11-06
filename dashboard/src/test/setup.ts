@@ -29,6 +29,8 @@ globalThis.IntersectionObserver = VisibleObserver as unknown as typeof Intersect
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   cleanup();
+  // Preferences saved by one test (open panels, hidden cards) must not leak into the next.
+  window.localStorage.clear();
   server.resetHandlers();
   resetMockState();
   window.history.replaceState(null, "", "/");

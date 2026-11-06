@@ -17,18 +17,22 @@ card, or use its *Move up* / *Move down* buttons, to change the order; it is sav
 
 ## Overview
 
-- **KPI row.** Visitors (with new and returning), revenue, payments, revenue per visitor, conversion
-  rate, sessions, pageviews, bounce rate and session time. Each tile shows the change against the
-  previous period of the same length (the previous calendar month for "Last month") and a trend
-  sparkline. Bounce rate counts a fall as good news. The tiles and the main chart share one card.
-  **N online now** next to the period opens the live map (shortcut `M`).
+- **Toolbar.** The period (with previous and next arrows), *Compare*, *Filter* and **N online now**,
+  which opens the live map (shortcut `M`).
+- **KPI row.** Six headline tiles in one card with the main chart: visitors, revenue, conversion
+  (or the #1 KPI goal), revenue per visitor, bounce rate and session time, each with the change
+  against the previous period of the same length (the previous calendar month for "Last month";
+  with *Compare* on, the previous value). Bounce rate counts a fall as good news. Hovering
+  Visitors shows new and returning visitors. *More metrics* in the chart toolbar shows the rest:
+  payments, sessions, pageviews and, when available, MRR and ROAS. Without revenue (a share link
+  that hides it) the row shows visitors, pageviews, sessions, bounce rate and session time.
 - **MRR and ROAS.** When payment providers report subscriptions, an **MRR** tile shows the current
   monthly recurring revenue of active and past-due subscriptions (right after Visitors when the
   website's headline revenue metric is MRR, Settings → Attribution & revenue). With Meta Ads
   connected, a **ROAS** tile shows return on ad spend for the period, with spend and revenue.
 - **#1 KPI.** When a goal is set as the website's #1 KPI (Goals → a goal → *Set as #1 KPI*, or
-  website settings), it gets a tile with converting visitors and conversion rate, and every
-  breakdown card can switch its third column from revenue to that goal.
+  website settings), its tile shows converting visitors and their change in the headline row, and
+  every breakdown card can switch its third column from revenue to that goal.
 - **Main chart.** Visitors as a line, revenue as bars in the website's KPI colour scheme, with
   refunded amounts greyed out on top of each bar (timeseries field `refunds`). Choose
   hourly, daily, weekly or monthly granularity (what fits the period), and **Compare** to draw the
