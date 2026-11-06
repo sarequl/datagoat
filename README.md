@@ -16,15 +16,12 @@ One Worker, one D1 database, one script tag. MIT licensed.
 > **Status: pre-release.** Every feature below is built and covered by automated tests, and [`docs/PARITY.md`](docs/PARITY.md) tracks each DataFast feature in detail. Integrations with outside services (payment providers, email, X, Reddit, GitHub, Google, Meta, Expo push) are tested against mocked APIs only, so treat them as beta until you have verified them with your own accounts. Expect breaking changes until the first release.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/overview-dark.webp">
-    <img src="docs/images/overview-light.webp" alt="The DataGoat Overview: visitors, revenue, the #1 KPI goal and other key numbers above a visitors and revenue chart, with source and page breakdowns showing the revenue each one brings." width="960">
-  </picture>
+  <img src="docs/images/overview.webp" alt="The DataGoat Overview: visitors, revenue, the #1 KPI goal and other key numbers above a visitors and revenue chart, with source and page breakdowns showing the revenue each one brings." width="960">
 </p>
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/images/realtime.webp" alt="Realtime: a 3D globe of live visitors coloured by how likely they are to buy, next to a list of who is on the site now."></td>
+    <td width="33%"><img src="docs/images/realtime.webp" alt="Realtime: a 3D globe of live visitors coloured by how likely they are to buy, with a live summary and the list of who is on the site now."></td>
     <td width="33%"><img src="docs/images/revenue.webp" alt="Revenue: revenue, MRR, renewals and refunds, with revenue broken down by channel and by referrer."></td>
     <td width="33%"><img src="docs/images/integrations.webp" alt="Integrations in Settings: Stripe connected, with Lemon Squeezy, Polar, Paddle, Dodo Payments, Creem, Shopify and WooCommerce ready to connect."></td>
   </tr>
