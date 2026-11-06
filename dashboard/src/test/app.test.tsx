@@ -138,6 +138,19 @@ describe("dashboard shell", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("npm run reset-password");
   });
 
+  it("says when a website or page does not exist, with a way back", async () => {
+    resetMockState({ signedIn: true });
+    renderApp("/app/0000000000000000000000ff/overview");
+    expect(
+      await screen.findByRole("heading", { name: "Website not found", level: 1 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "All websites" })).toHaveAttribute(
+      "href",
+      "/app/websites",
+    );
+  });
+
   it("renders the placeholder for pages that are not built yet", async () => {
     // Pages are replaced by their teams; the placeholder component itself stays covered here.
     render(

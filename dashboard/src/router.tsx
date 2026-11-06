@@ -16,6 +16,7 @@ import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  Link,
   lazyRouteComponent,
   Navigate,
   Outlet,
@@ -25,7 +26,6 @@ import {
 } from "@tanstack/react-router";
 import { useMe } from "./api/hooks";
 import { AppShell } from "./components/AppShell";
-import { PagePlaceholder } from "./components/PagePlaceholder";
 import { PageLoader } from "./components/ui";
 import { SITE_PAGES } from "./nav";
 
@@ -44,7 +44,7 @@ export interface RouterContext {
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: () => <Outlet />,
   notFoundComponent: () => (
-    <PagePlaceholder title="Page not found" description="This page does not exist." />
+    <NotFound title="Page not found" text="There is no page at this address." />
   ),
 });
 
@@ -150,15 +150,33 @@ const accountRoute = createRoute({
   component: page("account/AccountPage"),
 });
 
+/** Not-found screen with a way back (every signed-in user can open All websites). */
+function NotFound({ title, text }: { title: string; text: string }) {
+  return (
+    <main className="mx-auto max-w-md px-4 py-24 text-center">
+      <h1 className="text-xl font-semibold">{title}</h1>
+      <p className="mt-2 text-sm text-muted">{text}</p>
+      <Link
+        to="/app/websites"
+        className="mt-5 inline-flex rounded-lg border border-line-strong bg-surface px-3.5 py-1.5 text-sm font-medium hover:bg-surface-2"
+      >
+        All websites
+      </Link>
+    </main>
+  );
+}
+
 function SiteLayout() {
   const me = useMe();
   const { siteId } = useParams({ strict: false }) as { siteId: string };
   const websites = me.data?.websites ?? [];
   if (!websites.some((w) => w._id === siteId)) {
+    // A website added a moment ago may not be in the account yet: wait for the refresh.
+    if (me.isPending || me.isFetching) return <PageLoader />;
     return (
-      <PagePlaceholder
+      <NotFound
         title="Website not found"
-        description="You do not have access to this website."
+        text="This website does not exist, or you do not have access to it."
       />
     );
   }

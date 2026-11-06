@@ -88,9 +88,12 @@ export function useCreateWebsite() {
   return useMutation({
     mutationFn: async (body: CreateWebsiteRequest) =>
       (await api.post<CreatedWebsite[]>("/api/v1/admin/websites", body)).data[0] as CreatedWebsite,
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.websites });
-      void qc.invalidateQueries({ queryKey: queryKeys.me });
-    },
+    // Returned, so callers' onSuccess (which opens the new website) runs only once the refreshed
+    // account lists it; otherwise its pages would briefly say it does not exist.
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.websites }),
+        qc.invalidateQueries({ queryKey: queryKeys.me }),
+      ]),
   });
 }

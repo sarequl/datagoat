@@ -63,6 +63,29 @@ describe("onboarding: add a website", () => {
     expect(screen.getByLabelText("Domain")).toHaveAttribute("aria-invalid", "true");
   });
 
+  it("opens the new website without a 'Website not found' flash", async () => {
+    resetMockState({ signedIn: true });
+    // A slow account refresh: the new website must not open before it is listed.
+    let meCalls = 0;
+    server.events.on("request:start", ({ request }) => {
+      if (new URL(request.url).pathname === "/api/auth/me") meCalls += 1;
+    });
+    renderApp("/app/new-site");
+    await userEvent.type(await screen.findByLabelText("Domain"), "fresh-site.io");
+    const before = meCalls;
+    server.use(
+      http.get("/api/auth/me", async () => {
+        await new Promise((r) => setTimeout(r, 300));
+        return undefined;
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Add website" }));
+    await waitFor(() => expect(window.location.pathname).toMatch(/\/settings\/install$/));
+    expect(meCalls).toBeGreaterThan(before);
+    expect(screen.queryByText("Website not found")).not.toBeInTheDocument();
+    expect(await screen.findByText(/is added\. Three short steps/)).toBeInTheDocument();
+  });
+
   it("shows the server's error for a duplicate domain", async () => {
     resetMockState({ signedIn: true });
     renderApp("/app/new-site");
