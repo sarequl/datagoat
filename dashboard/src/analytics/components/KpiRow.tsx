@@ -3,7 +3,6 @@
  * sparkline. Clicking a tile switches the main chart (Visitors → new vs returning, a rate → its
  * trend chart); clicking it again returns to the mixed visitors/revenue chart.
  */
-import { Link } from "@tanstack/react-router";
 import { Fragment } from "react";
 import type { Overview, TimeseriesPoint } from "../../../../shared/api-types";
 import { cx } from "../../components/ui";
@@ -34,15 +33,21 @@ export interface ExtraTile {
   lead?: boolean;
 }
 
+/** Tiles sit in one card, split by hairlines (the right edge is clipped by the wrapper). */
+const CELL = "border-b border-r border-line";
+const LG_COLS: Record<number, string> = {
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-4",
+  5: "lg:grid-cols-5",
+  6: "lg:grid-cols-6",
+};
+
 function ExtraTileItem({ t }: { t: ExtraTile }) {
   return (
-    <li>
-      <div
-        className="flex h-full flex-col gap-1 rounded-lg border border-line bg-surface p-3"
-        data-testid={`kpi-${t.key}`}
-      >
+    <li className={CELL}>
+      <div className="flex h-full flex-col gap-1 px-4 py-3.5" data-testid={`kpi-${t.key}`}>
         <span className="text-xs font-medium text-muted">{t.label}</span>
-        <span className="text-xl font-semibold tabular-nums">{t.value}</span>
+        <span className="text-[22px] font-semibold leading-tight tabular-nums">{t.value}</span>
         {t.sub ? <span className="text-xs text-muted">{t.sub}</span> : null}
       </div>
     </li>
@@ -76,8 +81,6 @@ export function KpiRow({
   onSelect,
   compare,
   kpiGoal,
-  liveVisitors,
-  realtimeLink,
   revenueColor,
   extras = [],
 }: {
@@ -96,17 +99,15 @@ export function KpiRow({
     prevVisitors: number | null;
     rate: number;
   } | null;
-  liveVisitors?: number | null;
-  realtimeLink?: { siteId: string } | null;
   revenueColor: string;
   extras?: ExtraTile[];
 }) {
   if (!overview) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-busy="true">
+      <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-5" aria-busy="true">
         {Array.from({ length: 5 }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: placeholders
-          <Skeleton key={i} className="h-24" />
+          <Skeleton key={i} className="h-16" />
         ))}
       </div>
     );
@@ -197,11 +198,13 @@ export function KpiRow({
     },
   ];
   const selected = metric ?? "revenue";
+  const count = tiles.length + extras.length;
+  const lg = count <= 6 ? Math.max(3, count) : count % 6 === 0 || count > 10 ? 6 : 5;
   return (
     <div>
       {kpiGoal ? (
         <div
-          className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/40 bg-surface px-4 py-3"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-[color-mix(in_srgb,var(--dg-primary)_6%,transparent)] px-4 py-3"
           data-testid="kpi-goal"
         >
           <div>
@@ -221,91 +224,86 @@ export function KpiRow({
           </div>
         </div>
       ) : null}
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Key metrics">
-        {tiles.map((t, i) => {
-          const isSelected = t.key === "revenue" ? selected === "revenue" : selected === t.key;
-          const tile = (
-            <li key={t.key}>
-              <button
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => onSelect(t.key === "revenue" || isSelected ? null : t.key)}
-                className={cx(
-                  "flex h-full w-full flex-col gap-1 rounded-lg border bg-surface p-3 text-left transition hover:bg-surface-2",
-                  isSelected ? "border-primary" : "border-line",
-                )}
-                data-testid={`kpi-${t.key}`}
-              >
-                <span className="text-xs font-medium text-muted">{t.label}</span>
-                <span className="flex items-end justify-between gap-2">
-                  <span className="text-xl font-semibold tabular-nums">
+      <div className="overflow-hidden">
+        <ul
+          className={cx("-mb-px -mr-px grid grid-cols-2 sm:grid-cols-3", LG_COLS[lg])}
+          aria-label="Key metrics"
+        >
+          {tiles.map((t, i) => {
+            const isSelected = t.key === "revenue" ? selected === "revenue" : selected === t.key;
+            const tile = (
+              <li key={t.key} className={CELL}>
+                <button
+                  type="button"
+                  aria-pressed={isSelected}
+                  onClick={() => onSelect(t.key === "revenue" || isSelected ? null : t.key)}
+                  className={cx(
+                    "relative flex h-full w-full flex-col gap-1 px-4 py-3.5 text-left transition hover:bg-surface-2",
+                    isSelected && "bg-surface-2",
+                  )}
+                  data-testid={`kpi-${t.key}`}
+                >
+                  {isSelected ? (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-primary"
+                    />
+                  ) : null}
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs font-medium text-muted">{t.label}</span>
+                    <span
+                      className={cx(
+                        "hidden shrink-0 opacity-80 sm:block",
+                        !t.color && "text-muted",
+                      )}
+                    >
+                      <Sparkline
+                        values={t.spark}
+                        color={t.color ?? "currentColor"}
+                        width={48}
+                        height={16}
+                      />
+                    </span>
+                  </span>
+                  <span className="text-[22px] font-semibold leading-tight tabular-nums">
                     {formatMetric(t.kind, t.value, currency)}
                   </span>
-                  <span className={cx("shrink-0", !t.color && "text-muted")}>
-                    <Sparkline
-                      values={t.spark}
-                      color={t.color ?? "currentColor"}
-                      width={64}
-                      height={24}
+                  <span className="flex flex-wrap items-center gap-x-2">
+                    <DeltaBadge
+                      value={t.value === null ? null : delta(t.value, t.prev)}
+                      inverse={t.inverse}
                     />
+                    {compare && t.prev !== null ? (
+                      <span className="text-xs text-muted">
+                        was {formatMetric(t.kind, t.prev, currency)}
+                      </span>
+                    ) : null}
                   </span>
-                </span>
-                <span className="flex flex-wrap items-center gap-x-2">
-                  <DeltaBadge
-                    value={t.value === null ? null : delta(t.value, t.prev)}
-                    inverse={t.inverse}
-                  />
-                  {compare && t.prev !== null ? (
-                    <span className="text-xs text-muted">
-                      was {formatMetric(t.kind, t.prev, currency)}
-                    </span>
-                  ) : null}
-                </span>
-                {t.sub ? <span className="text-xs text-muted">{t.sub}</span> : null}
-              </button>
-            </li>
-          );
-          // The headline MRR tile sits right after Visitors.
-          return i === 0 ? (
-            <Fragment key={t.key}>
-              {tile}
-              {extras
-                .filter((e) => e.lead)
-                .map((e) => (
-                  <ExtraTileItem key={e.key} t={e} />
-                ))}
-            </Fragment>
-          ) : (
-            tile
-          );
-        })}
-        {extras
-          .filter((e) => !e.lead)
-          .map((e) => (
-            <ExtraTileItem key={e.key} t={e} />
-          ))}
-        {realtimeLink ? (
-          <li>
-            <Link
-              to="/app/$siteId/realtime"
-              params={{ siteId: realtimeLink.siteId }}
-              className="flex h-full flex-col gap-1 rounded-lg border border-line bg-surface p-3 hover:bg-surface-2"
-              data-testid="kpi-live"
-            >
-              <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                <span className="size-2 animate-pulse rounded-full bg-success" aria-hidden="true" />
-                Visitors now
-              </span>
-              <span className="text-xl font-semibold tabular-nums">
-                {liveVisitors === null || liveVisitors === undefined
-                  ? "–"
-                  : formatNumber(liveVisitors)}
-              </span>
-              <span className="text-xs text-muted">Open the live map (M)</span>
-            </Link>
-          </li>
-        ) : null}
-      </ul>
+                  {t.sub ? <span className="text-xs text-muted">{t.sub}</span> : null}
+                </button>
+              </li>
+            );
+            // The headline MRR tile sits right after Visitors.
+            return i === 0 ? (
+              <Fragment key={t.key}>
+                {tile}
+                {extras
+                  .filter((e) => e.lead)
+                  .map((e) => (
+                    <ExtraTileItem key={e.key} t={e} />
+                  ))}
+              </Fragment>
+            ) : (
+              tile
+            );
+          })}
+          {extras
+            .filter((e) => !e.lead)
+            .map((e) => (
+              <ExtraTileItem key={e.key} t={e} />
+            ))}
+        </ul>
+      </div>
     </div>
   );
 }

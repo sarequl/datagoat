@@ -5,6 +5,7 @@ All notable changes to DataGoat are recorded here. The format follows
 
 ## Unreleased
 
+- Dashboard layout: a top bar (website switcher, Overview, Realtime, Visitors, Settings, ⌘K search, account menu) replaces the sidebar. The Overview is a hub with Conversions (funnel, goals, activity heatmap), Live and revenue, and Growth (mentions, Search Console, AI crawlers, Meta Ads) cards; features that are not set up show a setup card in place that can be hidden and brought back. Settings has its own left menu covering integrations, team, alerts and developer pages. KPI tiles and the main chart share one card; new websites get a banner pointing at the install guide.
 - Ecosystem: `@datagoat/sdk` (browser SDK with React, Next.js and server checkout helpers), `@datagoat/react-native` (screens, goals, identify, offline queue), the WordPress/WooCommerce plugin, the Shopify app (client-credentials or OAuth connect, storefront loader, custom pixel, lifecycle and GDPR webhooks), WooCommerce connect, the Expo mobile companion app with mobile sign-in, push devices and sale/alert pushes, and install and proxy guides for every platform in `docs/install/`.
 - Foundation: single-package Worker (Hono) with Static Assets, D1, KV login throttling, Rate Limiting bindings and one cron; Deploy-to-Cloudflare ready configuration.
 - Complete D1 schema (migration 0001) for every planned feature, within the plan's write budget (3/5/6 rows per pageview path).

@@ -1,13 +1,16 @@
 # Analytics dashboard
 
-The website pages under **Analytics** in the sidebar: Overview, Realtime, Visitors, Goals, Funnels
-and Revenue, plus the public dashboard behind a share link. Every view is a URL: the period,
+The website pages: Overview, Realtime, Visitors, Goals, Funnels and Revenue, plus the public
+dashboard behind a share link. The top bar holds the website switcher, **Overview**, **Realtime**
+(with the number of visitors online), **Visitors** and **Settings**, *Search or jump to…* (⌘K /
+Ctrl K, which lists every page) and the account menu. Goals, Funnels, Revenue and the Growth pages
+open from the Overview's cards and lead back to it. Every view is a URL: the period,
 granularity, comparison, chart metric and filters are query parameters, so you can bookmark or send
 any view.
 
 ## All websites
 
-*All websites* (sidebar, `/app/websites`) lists every website you can open with its visitors,
+*All websites* (website switcher or account menu, `/app/websites`) lists every website you can open with its visitors,
 revenue and live visitors and a visitors trend for the last 24 hours, 7 days or 30 days. Drag a
 card, or use its *Move up* / *Move down* buttons, to change the order; it is saved to your account
 (`PUT /api/v1/admin/account/website-order`) and the website switcher uses it too.
@@ -17,8 +20,8 @@ card, or use its *Move up* / *Move down* buttons, to change the order; it is sav
 - **KPI row.** Visitors (with new and returning), revenue, payments, revenue per visitor, conversion
   rate, sessions, pageviews, bounce rate and session time. Each tile shows the change against the
   previous period of the same length (the previous calendar month for "Last month") and a trend
-  sparkline. Bounce rate counts a fall as good news. **Visitors now** opens the live map (shortcut
-  `M`).
+  sparkline. Bounce rate counts a fall as good news. The tiles and the main chart share one card.
+  **N online now** next to the period opens the live map (shortcut `M`).
 - **MRR and ROAS.** When payment providers report subscriptions, an **MRR** tile shows the current
   monthly recurring revenue of active and past-due subscriptions (right after Visitors when the
   website's headline revenue metric is MRR, Settings → Attribution & revenue). With Meta Ads
@@ -51,6 +54,17 @@ card, or use its *Move up* / *Move down* buttons, to change the order; it is sav
   or name.
 - **Visitor activity.** A weekday × hour heatmap of visitors or pageviews in the website timezone
   (for periods longer than 41 days, the last 41 days).
+- **Hub sections.** Below the breakdowns, signed in:
+  - *Conversions*: a funnel (choose which one when there are several; *Open* goes to its page),
+    the goals card and the visitor activity heatmap.
+  - *Live and revenue*: revenue, MRR, customers and ad return for the period with a revenue trend,
+    and a small live map with the latest visitors.
+  - *Growth*: X and Reddit mentions, Search Console keywords, AI crawlers and bots, and Meta Ads.
+
+  A feature that is not set up shows a setup card in its place (for example *Connect Search
+  Console*, which starts the Google sign-in right there). *Hide this card* hides it in this
+  browser; *Add a card* brings hidden cards back. Cards load their data when they scroll into view.
+- **New websites.** With no visitors in the period, a banner links to the install guide.
 
 ## Period selector
 
@@ -132,4 +146,5 @@ not shared.
 
 Everything works with the keyboard (tabs with arrow keys, dialogs trap focus and close with Esc,
 the chart is a keyboard widget with an equivalent data table for screen readers), text meets WCAG
-AA contrast in both themes, and every page fits a 390 px wide screen without horizontal scrolling.
+AA contrast in both themes, and every page fits a 390 px wide screen without horizontal scrolling (on phones the top bar's links
+and the Settings menu become a scrolling row).

@@ -205,7 +205,12 @@ export function useFunnels(websiteId: string) {
   });
 }
 
-export function useFunnelResult(websiteId: string, funnelId: string, params: Query) {
+export function useFunnelResult(
+  websiteId: string,
+  funnelId: string,
+  params: Query,
+  enabled = true,
+) {
   return useQuery({
     queryKey: ["funnel-result", websiteId, funnelId, params],
     queryFn: async () =>
@@ -215,6 +220,7 @@ export function useFunnelResult(websiteId: string, funnelId: string, params: Que
           ...params,
         })
       )[0] as FunnelResult,
+    enabled: enabled && Boolean(funnelId),
     placeholderData: (prev) => prev,
   });
 }

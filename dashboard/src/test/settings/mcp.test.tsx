@@ -35,8 +35,8 @@ describe("AI assistants (MCP) page", () => {
       expect(link).toHaveAttribute("href", `/app/${SITE}/keys`);
     }
     expect(screen.getByRole("heading", { name: "Connected AI apps" })).toBeInTheDocument();
-    // Listed under Developers in the sidebar.
-    const nav = screen.getByRole("navigation", { name: "Main" });
+    // Listed under Developers in the Settings menu.
+    const nav = screen.getByRole("navigation", { name: "Settings sections" });
     expect(within(nav).getByRole("link", { name: "AI assistants (MCP)" })).toHaveAttribute(
       "aria-current",
       "page",

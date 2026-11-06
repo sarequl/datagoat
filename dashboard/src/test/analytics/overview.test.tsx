@@ -30,7 +30,7 @@ describe("overview", () => {
     }
     await waitFor(() => expect(visitors).toHaveTextContent(/[↑↓→]/));
     expect(await screen.findByTestId("kpi-goal")).toHaveTextContent("Signed up");
-    expect(await screen.findByTestId("kpi-live")).toHaveTextContent(/Visitors now\s*\d+/);
+    expect(await screen.findByTestId("kpi-live")).toHaveTextContent(/\d+\s*online now/);
     expect(
       await screen.findByRole("slider", { name: /Visitors and revenue over time/ }),
     ).toBeInTheDocument();

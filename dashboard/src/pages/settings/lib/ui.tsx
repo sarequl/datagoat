@@ -2,7 +2,7 @@
  * Building blocks for the settings, admin and account pages: layout with section tabs, switches,
  * radio cards, list editors, copy buttons, dialogs, meters. All use the design tokens.
  */
-import { Link } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import {
   cloneElement,
   type KeyboardEvent,
@@ -42,7 +42,10 @@ export function PageHeader({
   );
 }
 
-/** Website settings pages: heading plus the section tabs (nav.ts SETTINGS_TABS). */
+/**
+ * Website settings pages (settings/*): the section's heading. The Settings left menu comes from
+ * the app shell (SettingsFrame).
+ */
 export function SettingsLayout({
   siteId,
   domain,
@@ -52,28 +55,12 @@ export function SettingsLayout({
   domain?: string;
   children: ReactNode;
 }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const tab = SETTINGS_TABS.find((t) => pathname === `/app/${siteId}/${t.path}`);
+  const title = tab?.navLabel ?? tab?.label ?? "Settings";
   return (
     <div className="space-y-5">
-      <PageHeader title="Settings" description={domain ? `Website settings for ${domain}` : null} />
-      <nav aria-label="Settings sections" className="border-b border-line">
-        <ul className="-mb-px flex flex-wrap gap-x-1">
-          {SETTINGS_TABS.map((tab) => (
-            <li key={tab.path}>
-              <Link
-                to={`/app/$siteId/${tab.path}`}
-                params={{ siteId }}
-                className="inline-block border-b-2 border-transparent px-3 py-2 text-sm text-muted hover:text-text"
-                activeProps={{
-                  className: "border-primary! font-medium text-primary-text!",
-                  "aria-current": "page",
-                }}
-              >
-                {tab.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <PageHeader title={title} description={domain ? `Website settings for ${domain}` : null} />
       {children}
     </div>
   );

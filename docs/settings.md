@@ -1,7 +1,9 @@
 # Website settings, team, keys and integrations
 
-Everything here is in the dashboard under the **Website** group of the sidebar, plus **Account** at
-the bottom. Owners can change everything. Members can change everything except the team and
+Everything here is under **Settings** in the top bar, which has its own menu: *Website* (General,
+Installation, Tracking & privacy, Exclusions, Attribution & revenue), *Data* (Integrations, Import,
+Sharing, Usage & data), *People* (Team, Alerts), *Developers* (API keys, AI assistants (MCP), API
+playground) and *Delete website*. **Account** is in the account menu. Owners can change everything. Members can change everything except the team and
 deleting the website. Viewers see the same pages read-only.
 
 ## Settings
@@ -42,7 +44,7 @@ only see them.
 
 ## API playground
 
-*API playground* (Website section of the sidebar) tries any analytics, revenue, visitors or
+*API playground* (Settings → Developers) tries any analytics, revenue, visitors or
 mentions endpoint on the current website without code, like DataFast's docs playground: choose the
 endpoint, the dates and extra parameters (`fields`, `interval`, `limit`, `filter_*` …), send it with
 your dashboard session and read the JSON, then copy the matching `curl` command for a `dg_` key.

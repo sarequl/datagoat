@@ -19,7 +19,7 @@ test("first-run setup on the real Worker creates the owner and website", async (
   await page.getByLabel(/^Password/).fill("an-e2e-password");
   await page.getByLabel(/First website/).fill("example.com");
   await page.getByRole("button", { name: "Create owner account" }).click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Installation", level: 1 })).toBeVisible();
   await expect(
     page.getByRole("combobox", { name: "Website" }).locator("option:checked"),
   ).toHaveText("example.com");

@@ -2,11 +2,11 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
-import { isActive } from "../components/AppShell";
+import { isActive, topLinkFor } from "../components/AppShell";
 import { type Command, filterCommands } from "../components/CommandMenu";
 import { server } from "../mocks/node";
 import { resetMockState } from "../mocks/state";
-import { type NavItem, SITE_PAGES } from "../nav";
+import { inSettings, type NavItem, SETTINGS_MENU, SITE_PAGES } from "../nav";
 import { renderApp } from "./render";
 
 const SITE = "6728f0a0a1b2c3d4e5f6a001";
@@ -16,24 +16,40 @@ const open = (path: string) => {
 };
 const nav = () => screen.getByRole("navigation", { name: "Main" });
 
-describe("sidebar", () => {
-  it("opens the group of the current page and marks the page", async () => {
+describe("top bar and settings menu", () => {
+  it("marks the section of the current page and lists Settings in its own menu", async () => {
     open("settings/tracking");
-    expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
-    const settings = within(nav()).getByRole("button", { name: "Settings" });
-    expect(settings).toHaveAttribute("aria-expanded", "true");
-    // Every settings tab highlights General.
-    expect(within(nav()).getByRole("link", { name: "General" })).toHaveAttribute(
+    expect(
+      await screen.findByRole("heading", { name: "Tracking & privacy", level: 1 }),
+    ).toBeInTheDocument();
+    const settings = within(nav()).getByRole("link", { name: "Settings" });
+    expect(settings).toHaveAttribute("data-active");
+    expect(settings).not.toHaveAttribute("aria-current");
+    const menu = screen.getByRole("navigation", { name: "Settings sections" });
+    expect(within(menu).getByRole("link", { name: "Tracking & privacy" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(within(nav()).getByRole("button", { name: "Developers" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
-    await userEvent.click(within(nav()).getByRole("link", { name: "Team" }));
+    // Integrations, developer pages and the rest of the old sidebar live in the Settings menu.
+    for (const label of ["Integrations", "API keys", "AI assistants (MCP)", "Team", "Usage & data"])
+      expect(within(menu).getByRole("link", { name: label })).toBeInTheDocument();
+    await userEvent.click(within(menu).getByRole("link", { name: "Team" }));
     expect(await screen.findByRole("heading", { name: "Team", level: 1 })).toBeInTheDocument();
-    expect(within(nav()).getByRole("link", { name: "Team" })).toHaveAttribute(
+    expect(
+      within(screen.getByRole("navigation", { name: "Settings sections" })).getByRole("link", {
+        name: "Team",
+      }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("files analytics pages under Overview with a way back", async () => {
+    open("goals");
+    expect(await screen.findByRole("heading", { name: "Goals", level: 1 })).toBeInTheDocument();
+    expect(within(nav()).getByRole("link", { name: "Overview" })).toHaveAttribute("data-active");
+    expect(screen.queryByRole("navigation", { name: "Settings sections" })).not.toBeInTheDocument();
+    await userEvent.click(within(screen.getByRole("main")).getByRole("link", { name: "Overview" }));
+    expect(await screen.findByRole("heading", { name: "Overview", level: 1 })).toBeInTheDocument();
+    expect(within(nav()).getByRole("link", { name: "Overview" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -102,14 +118,15 @@ describe("search or jump to (⌘K)", () => {
       await screen.findByRole("heading", { name: "API playground", level: 1 }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Search or jump to" })).not.toBeInTheDocument();
-    // Arriving through search opens the page's sidebar group too.
-    expect(within(nav()).getByRole("button", { name: "Developers" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
+    // Arriving through search marks the page in the Settings menu too.
+    expect(
+      within(screen.getByRole("navigation", { name: "Settings sections" })).getByRole("link", {
+        name: "API playground",
+      }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
-  it("opens from the sidebar, says when nothing matches and closes on Escape", async () => {
+  it("opens from the top bar, says when nothing matches and closes on Escape", async () => {
     open("overview");
     await screen.findByRole("heading", { name: "Overview" });
     await userEvent.click(within(nav()).getByRole("button", { name: /^Search/ }));
@@ -135,10 +152,21 @@ describe("search or jump to (⌘K)", () => {
   });
 });
 
-it("treats sub-pages as part of their sidebar entry", () => {
+it("treats sub-pages as part of their entry and files pages under a top-bar link", () => {
   const page = (path: string) => SITE_PAGES.find((p) => p.path === path) as NavItem;
   const base = `/app/${SITE}`;
   expect(isActive(`${base}/visitors/v123`, SITE, page("visitors"))).toBe(true);
-  expect(isActive(`${base}/settings/danger`, SITE, page("settings/general"))).toBe(true);
   expect(isActive(`${base}/goals`, SITE, page("funnels"))).toBe(false);
+  expect(topLinkFor(`${base}/visitors/v123`, SITE)).toBe("visitors");
+  expect(topLinkFor(`${base}/funnels/f1`, SITE)).toBe("overview");
+  expect(topLinkFor(`${base}/mentions`, SITE)).toBe("overview");
+  expect(topLinkFor(`${base}/keys`, SITE)).toBe("settings/general");
+  expect(topLinkFor(`${base}/settings/danger`, SITE)).toBe("settings/general");
+});
+
+it("puts every Integrations, Developers and Settings page in the Settings menu once", () => {
+  const menu = SETTINGS_MENU.flatMap((g) => g.paths);
+  expect(new Set(menu).size).toBe(menu.length);
+  const settingsPages = SITE_PAGES.filter(inSettings).map((p) => p.path);
+  expect([...menu].sort()).toEqual([...settingsPages].sort());
 });

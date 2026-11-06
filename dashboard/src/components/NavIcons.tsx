@@ -1,4 +1,4 @@
-/** Line icons for the sidebar and command menu (24×24 grid, drawn with `currentColor`). */
+/** Line icons for menus and the command menu (24×24 grid, drawn with `currentColor`). */
 import type { ReactNode } from "react";
 
 const PATHS = {
@@ -134,7 +134,7 @@ export function Icon({ name, className }: { name: IconName; className?: string }
   );
 }
 
-/** Icon for a sidebar page (by its path under /app/$siteId/) or group. */
+/** Icon for a page (by its path under /app/$siteId/) or group. */
 export const PAGE_ICONS: Record<string, IconName> = {
   overview: "overview",
   realtime: "realtime",

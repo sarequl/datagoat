@@ -32,6 +32,7 @@ import { formatDateTime, formatMoney, formatNumber, formatPercent } from "./lib/
 import { INTERVAL_LABELS } from "./lib/period";
 import { isTypingTarget, readPref, writePref } from "./lib/storage";
 import { addDays, endOfMonth, ymdInTz } from "./lib/tz";
+import { OverviewHub } from "./OverviewHub";
 import { showRevenue, sourceKey, useAnalytics, useSource } from "./source";
 import { type DashboardState, rangeToParams, useDashboardState } from "./state";
 
@@ -468,153 +469,230 @@ export function OverviewDashboard({
       state.setPeriod({ key: "custom", from: day, to: endOfMonth(day) });
   };
 
+  const goalsCard = <GoalsCard state={state} siteId={siteId} />;
+  const heatmapCard = (
+    <section
+      className="min-w-0 rounded-lg border border-line bg-surface p-4"
+      aria-labelledby="heatmap-title"
+      data-testid="card-heatmap"
+    >
+      <h2 id="heatmap-title" className="mb-2 text-sm font-semibold">
+        Visitor activity
+      </h2>
+      {heat.error ? (
+        <ErrorState error={heat.error} />
+      ) : heat.isPending ? (
+        <Skeleton className="h-48" />
+      ) : (
+        <ActivityHeatmap
+          points={heat.data?.data ?? []}
+          timezone={state.timezone}
+          note={heatCapped ? "last 41 days of the period" : undefined}
+        />
+      )}
+    </section>
+  );
+
   return (
     <div className="space-y-4">
-      <AnalyticsHeader title={title} logo={logo} state={state} segments={source.kind === "site"} />
-      {overview.error ? <ErrorState error={overview.error} /> : null}
-      <KpiRow
-        overview={ov}
-        prevOverview={prevOv}
-        points={points}
-        currency={ov?.currency ?? source.currency}
-        showRevenue={money}
-        metric={state.metric}
-        onSelect={(metric) => state.update({ metric: metric ?? undefined })}
-        compare={state.compare}
-        revenueColor={kpiColor(kpiColorScheme)}
-        kpiGoal={
-          kpiGoalName && ov
-            ? {
-                name: kpiGoalName,
-                label: kpiLabel ?? kpiGoalName,
-                visitors: goalRow?.visitors ?? 0,
-                prevVisitors: prevGoalRow?.visitors ?? (state.prevParams ? 0 : null),
-                rate: ov.visitors ? ((goalRow?.visitors ?? 0) / ov.visitors) * 100 : 0,
-              }
-            : null
-        }
-        liveVisitors={liveCount.data}
-        realtimeLink={siteId ? { siteId } : null}
-        extras={extras}
-      />
-      <section className="rounded-lg border border-line bg-surface p-4" aria-label="Main chart">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented
-              label="Granularity"
-              value={state.interval}
-              onChange={(interval) => state.update({ interval })}
-              options={state.intervals.map((i) => ({ value: i, label: INTERVAL_LABELS[i] }))}
-            />
-            <button
-              type="button"
-              aria-pressed={state.compare}
-              disabled={!state.prevParams}
-              onClick={() => state.update({ compare: state.compare ? undefined : true })}
-              className={cx(
-                "rounded-md border px-2 py-1 text-xs disabled:opacity-40",
-                state.compare
-                  ? "border-primary text-primary-text"
-                  : "border-line text-muted hover:text-text",
-              )}
+      <AnalyticsHeader
+        title={title}
+        logo={logo}
+        state={state}
+        segments={source.kind === "site"}
+        actions={
+          siteId && liveCount.data !== undefined ? (
+            <Link
+              to="/app/$siteId/realtime"
+              params={{ siteId }}
+              title="Open the live map (M)"
+              data-testid="kpi-live"
+              className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-sm text-muted hover:text-text"
             >
-              Compare
-            </button>
-            {state.metric ? (
+              <span
+                aria-hidden="true"
+                className={cx(
+                  "size-2 rounded-full",
+                  liveCount.data > 0 ? "animate-pulse bg-success" : "bg-muted",
+                )}
+              />
+              <span className="font-semibold tabular-nums text-text">
+                {formatNumber(liveCount.data)}
+              </span>
+              online now
+            </Link>
+          ) : null
+        }
+      />
+      {overview.error ? <ErrorState error={overview.error} /> : null}
+      {siteId && ov && ov.visitors === 0 && ov.pageviews === 0 ? (
+        <section
+          aria-labelledby="awaiting-title"
+          className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3"
+          data-testid="awaiting-visitors"
+        >
+          <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-warning" />
+          <div className="min-w-0 flex-1">
+            <h2 id="awaiting-title" className="text-sm font-semibold">
+              No visitors in this period yet
+            </h2>
+            <p className="text-[13px] text-muted">
+              Just added this website? Install the tracking script and the first visit shows up here
+              within seconds.
+            </p>
+          </div>
+          <Link
+            to="/app/$siteId/settings/install"
+            params={{ siteId }}
+            className="rounded-lg border border-line-strong px-3 py-1.5 text-sm font-medium hover:bg-surface-2"
+          >
+            Install the script
+          </Link>
+        </section>
+      ) : null}
+      <div className="rounded-lg border border-line bg-surface">
+        <KpiRow
+          overview={ov}
+          prevOverview={prevOv}
+          points={points}
+          currency={ov?.currency ?? source.currency}
+          showRevenue={money}
+          metric={state.metric}
+          onSelect={(metric) => state.update({ metric: metric ?? undefined })}
+          compare={state.compare}
+          revenueColor={kpiColor(kpiColorScheme)}
+          kpiGoal={
+            kpiGoalName && ov
+              ? {
+                  name: kpiGoalName,
+                  label: kpiLabel ?? kpiGoalName,
+                  visitors: goalRow?.visitors ?? 0,
+                  prevVisitors: prevGoalRow?.visitors ?? (state.prevParams ? 0 : null),
+                  rate: ov.visitors ? ((goalRow?.visitors ?? 0) / ov.visitors) * 100 : 0,
+                }
+              : null
+          }
+          extras={extras}
+        />
+        <section className="p-4" aria-label="Main chart">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Segmented
+                label="Granularity"
+                value={state.interval}
+                onChange={(interval) => state.update({ interval })}
+                options={state.intervals.map((i) => ({ value: i, label: INTERVAL_LABELS[i] }))}
+              />
               <button
                 type="button"
-                onClick={() => state.update({ metric: undefined })}
-                className="rounded-md px-2 py-1 text-xs text-muted hover:text-text"
+                aria-pressed={state.compare}
+                disabled={!state.prevParams}
+                onClick={() => state.update({ compare: state.compare ? undefined : true })}
+                className={cx(
+                  "rounded-md border px-2 py-1 text-xs disabled:opacity-40",
+                  state.compare
+                    ? "border-primary text-primary-text"
+                    : "border-line text-muted hover:text-text",
+                )}
               >
-                ← Visitors / Revenue
+                Compare
               </button>
-            ) : null}
-          </div>
-          {site ? (
-            // biome-ignore lint/a11y/useSemanticElements: a group of toggle buttons
-            <div
-              role="group"
-              aria-label="Chart markers"
-              className="flex items-center gap-1 text-xs"
-            >
-              {(
-                [
-                  ["notes", "📝 Notes"],
-                  ["commits", "GitHub"],
-                  ["mentions", "𝕏 Mentions"],
-                ] as const
-              ).map(([k, label]) => (
+              {state.metric ? (
                 <button
-                  key={k}
                   type="button"
-                  aria-pressed={markerKinds[k]}
-                  onClick={() => toggleMarker(k)}
-                  className={cx(
-                    "rounded-md border px-2 py-1",
-                    markerKinds[k]
-                      ? "border-line-strong text-text"
-                      : "border-line text-muted line-through",
-                  )}
+                  onClick={() => state.update({ metric: undefined })}
+                  className="rounded-md px-2 py-1 text-xs text-muted hover:text-text"
                 >
-                  {label}
+                  ← Visitors / Revenue
                 </button>
-              ))}
-              {markerKinds.commits ? (
-                <select
-                  aria-label="Commit type"
-                  value={commitPrefix}
-                  onChange={(e) => {
-                    setCommitPrefix(e.target.value);
-                    writePref(`commit-prefix:${sourceKey(source)}`, e.target.value);
-                  }}
-                  className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
-                >
-                  <option value="">All commits</option>
-                  <option value="feat:">feat:</option>
-                  <option value="fix:">fix:</option>
-                  <option value="perf:">perf:</option>
-                  <option value="refactor:">refactor:</option>
-                  <option value="docs:">docs:</option>
-                </select>
               ) : null}
             </div>
-          ) : null}
-        </div>
-        {ts.error ? (
-          <ErrorState error={ts.error} />
-        ) : ts.isPending ? (
-          <Skeleton className="h-64" />
-        ) : (
-          <MainChart
-            points={points}
-            prevPoints={prevTs.data?.data}
-            mode={mode}
-            interval={state.interval}
-            timezone={state.timezone}
-            currency={ov?.currency ?? source.currency}
-            showRevenue={money}
-            revenueColor={kpiColor(kpiColorScheme)}
-            compare={state.compare}
-            markers={markers}
-            loading={ts.isFetching && ts.isPlaceholderData}
-            onDrill={drill}
-            onAddNote={
-              site?.canWrite
-                ? (timestamp, text) => noteMutations.create.mutateAsync({ timestamp, text })
-                : undefined
-            }
-            renderMarkers={(items, close) => (
-              <MarkerList
-                items={items}
-                siteId={siteId ?? ""}
-                canWrite={Boolean(site?.canWrite)}
-                timezone={state.timezone}
-                close={close}
-              />
-            )}
-          />
-        )}
-      </section>
+            {site ? (
+              // biome-ignore lint/a11y/useSemanticElements: a group of toggle buttons
+              <div
+                role="group"
+                aria-label="Chart markers"
+                className="flex items-center gap-1 text-xs"
+              >
+                {(
+                  [
+                    ["notes", "📝 Notes"],
+                    ["commits", "GitHub"],
+                    ["mentions", "𝕏 Mentions"],
+                  ] as const
+                ).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={markerKinds[k]}
+                    onClick={() => toggleMarker(k)}
+                    className={cx(
+                      "rounded-md border px-2 py-1",
+                      markerKinds[k]
+                        ? "border-line-strong text-text"
+                        : "border-line text-muted line-through",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+                {markerKinds.commits ? (
+                  <select
+                    aria-label="Commit type"
+                    value={commitPrefix}
+                    onChange={(e) => {
+                      setCommitPrefix(e.target.value);
+                      writePref(`commit-prefix:${sourceKey(source)}`, e.target.value);
+                    }}
+                    className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
+                  >
+                    <option value="">All commits</option>
+                    <option value="feat:">feat:</option>
+                    <option value="fix:">fix:</option>
+                    <option value="perf:">perf:</option>
+                    <option value="refactor:">refactor:</option>
+                    <option value="docs:">docs:</option>
+                  </select>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          {ts.error ? (
+            <ErrorState error={ts.error} />
+          ) : ts.isPending ? (
+            <Skeleton className="h-64" />
+          ) : (
+            <MainChart
+              points={points}
+              prevPoints={prevTs.data?.data}
+              mode={mode}
+              interval={state.interval}
+              timezone={state.timezone}
+              currency={ov?.currency ?? source.currency}
+              showRevenue={money}
+              revenueColor={kpiColor(kpiColorScheme)}
+              compare={state.compare}
+              markers={markers}
+              loading={ts.isFetching && ts.isPlaceholderData}
+              onDrill={drill}
+              onAddNote={
+                site?.canWrite
+                  ? (timestamp, text) => noteMutations.create.mutateAsync({ timestamp, text })
+                  : undefined
+              }
+              renderMarkers={(items, close) => (
+                <MarkerList
+                  items={items}
+                  siteId={siteId ?? ""}
+                  canWrite={Boolean(site?.canWrite)}
+                  timezone={state.timezone}
+                  close={close}
+                />
+              )}
+            />
+          )}
+        </section>
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <BreakdownCard
           id="source"
@@ -644,28 +722,25 @@ export function OverviewDashboard({
           state={state}
           kpiGoal={kpiGoalName ? { name: kpiGoalName, label: kpiLabel ?? kpiGoalName } : null}
         />
-        <GoalsCard state={state} siteId={siteId} />
-        <section
-          className="min-w-0 rounded-lg border border-line bg-surface p-4"
-          aria-labelledby="heatmap-title"
-          data-testid="card-heatmap"
-        >
-          <h2 id="heatmap-title" className="mb-2 text-sm font-semibold">
-            Visitor activity
-          </h2>
-          {heat.error ? (
-            <ErrorState error={heat.error} />
-          ) : heat.isPending ? (
-            <Skeleton className="h-48" />
-          ) : (
-            <ActivityHeatmap
-              points={heat.data?.data ?? []}
-              timezone={state.timezone}
-              note={heatCapped ? "last 41 days of the period" : undefined}
-            />
-          )}
-        </section>
+        {siteId ? null : (
+          <>
+            {goalsCard}
+            {heatmapCard}
+          </>
+        )}
       </div>
+      {siteId ? (
+        <OverviewHub
+          siteId={siteId}
+          range={markerRange}
+          money={money}
+          currency={currencyCode}
+          points={points}
+          revenueColor={kpiColor(kpiColorScheme)}
+          goals={goalsCard}
+          heatmap={heatmapCard}
+        />
+      ) : null}
     </div>
   );
 }

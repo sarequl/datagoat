@@ -34,14 +34,14 @@
 
   /* Light theme surfaces and text */
   --dg-bg: #fcfbfa; /* base-200: page */
-  --dg-surface: #ffffff; /* base-100: cards, sidebar */
+  --dg-surface: #ffffff; /* base-100: cards */
   --dg-surface-2: #fbfaf9; /* base-300: hover, wells */
   --dg-line: rgba(0, 0, 0, 0.06);
   --dg-line-strong: rgba(0, 0, 0, 0.12);
   --dg-text: #262626;
   --dg-muted: #5c5c5c;
   --dg-neutral: #282828;
-  /* App frame (Polar-style): the sidebar sits on the shell, the page is an inset card. */
+  /* Menu hover and pill tokens (shell names kept from the earlier sidebar frame). */
   --dg-shell: #f2f1ee;
   --dg-shell-hover: rgba(0, 0, 0, 0.045);
   --dg-shell-card: #ffffff;

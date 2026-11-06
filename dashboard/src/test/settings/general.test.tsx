@@ -12,7 +12,7 @@ describe("general settings", () => {
     openPage(`/app/${SITE}/settings/general`);
     const tabs = await screen.findByRole("navigation", { name: "Settings sections" });
     for (const label of [
-      "Settings",
+      "General",
       "Installation",
       "Tracking & privacy",
       "Exclusions",
@@ -21,7 +21,7 @@ describe("general settings", () => {
     ]) {
       expect(within(tabs).getByRole("link", { name: label })).toBeInTheDocument();
     }
-    expect(within(tabs).getByRole("link", { name: "Settings" })).toHaveAttribute(
+    expect(within(tabs).getByRole("link", { name: "General" })).toHaveAttribute(
       "aria-current",
       "page",
     );

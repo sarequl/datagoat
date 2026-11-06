@@ -1,6 +1,6 @@
 /**
  * Route tree. Pages load lazily (one chunk per page) from pages/**; the website pages come from
- * nav.ts so the sidebar and the routes never drift.
+ * nav.ts so the menus and the routes never drift.
  *
  *   /                         → /app
  *   /login /setup /invite/$token /forgot-password /reset-password/$token

@@ -87,10 +87,9 @@ test("team invite, API key shown once, and integrations", async ({ page }) => {
   await expect(page.getByRole("textbox", { name: "Invite link" })).toHaveValue(/\/invite\//);
   await expect(page.getByText("cofounder@example.com", { exact: true })).toBeVisible();
 
-  const nav = page.getByRole("navigation", { name: "Main" });
-  // Team lives under Settings, which is open; API keys is under the collapsed Developers group.
+  const nav = page.getByRole("navigation", { name: "Settings sections" });
+  // Team and API keys both live in the Settings menu.
   await expect(nav.getByRole("link", { name: "Team" })).toHaveAttribute("aria-current", "page");
-  await nav.getByRole("button", { name: "Developers" }).click();
   await nav.getByRole("link", { name: "API keys" }).click();
   await page.getByLabel("Key name").fill("Backend");
   await page.getByRole("button", { name: "Create key" }).click();
@@ -155,7 +154,7 @@ test.describe("phone width (390 px)", () => {
 
   test("every settings page fits without horizontal scrolling", async ({ page }) => {
     await open(page, `/app/${SITE}/settings/general`);
-    await expect(page.getByRole("heading", { name: "Settings", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "General", exact: true })).toBeVisible();
     const paths = [
       "settings/general",
       "settings/install",

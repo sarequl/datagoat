@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
@@ -10,7 +10,7 @@ import { SITE_PAGES } from "../nav";
 import { renderApp } from "./render";
 
 describe("dashboard shell", () => {
-  it("redirects signed-out users to login, signs in, and shows the overview with the full sidebar", async () => {
+  it("redirects signed-out users to login, signs in, and shows the overview with the top bar", async () => {
     renderApp("/app");
     const email = await screen.findByLabelText("Email");
     await userEvent.type(email, "demo@datagoat.dev");
@@ -18,20 +18,19 @@ describe("dashboard shell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
     const nav = screen.getByRole("navigation", { name: "Main" });
-    // Developers and Settings start collapsed; opening them shows the rest.
-    for (const group of ["Developers", "Settings"]) {
-      const toggle = within(nav).getByRole("button", { name: group });
-      expect(toggle).toHaveAttribute("aria-expanded", "false");
-      await userEvent.click(toggle);
-      expect(toggle).toHaveAttribute("aria-expanded", "true");
-    }
-    for (const item of SITE_PAGES.filter((p) => !p.hidden)) {
-      expect(nav).toHaveTextContent(item.navLabel ?? item.label);
-    }
+    for (const label of ["Overview", "Realtime", "Visitors", "Settings"])
+      expect(within(nav).getByRole("link", { name: new RegExp(`^${label}`) })).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Overview" })).toHaveAttribute(
       "aria-current",
       "page",
     );
+    // Every page stays reachable: ⌘K lists all of them.
+    await userEvent.click(within(nav).getByRole("button", { name: "Search or jump to" }));
+    const dialog = screen.getByRole("dialog", { name: "Search or jump to" });
+    for (const item of SITE_PAGES.filter((p) => !p.path.includes("$"))) {
+      expect(dialog).toHaveTextContent(item.label);
+    }
+    await userEvent.keyboard("{Escape}");
     expect(document.body).not.toHaveTextContent(/Owner: W\d|CONTRACTS\.md/);
     expect(screen.getByRole("combobox", { name: "Website" })).toHaveDisplayValue("Example SaaS");
   });
@@ -51,7 +50,9 @@ describe("dashboard shell", () => {
     await userEvent.type(screen.getByLabelText(/^Password/), "a-long-password");
     await userEvent.type(screen.getByLabelText(/First website/), "example.com");
     await userEvent.click(screen.getByRole("button", { name: "Create owner account" }));
-    expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Installation", level: 1 }),
+    ).toBeInTheDocument();
   });
 
   it("shows the server's reason when the database is not initialised", async () => {
@@ -150,36 +151,5 @@ describe("dashboard shell", () => {
     expect(
       screen.getByText(/AI assistant, indexing and training crawler requests/),
     ).toBeInTheDocument();
-  });
-});
-
-describe("phone navigation drawer", () => {
-  it("opens from the menu button, traps focus, closes on Escape, backdrop and navigation", async () => {
-    resetMockState({ signedIn: true });
-    renderApp("/app/6728f0a0a1b2c3d4e5f6a001/overview");
-    const menu = await screen.findByRole("button", { name: "Open menu" });
-    expect(menu).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(menu);
-    const dialog = screen.getByRole("dialog", { name: "Navigation" });
-    expect(dialog).toHaveAttribute("aria-modal", "true");
-    expect(menu).toHaveAttribute("aria-expanded", "true");
-    // Focus moves into the drawer and Tab cycles inside it.
-    expect(dialog.contains(document.activeElement)).toBe(true);
-    for (let i = 0; i < 40; i++) {
-      await userEvent.tab();
-      expect(dialog.contains(document.activeElement)).toBe(true);
-    }
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(menu).toHaveFocus();
-
-    await userEvent.click(menu);
-    await userEvent.click(screen.getByRole("button", { name: "Close menu" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-
-    await userEvent.click(menu);
-    await userEvent.click(within(screen.getByRole("dialog")).getByRole("link", { name: "Goals" }));
-    expect(await screen.findByRole("heading", { name: "Goals", level: 1 })).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

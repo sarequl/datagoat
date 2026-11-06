@@ -8,6 +8,24 @@ import { resetMockState } from "../mocks/state";
 // renders after several mock requests can exceed it and fail intermittently.
 configure({ asyncUtilTimeout: 5000 });
 
+// happy-dom's IntersectionObserver never reports anything; treat every element as on screen so
+// cards that load when scrolled into view (WhenVisible) render in tests.
+class VisibleObserver {
+  constructor(private cb: IntersectionObserverCallback) {}
+  observe(el: Element) {
+    this.cb(
+      [{ isIntersecting: true, target: el } as IntersectionObserverEntry],
+      this as unknown as IntersectionObserver,
+    );
+  }
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+}
+globalThis.IntersectionObserver = VisibleObserver as unknown as typeof IntersectionObserver;
+
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   cleanup();

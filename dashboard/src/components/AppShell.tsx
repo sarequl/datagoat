@@ -1,18 +1,20 @@
 /**
- * Signed-in layout (Polar-style): the sidebar sits on the shell colour and the page is an inset,
- * rounded card. Sidebar: website switcher, "Search or jump to…" (⌘K), Analytics, Growth, then
- * Integrations and the collapsible Developers and Settings groups, and the account menu.
+ * Signed-in layout: a top bar (logo, website switcher, Overview, Realtime, Visitors, Settings,
+ * "Search or jump to…" (⌘K) and the account menu) over the page. Analytics and Growth pages open
+ * from the Overview's cards and ⌘K; Integrations, Developers and Settings pages sit inside
+ * Settings, which has its own left menu (SettingsFrame).
  */
 import { Link, Outlet, useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 import type { WebsiteSummary } from "../../../shared/api-types";
 import { useRealtimeCount } from "../analytics/hooks";
 import { useLogout, useMe } from "../api/hooks";
-import { COLLAPSIBLE_GROUPS, type NavGroup, type NavItem, SITE_PAGES } from "../nav";
+import { inSettings, type NavItem, pageAt, SETTINGS_MENU, SITE_PAGES, TOP_LINKS } from "../nav";
 import { CommandMenu, isMac, useCommandShortcut } from "./CommandMenu";
 import { LogoMark } from "./Logo";
-import { Icon, PAGE_ICONS } from "./NavIcons";
+import { Icon } from "./NavIcons";
 import { ThemeToggle } from "./ThemeToggle";
+import { BackLink } from "./ui";
 
 const TILE_COLOURS = ["#6d7cff", "#e16540", "#00a96e", "#00b5ff", "#c05cd6", "#e0a100", "#e2557a"];
 
@@ -23,8 +25,13 @@ export function SiteTile({ domain, size = 28 }: { domain: string; size?: number 
   return (
     <span
       aria-hidden="true"
-      className="grid shrink-0 place-items-center rounded-[7px] text-[13px] font-bold text-white"
-      style={{ width: size, height: size, background: TILE_COLOURS[hash % TILE_COLOURS.length] }}
+      className="grid shrink-0 place-items-center rounded-[7px] font-bold text-white"
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.round(size * 0.46),
+        background: TILE_COLOURS[hash % TILE_COLOURS.length],
+      }}
     >
       {domain.replace(/^www\./, "")[0]?.toUpperCase() ?? "?"}
     </span>
@@ -45,17 +52,15 @@ export function SiteSwitcher({
   const navigate = useNavigate();
   const site = websites.find((w) => w._id === current) ?? websites[0];
   return (
-    <div className="relative flex items-center gap-2.5 rounded-lg px-2 py-1.5 focus-within:outline-2 focus-within:outline-primary hover:bg-shell-hover">
-      <SiteTile domain={site?.domain ?? "?"} />
-      <div className="min-w-0 leading-tight">
-        <div className="truncate text-sm font-semibold">
-          {site?.name ?? site?.domain ?? "No website"}
-        </div>
-        {site?.name && site.name !== site.domain ? (
-          <div className="truncate text-xs text-muted">{site.domain}</div>
-        ) : null}
-      </div>
-      <Icon name="updown" className="ml-auto size-4 shrink-0 text-muted" />
+    <div
+      className="relative flex items-center gap-2 rounded-lg px-1.5 py-1 focus-within:outline-2 focus-within:outline-primary hover:bg-shell-hover"
+      title={site?.domain}
+    >
+      <SiteTile domain={site?.domain ?? "?"} size={22} />
+      <span className="min-w-0 truncate text-sm font-semibold">
+        {site?.name ?? site?.domain ?? "No website"}
+      </span>
+      <Icon name="updown" className="size-4 shrink-0 text-muted" />
       <select
         aria-label="Website"
         value={current}
@@ -79,59 +84,30 @@ export function SiteSwitcher({
   );
 }
 
-const ITEM =
-  "group flex items-center gap-2.5 rounded-[7px] px-2.5 py-1.5 text-sm font-medium text-muted hover:bg-shell-hover hover:text-text";
-const ITEM_ACTIVE = "bg-pill text-text shadow-pill hover:bg-pill";
-
 /** Whether `pathname` is on `item` (its sub-pages, e.g. a visitor profile, count too). */
 export function isActive(pathname: string, siteId: string, item: NavItem): boolean {
   const base = `/app/${siteId}/`;
-  // Every settings tab highlights "General".
-  const path = item.path === "settings/general" ? "settings" : item.path;
-  return pathname === base + path || pathname.startsWith(`${base}${path}/`);
+  return pathname === base + item.path || pathname.startsWith(`${base}${item.path}/`);
 }
 
-function NavLink({
-  item,
-  siteId,
-  active,
-  nested,
-  badge,
-}: {
-  item: NavItem;
-  siteId: string;
-  active: boolean;
-  nested?: boolean;
-  badge?: ReactNode;
-}) {
-  const icon = PAGE_ICONS[item.path];
-  return (
-    <Link
-      to={`/app/$siteId/${item.path}`}
-      params={{ siteId }}
-      aria-current={active ? "page" : undefined}
-      className={`${ITEM} ${nested ? "py-1 text-[13.5px]" : ""} ${
-        active ? (nested ? "text-text font-semibold" : ITEM_ACTIVE) : ""
-      }`}
-    >
-      {icon && !nested ? (
-        <Icon
-          name={icon}
-          className={`size-4 shrink-0 ${active ? "text-primary" : "text-muted group-hover:text-text"}`}
-        />
-      ) : null}
-      <span className="truncate">{item.navLabel ?? item.label}</span>
-      {badge}
-    </Link>
-  );
+/** Which top-bar link `pathname` belongs to: Settings for settings pages, else Overview. */
+export function topLinkFor(pathname: string, siteId: string): string | null {
+  const page = pageAt(pathname, siteId);
+  if (!page) return null;
+  if (inSettings(page)) return "settings/general";
+  for (const path of ["realtime", "visitors"])
+    if (isActive(pathname, siteId, byPath(path))) return path;
+  return "overview";
 }
+
+const byPath = (path: string) => SITE_PAGES.find((p) => p.path === path) as NavItem;
 
 function LiveBadge({ siteId }: { siteId: string }) {
   const live = useRealtimeCount(siteId, Boolean(siteId));
   if (live.data === undefined) return null;
   return (
     <span
-      className="ml-auto flex items-center gap-1.5 text-xs tabular-nums text-muted"
+      className="flex items-center gap-1 text-xs tabular-nums text-muted"
       title={`${live.data} visitors online`}
     >
       <span
@@ -143,52 +119,40 @@ function LiveBadge({ siteId }: { siteId: string }) {
   );
 }
 
-function NavGroupSection({
-  group,
-  siteId,
-  pathname,
-}: {
-  group: NavGroup;
-  siteId: string;
-  pathname: string;
-}) {
-  const items = SITE_PAGES.filter((p) => p.group === group && !p.hidden);
-  const containsActive = SITE_PAGES.some((p) => p.group === group && isActive(pathname, siteId, p));
-  const [open, setOpen] = useState(containsActive);
-  const listId = useId();
-  // Entering the group (from a link elsewhere, ⌘K, the browser) opens it.
-  useEffect(() => {
-    if (containsActive) setOpen(true);
-  }, [containsActive]);
+const TOP_LABEL: Record<string, string> = { "settings/general": "Settings" };
+
+function TopLinks({ siteId, pathname }: { siteId: string; pathname: string }) {
+  const section = topLinkFor(pathname, siteId);
   return (
-    <li>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((o) => !o)}
-        className={`${ITEM} w-full ${containsActive && !open ? ITEM_ACTIVE : ""}`}
-      >
-        <Icon
-          name={PAGE_ICONS[group] ?? "page"}
-          className={`size-4 shrink-0 ${containsActive ? "text-primary" : "text-muted group-hover:text-text"}`}
-        />
-        {group}
-        <Icon name={open ? "down" : "right"} className="ml-auto size-4 shrink-0 text-muted" />
-      </button>
-      {open ? (
-        <ul
-          id={listId}
-          className="my-0.5 ml-[1.15rem] space-y-px border-l border-line-strong pl-2.5"
-        >
-          {items.map((p) => (
-            <li key={p.path}>
-              <NavLink item={p} siteId={siteId} active={isActive(pathname, siteId, p)} nested />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </li>
+    <ul className="-mx-1 flex min-w-0 items-center gap-0.5 overflow-x-auto px-1">
+      {TOP_LINKS.map((path) => {
+        const item = byPath(path);
+        const on = section === path;
+        // aria-current only on the page itself; a section's sub-pages show it highlighted.
+        const here =
+          path === "settings/general"
+            ? isActive(pathname, siteId, item)
+            : on && pageAt(pathname, siteId)?.path === path;
+        return (
+          <li key={path} className="shrink-0">
+            <Link
+              to={`/app/$siteId/${path}`}
+              params={{ siteId }}
+              aria-current={here ? "page" : undefined}
+              data-active={on ? "" : undefined}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ${
+                on
+                  ? "bg-surface-2 text-text shadow-pill"
+                  : "text-muted hover:bg-shell-hover hover:text-text"
+              }`}
+            >
+              {TOP_LABEL[path] ?? item.navLabel ?? item.label}
+              {path === "realtime" ? <LiveBadge siteId={siteId} /> : null}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -223,8 +187,11 @@ function AccountMenu() {
       {open ? (
         <div
           id={menuId}
-          className="absolute inset-x-0 bottom-full z-20 mb-1 rounded-lg border border-line bg-surface p-1 shadow-lg"
+          className="absolute right-0 top-full z-30 mt-1.5 w-60 rounded-lg border border-line bg-surface p-1 shadow-lg"
         >
+          {email ? (
+            <div className="truncate px-2.5 pb-1.5 pt-1 text-xs text-muted">{email}</div>
+          ) : null}
           <Link to="/app/account" className={row} onClick={() => setOpen(false)}>
             <Icon name="account" className="size-4 text-muted" />
             Account
@@ -255,139 +222,66 @@ function AccountMenu() {
         aria-controls={menuId}
         aria-label={`Account menu${email ? ` for ${email}` : ""}`}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-shell-hover"
+        className="grid size-8 place-items-center rounded-full border border-line-strong bg-surface text-[11px] font-semibold text-muted hover:text-text"
       >
-        <span className="grid size-[26px] shrink-0 place-items-center rounded-full border border-line-strong bg-surface text-[11px] font-semibold text-muted">
-          {initials}
-        </span>
-        <span className="truncate text-[13px]">{email}</span>
-        <Icon name="more" className="ml-auto size-4 shrink-0 text-muted" />
+        {initials}
       </button>
     </div>
   );
 }
 
-export function Sidebar({
-  siteId,
-  websites,
-  onSearch,
-}: {
-  siteId: string;
-  websites: WebsiteSummary[];
-  onSearch: () => void;
-}) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const link = (p: NavItem) => (
-    <li key={p.path}>
-      <NavLink
-        item={p}
-        siteId={siteId}
-        active={isActive(pathname, siteId, p)}
-        badge={p.path === "realtime" ? <LiveBadge siteId={siteId} /> : undefined}
-      />
-    </li>
-  );
-  const visible = (g: NavGroup) => SITE_PAGES.filter((p) => p.group === g && !p.hidden);
-  return (
-    <nav aria-label="Main" className="flex h-full flex-col overflow-y-auto p-3">
-      <SiteSwitcher websites={websites} current={siteId} />
-      <button
-        type="button"
-        onClick={onSearch}
-        className="mb-2.5 mt-2 flex items-center gap-2 rounded-lg bg-pill px-2.5 py-1.5 text-[13px] text-muted shadow-pill hover:text-text"
-      >
-        <Icon name="search" className="size-4 shrink-0" />
-        <span className="min-w-0 truncate">Search…</span>
-        <kbd className="ml-auto shrink-0 whitespace-nowrap rounded border border-line-strong px-1.5 font-mono text-[11px]">
-          {isMac() ? "⌘K" : "Ctrl K"}
-        </kbd>
-      </button>
-      <ul className="space-y-px">{visible("Analytics").map(link)}</ul>
-      <div className="px-2.5 pb-1 pt-4 text-xs font-medium text-muted">Growth</div>
-      <ul className="space-y-px">{visible("Growth").map(link)}</ul>
-      <ul className="mt-auto space-y-px pt-6">
-        {visible("Integrations").map(link)}
-        {COLLAPSIBLE_GROUPS.map((g) => (
-          <NavGroupSection key={g} group={g} siteId={siteId} pathname={pathname} />
-        ))}
-      </ul>
-      <div className="mt-2 pt-1">
-        <AccountMenu />
-      </div>
-    </nav>
-  );
-}
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), select, input, textarea, [tabindex]:not([tabindex="-1"])';
-
 /**
- * Phone navigation drawer: a modal dialog holding the sidebar. Focus is trapped inside, Escape
- * and the backdrop close it, and it closes after navigation. Focus returns to the menu button.
+ * Settings: the left menu (nav.ts SETTINGS_MENU) next to the page. On phones the menu is a
+ * horizontally scrolling row above the page.
  */
-export function NavDrawer({
-  open,
-  onClose,
+export function SettingsFrame({
+  siteId,
+  pathname,
   children,
 }: {
-  open: boolean;
-  onClose: () => void;
+  siteId: string;
+  pathname: string;
   children: ReactNode;
 }) {
-  const panel = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const first = panel.current?.querySelector<HTMLElement>(FOCUSABLE);
-    first?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab" || !panel.current) return;
-      const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
-      if (!items.length) return;
-      const firstItem = items[0] as HTMLElement;
-      const lastItem = items[items.length - 1] as HTMLElement;
-      if (e.shiftKey && document.activeElement === firstItem) {
-        e.preventDefault();
-        lastItem.focus();
-      } else if (!e.shiftKey && document.activeElement === lastItem) {
-        e.preventDefault();
-        firstItem.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = overflow;
-      previous?.focus();
-    };
-  }, [open, onClose]);
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 md:hidden">
-      <button
-        type="button"
-        aria-label="Close menu"
-        tabIndex={-1}
-        className="absolute inset-0 h-full w-full cursor-default bg-black/50"
-        onClick={onClose}
-      />
-      <div
-        ref={panel}
-        id="nav-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Navigation"
-        className="absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto border-r border-line bg-shell shadow-xl"
-      >
-        {children}
-      </div>
+    <div className="gap-8 md:grid md:grid-cols-[12.5rem_1fr]">
+      <nav aria-label="Settings sections" className="mb-5 md:mb-0">
+        <p className="mb-3 hidden px-2.5 text-lg font-semibold md:block">Settings</p>
+        <div className="-mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:block md:space-y-4 md:px-0">
+          {SETTINGS_MENU.map((group) => (
+            <div key={group.heading || "end"} className="flex shrink-0 gap-1 md:block">
+              {group.heading ? (
+                <p className="hidden px-2.5 pb-1 text-xs font-medium text-muted md:block">
+                  {group.heading}
+                </p>
+              ) : null}
+              <ul className="flex gap-1 md:block md:space-y-px">
+                {group.paths.map((path) => {
+                  const item = byPath(path);
+                  const on = isActive(pathname, siteId, item);
+                  return (
+                    <li key={path} className="shrink-0">
+                      <Link
+                        to={`/app/$siteId/${path}`}
+                        params={{ siteId }}
+                        aria-current={on ? "page" : undefined}
+                        className={`flex items-center whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm ${
+                          on
+                            ? "bg-surface text-text font-medium shadow-pill"
+                            : "text-muted hover:bg-shell-hover hover:text-text"
+                        } ${path === "settings/danger" && !on ? "hover:text-error-text" : ""}`}
+                      >
+                        {item.navLabel ?? item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </nav>
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
@@ -395,61 +289,73 @@ export function NavDrawer({
 export function AppShell({ websites }: { websites: WebsiteSummary[] }) {
   const { siteId } = useParams({ strict: false }) as { siteId?: string };
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const close = useCallback(() => setMenuOpen(false), []);
-  const openSearch = useCallback(() => {
-    setMenuOpen(false);
-    setSearchOpen(true);
-  }, []);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
   useCommandShortcut(openSearch);
-  // Close the drawer after navigation.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the path changes
-  useEffect(() => setMenuOpen(false), [pathname]);
   const current = siteId ?? websites[0]?._id ?? "";
+  const page = siteId ? pageAt(pathname, siteId) : undefined;
+  // Analytics and Growth pages other than the top-bar ones lead back to the Overview.
+  const back =
+    page && !inSettings(page) && !page.path.includes("$") && !TOP_LINKS.includes(page.path);
+  const content = <Outlet />;
   return (
-    <div className="min-h-screen bg-shell md:grid md:grid-cols-[14rem_1fr] lg:grid-cols-[15.5rem_1fr]">
-      <aside className="sticky top-0 hidden h-screen md:block">
-        <Sidebar siteId={current} websites={websites} onSearch={openSearch} />
-      </aside>
-      <div className="flex items-center gap-3 border-b border-line bg-shell px-4 py-2 md:hidden">
-        <button
-          type="button"
-          aria-label="Open menu"
-          aria-expanded={menuOpen}
-          aria-controls="nav-drawer"
-          onClick={() => setMenuOpen(true)}
-          className="rounded-md p-2 hover:bg-shell-hover"
+    <div className="min-h-screen bg-bg">
+      <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--dg-bg)_82%,transparent)]">
+        <nav
+          aria-label="Main"
+          className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 md:flex-nowrap md:px-6"
         >
-          <svg aria-hidden="true" viewBox="0 0 20 20" className="size-5" fill="currentColor">
-            <path d="M3 5h14v2H3zm0 4h14v2H3zm0 4h14v2H3z" />
-          </svg>
-        </button>
-        <span className="flex items-center gap-2 font-semibold">
-          <LogoMark size={24} />
-          DataGoat
-        </span>
-        <button
-          type="button"
-          aria-label="Search or jump to"
-          onClick={openSearch}
-          className="ml-auto rounded-md p-2 text-muted hover:bg-shell-hover"
-        >
-          <Icon name="search" className="size-5" />
-        </button>
-      </div>
-      <NavDrawer open={menuOpen} onClose={close}>
-        <Sidebar siteId={current} websites={websites} onSearch={openSearch} />
-      </NavDrawer>
+          <Link
+            to={current ? "/app/$siteId/overview" : "/app"}
+            params={{ siteId: current }}
+            aria-label="DataGoat"
+            className="flex shrink-0 items-center gap-2 rounded-md px-1 py-1 font-semibold"
+          >
+            <LogoMark size={24} />
+            <span className="hidden lg:inline">DataGoat</span>
+          </Link>
+          <span aria-hidden="true" className="text-line-strong">
+            /
+          </span>
+          <div className="min-w-0 max-w-[14rem]">
+            <SiteSwitcher websites={websites} current={current} />
+          </div>
+          <div className="order-last w-full md:order-none md:ml-3 md:w-auto md:min-w-0">
+            <TopLinks siteId={current} pathname={pathname} />
+          </div>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={openSearch}
+              aria-label="Search or jump to"
+              className="flex items-center gap-2 rounded-lg border border-line-strong bg-surface p-2 text-[13px] text-muted hover:text-text md:w-52 md:px-2.5 md:py-1.5"
+            >
+              <Icon name="search" className="size-4 shrink-0" />
+              <span className="hidden min-w-0 truncate md:inline">Search…</span>
+              <kbd className="ml-auto hidden shrink-0 whitespace-nowrap rounded border border-line-strong px-1.5 font-mono text-[11px] md:inline">
+                {isMac() ? "⌘K" : "Ctrl K"}
+              </kbd>
+            </button>
+            <AccountMenu />
+          </div>
+        </nav>
+      </header>
       <CommandMenu open={searchOpen} onClose={closeSearch} siteId={current} websites={websites} />
-      <div className="min-w-0 md:py-2 md:pr-2">
-        <div className="min-h-screen bg-shell-card md:min-h-[calc(100vh-1rem)] md:rounded-2xl md:shadow-card">
-          <main className="mx-auto max-w-6xl p-4 md:p-8">
-            <Outlet />
-          </main>
-        </div>
-      </div>
+      <main className="mx-auto max-w-6xl px-4 py-5 md:px-6 md:py-7">
+        {back ? (
+          <BackLink to="/app/$siteId/overview" params={{ siteId: current }}>
+            Overview
+          </BackLink>
+        ) : null}
+        {page && inSettings(page) && siteId ? (
+          <SettingsFrame siteId={siteId} pathname={pathname}>
+            {content}
+          </SettingsFrame>
+        ) : (
+          content
+        )}
+      </main>
     </div>
   );
 }

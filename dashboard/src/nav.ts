@@ -1,11 +1,11 @@
 /**
- * Dashboard navigation: the single list of website pages, their sidebar group and owning team.
+ * Dashboard navigation: the single list of website pages, their group and owning team.
  * The router (router.tsx) creates one lazy route per entry from `pages/<file>.tsx`. Teams replace
  * the page file; adding a page is one entry here plus the file.
  */
 /**
- * Sidebar sections: Analytics (no heading), Growth, then at the bottom Integrations (one link),
- * Developers and Settings (collapsible).
+ * Page groups. Analytics and Growth pages open from the Overview (cards, "Open" links) and ⌘K;
+ * Integrations, Developers and Settings pages sit inside Settings with its left menu.
  */
 export type NavGroup = "Analytics" | "Growth" | "Integrations" | "Developers" | "Settings";
 
@@ -13,13 +13,13 @@ export interface NavItem {
   /** Path under /app/$siteId/ */
   path: string;
   label: string;
-  /** Shorter label for the sidebar when it differs from the page's own title. */
+  /** Shorter label for menus when it differs from the page's own title. */
   navLabel?: string;
   group: NavGroup;
   owner: "W4" | "W5" | "W6";
   /** Module under pages/ (without extension). */
   page: string;
-  /** Hidden from the sidebar (detail pages). */
+  /** Not a menu entry of its own (detail pages, settings sub-pages). */
   hidden?: boolean;
 }
 
@@ -197,6 +197,51 @@ export const SITE_PAGES: readonly NavItem[] = [
 /** Settings sub-navigation shown inside the settings pages. */
 export const SETTINGS_TABS = SITE_PAGES.filter((p) => p.path.startsWith("settings/"));
 
+/** Pages shown inside Settings (with its left menu): Integrations, Developers and Settings. */
+export const SETTINGS_GROUPS: readonly NavGroup[] = ["Integrations", "Developers", "Settings"];
+
+export const inSettings = (item: NavItem): boolean => SETTINGS_GROUPS.includes(item.group);
+
+/** The Settings left menu, in order. Paths refer to SITE_PAGES. */
+export const SETTINGS_MENU: readonly { heading: string; paths: readonly string[] }[] = [
+  {
+    heading: "Website",
+    paths: [
+      "settings/general",
+      "settings/install",
+      "settings/tracking",
+      "settings/exclusions",
+      "settings/attribution",
+    ],
+  },
+  { heading: "Data", paths: ["integrations", "import", "share", "usage"] },
+  { heading: "People", paths: ["team", "alerts"] },
+  { heading: "Developers", paths: ["keys", "mcp", "api-playground"] },
+  { heading: "", paths: ["settings/danger"] },
+];
+
+/** Links in the top bar, in order. Everything else opens from the Overview, Settings or ⌘K. */
+export const TOP_LINKS: readonly string[] = [
+  "overview",
+  "realtime",
+  "visitors",
+  "settings/general",
+];
+
+/** The page at `pathname` (most specific match), if any. */
+export function pageAt(pathname: string, siteId: string): NavItem | undefined {
+  const rest = pathname.startsWith(`/app/${siteId}/`)
+    ? pathname.slice(`/app/${siteId}/`.length)
+    : "";
+  const parts = rest.split("/").filter(Boolean);
+  return SITE_PAGES.find((p) => {
+    const want = p.path.split("/");
+    return (
+      want.length === parts.length && want.every((w, i) => w.startsWith("$") || w === parts[i])
+    );
+  });
+}
+
 export const NAV_GROUPS: readonly NavGroup[] = [
   "Analytics",
   "Growth",
@@ -204,6 +249,3 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   "Developers",
   "Settings",
 ];
-
-/** Groups shown as a collapsible parent link at the bottom of the sidebar. */
-export const COLLAPSIBLE_GROUPS: readonly NavGroup[] = ["Developers", "Settings"];
