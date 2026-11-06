@@ -1,8 +1,9 @@
 /**
- * Map styles for the realtime 2D map and 3D globe (DataFast's Outdoors / Dark / Light /
- * Satellite). Rendered locally from Natural Earth shapes; no tile server is contacted.
+ * Colours of the realtime 2D map and 3D globe, one set per dashboard theme (the map follows the
+ * app's light or dark theme). Rendered locally from Natural Earth shapes; no tile server is
+ * contacted.
  */
-export type MapStyle = "outdoors" | "dark" | "light" | "satellite";
+export type MapStyle = "dark" | "light";
 
 export interface MapPalette {
   label: string;
@@ -21,14 +22,6 @@ export interface MapPalette {
 }
 
 export const MAP_STYLES: Record<MapStyle, MapPalette> = {
-  outdoors: {
-    label: "Outdoors",
-    dark: false,
-    ocean: "#cfe5ee",
-    land: "#e4ecd3",
-    border: "#b5c39f",
-    globe: { base: [0.55, 0.7, 0.5], glow: [0.75, 0.88, 0.95], dark: 0, brightness: 5 },
-  },
   dark: {
     label: "Dark",
     dark: true,
@@ -45,14 +38,4 @@ export const MAP_STYLES: Record<MapStyle, MapPalette> = {
     border: "#c4c4bf",
     globe: { base: [0.95, 0.95, 0.93], glow: [0.9, 0.9, 0.9], dark: 0, brightness: 3 },
   },
-  satellite: {
-    label: "Satellite",
-    dark: true,
-    ocean: "#0b1d33",
-    land: "#3d4a2c",
-    border: "#5a6a43",
-    globe: { base: [0.18, 0.24, 0.14], glow: [0.2, 0.35, 0.6], dark: 1, brightness: 6 },
-  },
 };
-
-export const MAP_STYLE_KEYS = Object.keys(MAP_STYLES) as MapStyle[];

@@ -32,24 +32,23 @@ describe("realtime", () => {
     expect(await screen.findByRole("list", { name: "Recent payments" })).toHaveTextContent("+$99");
   });
 
-  it("matches the map style to the app theme until a style is picked", async () => {
+  it("draws the map in the app theme, with the stats above it and no style or fullscreen controls", async () => {
     document.documentElement.setAttribute("data-theme", "light");
     const { container } = renderSite("realtime");
     await screen.findByRole("list", { name: "Active visitors" });
-    expect(screen.getByLabelText("Style")).toHaveValue("auto");
+    expect(screen.queryByLabelText("Style")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Fullscreen" })).not.toBeInTheDocument();
     const stage = () => container.querySelector("div[data-theme]");
     expect(stage()).toHaveAttribute("data-theme", "light");
     act(() => document.documentElement.setAttribute("data-theme", "dark"));
     await waitFor(() => expect(stage()).toHaveAttribute("data-theme", "dark"));
-    // A dark style keeps its dark panels in the light theme.
-    act(() => document.documentElement.setAttribute("data-theme", "light"));
-    await userEvent.selectOptions(screen.getByLabelText("Style"), "satellite");
-    expect(stage()).toHaveAttribute("data-theme", "dark");
-    document.documentElement.setAttribute("data-theme", "dark");
-    window.localStorage.clear();
+    // The stats are a strip in the page flow, not a panel floating over the globe.
+    const summary = screen.getByTestId("realtime-summary");
+    expect(summary.className).not.toMatch(/absolute/);
+    expect(within(summary).getByText(/^Google/)).toBeInTheDocument();
   });
 
-  it("filters live visitors by country, switches view and style, and replays the last 8 hours", async () => {
+  it("filters live visitors by country, switches view, and replays the last 8 hours", async () => {
     renderSite("realtime");
     const list = await screen.findByRole("list", { name: "Active visitors" });
     const before = within(list).getAllByRole("button").length;
@@ -61,8 +60,6 @@ describe("realtime", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "2D map" }));
     expect(screen.getByRole("button", { name: "2D map" })).toHaveAttribute("aria-pressed", "true");
-    await userEvent.selectOptions(screen.getByLabelText("Style"), "satellite");
-    expect(window.localStorage.getItem("dg:realtime:mapStyle")).toBe('"satellite"');
     await userEvent.click(screen.getByRole("button", { name: "Replay" }));
     expect(await screen.findByTestId("replay-time")).toHaveTextContent(/visitors · \d+ pageviews/);
     const slider = screen.getByRole("slider", { name: "Replay time" });

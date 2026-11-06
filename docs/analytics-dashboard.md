@@ -94,14 +94,13 @@ The live visitor count, the list of people on the site now (location, page, sour
 number, customer badge), the event log (click a visitor to see only their events) and recent
 payments. The map shows each visitor as a dot coloured by **purchase likelihood** (blue cold → red
 likely to buy; predictions need 1,000 visitors and 10 attributed payments). Switch between the
-**3D globe** and the **2D map**, pick a style (Outdoors, Dark, Light, Satellite), turn auto-rotation
-on or off, go fullscreen, and filter by country, device or browser from the panel. **Replay** plays
+**3D globe** and the **2D map** (both drawn in the dashboard's light or dark theme), turn
+auto-rotation on or off, and filter by country, device or browser from the chips above the map. **Replay** plays
 the last 8 hours in 15-minute steps.
 
 The globe uses [cobe](https://github.com/shuding/cobe) (MIT) and WebGL; browsers without WebGL get
 the 2D map. Maps are drawn locally from Natural Earth shapes ([world-atlas](https://github.com/topojson/world-atlas),
-ISC) with d3-geo (ISC): no map tiles are downloaded from third parties, so "Satellite" is a colour
-style, not imagery.
+ISC) with d3-geo (ISC): no map tiles are downloaded from third parties.
 
 ## Visitors
 

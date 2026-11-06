@@ -1,11 +1,11 @@
 /**
  * Realtime (DataFast's "Visitors now" map): live count, active visitors, event log and recent
- * payments; a 2D map or a lazily loaded 3D globe with styles, auto-rotation, fullscreen,
+ * payments; a 2D map or a lazily loaded 3D globe in the dashboard theme, with auto-rotation,
  * country/device/browser filters, purchase-likelihood colours and an 8-hour replay in
  * 15-minute steps.
  */
 import { Link } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { RealtimeMap, RealtimeVisitor } from "../../../../shared/api-types";
 import {
   Badge,
@@ -27,7 +27,7 @@ import {
   formatTime,
   timeAgo,
 } from "../../analytics/lib/format";
-import { MAP_STYLE_KEYS, MAP_STYLES, type MapStyle } from "../../analytics/lib/mapStyles";
+import { MAP_STYLES, type MapStyle } from "../../analytics/lib/mapStyles";
 import { initials, visitorName } from "../../analytics/lib/names";
 import { readPref, writePref } from "../../analytics/lib/storage";
 import { SiteAnalytics } from "../../analytics/SiteAnalytics";
@@ -291,12 +291,8 @@ export function RealtimeView({
 }) {
   const map = useRealtimeMap(siteId ?? "", 15_000, share?.token);
   const [view, setView] = useState<View>(() => readPref<View>("realtime:view", "globe"));
-  // "auto" follows the app theme. (A new key: the old one stored "dark" for everyone on first visit.)
-  const [styleChoice, setStyleChoice] = useState<MapStyle | "auto">(() =>
-    readPref<MapStyle | "auto">("realtime:mapStyle", "auto"),
-  );
-  const theme = useResolvedTheme();
-  const style: MapStyle = styleChoice === "auto" ? theme : styleChoice;
+  // The map and globe follow the dashboard's light or dark theme.
+  const style: MapStyle = useResolvedTheme();
   const [autoRotate, setAutoRotate] = useState(true);
   const [replay, setReplay] = useState(false);
   const [frame, setFrame] = useState(31);
@@ -304,12 +300,10 @@ export function RealtimeView({
   const [selected, setSelected] = useState<string | null>(null);
   const [filters, setFilters] = useState<LiveFilter[]>([]);
   const [tab, setTab] = useState("visitors");
-  const stage = useRef<HTMLDivElement>(null);
   const replayQ = useRealtimeReplay(siteId ?? "", replay, share?.token);
   const frames = replayQ.data?.frames ?? [];
 
   useEffect(() => writePref("realtime:view", view), [view]);
-  useEffect(() => writePref("realtime:mapStyle", styleChoice), [styleChoice]);
   useEffect(() => {
     if (!playing || !frames.length) return;
     const id = setInterval(() => {
@@ -406,21 +400,6 @@ export function RealtimeView({
               { value: "map", label: "2D map" },
             ]}
           />
-          <label className="flex items-center gap-1 text-xs text-muted">
-            Style
-            <select
-              value={styleChoice}
-              onChange={(e) => setStyleChoice(e.target.value as MapStyle | "auto")}
-              className="rounded-md border border-line bg-surface px-2 py-1 text-xs text-text"
-            >
-              <option value="auto">Match theme</option>
-              {MAP_STYLE_KEYS.map((k) => (
-                <option key={k} value={k}>
-                  {MAP_STYLES[k].label}
-                </option>
-              ))}
-            </select>
-          </label>
           {view === "globe" ? (
             <button
               type="button"
@@ -451,18 +430,6 @@ export function RealtimeView({
           >
             Replay
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              const el = stage.current;
-              if (!el) return;
-              if (document.fullscreenElement) void document.exitFullscreen?.();
-              else void el.requestFullscreen?.();
-            }}
-            className="rounded-md border border-line px-2 py-1 text-xs text-muted hover:text-text"
-          >
-            Fullscreen
-          </button>
         </div>
       </div>
 
@@ -470,23 +437,16 @@ export function RealtimeView({
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div
-          ref={stage}
-          // Panels over the map take the map's light or dark look, not the app theme's.
           data-theme={MAP_STYLES[style].dark ? "dark" : "light"}
           className="relative min-w-0 overflow-hidden rounded-lg border border-line p-3 text-text"
           style={{ background: MAP_STYLES[style].ocean }}
         >
           {summary ? (
-            // Over the globe the panel floats in the empty corner; on the flat map it would cover
-            // North America, so there it sits in a row above the map.
+            // A strip above the globe or map, never over it: a floating panel would hide part of
+            // the globe and the visitors under it.
             <div
               data-testid="realtime-summary"
-              className={cx(
-                "relative z-10 mb-3 flex flex-wrap gap-2 rounded-md bg-surface/90 p-2 text-xs",
-                view === "globe"
-                  ? "lg:absolute lg:left-3 lg:top-3 lg:mb-0 lg:max-w-56 lg:flex-col"
-                  : "lg:gap-x-6",
-              )}
+              className="relative z-10 mb-3 flex flex-wrap gap-x-6 gap-y-2 rounded-md bg-surface p-2 text-xs"
             >
               {(
                 [
@@ -522,11 +482,10 @@ export function RealtimeView({
               ))}
               <div className="min-w-0">
                 <div className="mb-0.5 font-medium text-muted">Top referrers</div>
-                <ul>
+                <ul className="flex flex-wrap gap-1">
                   {summary.referrers.map(([r, n]) => (
-                    <li key={r} className="flex justify-between gap-2">
-                      <span className="truncate">{r}</span>
-                      <span className="tabular-nums text-muted">{n}</span>
+                    <li key={r} className="rounded-full border border-line px-2 py-0.5">
+                      {r} <span className="tabular-nums text-muted">{n}</span>
                     </li>
                   ))}
                 </ul>

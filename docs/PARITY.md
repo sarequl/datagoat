@@ -24,7 +24,7 @@ Last audit: November 2026, branch `finisher`.
 | Area | Done | Done (untested against the real service) | Partial | Not done |
 | --- | --- | --- | --- | --- |
 | Tracking | 34 | 0 | 0 | 0 |
-| Dashboard | 52 | 0 | 2 | 0 |
+| Dashboard | 51 | 0 | 2 | 1 |
 | Revenue | 15 | 10 | 1 | 0 |
 | Goals and funnels | 16 | 0 | 0 | 0 |
 | API | 22 | 0 | 0 | 1 |
@@ -34,7 +34,7 @@ Last audit: November 2026, branch `finisher`.
 | Privacy | 10 | 0 | 0 | 1 |
 | Install and ecosystem | 13 | 3 | 0 | 0 |
 | Mobile | 5 | 1 | 1 | 2 |
-| **Total** | **208** | **23** | **4** | **4** |
+| **Total** | **207** | **23** | **4** | **5** |
 
 Rows marked "finisher" were added or fixed in this audit.
 
@@ -121,12 +121,12 @@ Rows marked "finisher" were added or fixed in this audit.
 | #1 KPI (revenue or a goal) across breakdowns | Done | `KpiRow.tsx`, `BreakdownCard.tsx` | |
 | KPI colour schemes | Done | Settings → General, `dashboard/src/analytics/lib/colors.ts` | |
 | Real-time map: 3D globe and 2D map | Done | `dashboard/src/pages/analytics/RealtimePage.tsx`, `Globe.tsx`, `WorldMap.tsx` | |
-| Map styles Outdoors, Dark, Light, Satellite | Partial | `dashboard/src/analytics/lib/mapStyles.ts` | the maps are drawn locally from Natural Earth shapes, so "Satellite" is a colour style, not imagery (no third-party map tiles by design) |
+| Map styles Outdoors, Dark, Light, Satellite | Not done | `dashboard/src/analytics/lib/mapStyles.ts` | removed by choice: the map and globe follow the dashboard's light or dark theme |
 | Globe replay (last 8 hours, 15-minute steps) | Done | `RealtimePage.tsx`, `/api/v1/analytics/realtime/replay` | |
 | Globe filters (country, device, browser) | Done | `RealtimePage.tsx` | |
 | Event log; click an event to highlight the visitor, click a visitor to filter events | Done | `RealtimePage.tsx` | |
 | Visitor details on the map (device, browser, location, page, session, visit count), top referrers, avatars | Done | `RealtimePage.tsx` | |
-| Light mode, full screen, auto-rotation | Done | `RealtimePage.tsx` | |
+| Light mode, full screen, auto-rotation | Partial | `RealtimePage.tsx` | light and dark follow the dashboard theme; full screen removed by choice |
 | Purchase-likelihood colours and expected value (after 1,000 visitors and 10 attributed payments) | Done | `src/query/jobs/predictions.ts`, `src/query/prediction.ts` | |
 | Visitor profile: journey from first visit to purchase, identity, prediction | Done | `dashboard/src/pages/analytics/VisitorProfilePage.tsx`, `/api/v1/visitors/:id` | |
 | Journey shows each day's referrer | Done | `VisitorProfilePage.tsx` | |
@@ -342,9 +342,11 @@ Every DataFast endpoint was called on the running Worker with demo data and answ
 3. **Real-time 3D map in the mobile app**: needs native map or WebGL modules and device testing.
 4. **iOS home-screen widgets**: the native WidgetKit extension cannot be built or tested without Xcode;
    the app already writes the widget data.
+5. **Realtime map styles**: removed by choice. The map and globe follow the dashboard's light or dark
+   theme, which keeps one look across the app; full screen was removed with them.
 
-Partial rows that stay partial: pinned periods are per browser; "Satellite" is a colour style
-because maps are drawn locally; Easytool's integration is operated by Easytool for DataFast only;
+Partial rows that stay partial: pinned periods are per browser; the realtime map has no full screen
+mode (by choice); Easytool's integration is operated by Easytool for DataFast only;
 mobile sign-in uses a password instead of an emailed code.
 
 ## DataGoat-only extras
