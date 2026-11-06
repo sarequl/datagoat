@@ -10,7 +10,7 @@ test("signs in against the mock API and navigates the shell", async ({ page }) =
   await expect(page).toHaveURL(/\/app\/6728f0a0a1b2c3d4e5f6a001\/overview$/);
 
   const nav = page.getByRole("navigation", { name: "Main" });
-  await nav.getByRole("link", { name: "Visitors" }).click();
+  await nav.getByRole("link", { name: "Visitors", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Visitors", level: 1 })).toBeVisible();
   await expect(page.locator("body")).not.toContainText("Owner: W");
 
