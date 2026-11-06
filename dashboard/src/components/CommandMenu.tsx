@@ -223,7 +223,7 @@ export function CommandMenu({
                     onClick={() => c.run()}
                     onKeyDown={onKeyDown}
                     className={`flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-sm ${
-                      i === current ? "bg-shell-hover text-text" : "text-muted"
+                      i === current ? "bg-selected text-text" : "text-muted"
                     }`}
                   >
                     <Icon name={c.icon} className="size-4 shrink-0" />

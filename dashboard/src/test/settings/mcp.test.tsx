@@ -32,6 +32,8 @@ describe("AI assistants (MCP) page", () => {
     expect(screen.getByRole("figure", { name: "claude-code setup" })).toHaveTextContent(
       `claude mcp add --transport http datagoat ${url}`,
     );
+    expect(screen.getByRole("tab", { name: "Claude Code" }).className).toMatch(/\bbg-selected\b/);
+    expect(screen.getByRole("tab", { name: "Claude" }).className).not.toMatch(/\bbg-selected\b/);
     await userEvent.click(screen.getByRole("tab", { name: "Cursor" }));
     expect(screen.getByRole("figure", { name: "cursor setup" })).toHaveTextContent('"mcpServers"');
     await userEvent.click(screen.getByRole("tab", { name: "ChatGPT" }));

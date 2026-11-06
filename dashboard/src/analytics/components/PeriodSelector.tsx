@@ -95,7 +95,7 @@ export function PeriodSelector({ state }: { state: DashboardState }) {
         }}
         className={cx(
           "flex flex-1 items-center justify-between rounded-md px-3 py-1.5 text-left text-sm hover:bg-surface-2",
-          current === key && "font-medium text-primary-text",
+          current === key && "bg-selected font-medium text-text",
         )}
       >
         {text}

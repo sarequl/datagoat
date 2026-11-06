@@ -142,7 +142,7 @@ function TopLinks({ siteId, pathname }: { siteId: string; pathname: string }) {
               data-active={on ? "" : undefined}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium ${
                 on
-                  ? "bg-surface-2 text-text shadow-pill"
+                  ? "bg-selected font-medium text-text"
                   : "text-muted hover:bg-shell-hover hover:text-text"
               }`}
             >
@@ -265,9 +265,9 @@ export function SettingsFrame({
                         to={`/app/$siteId/${path}`}
                         params={{ siteId }}
                         aria-current={on ? "page" : undefined}
-                        className={`flex items-center whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm ${
+                        className={`relative flex items-center whitespace-nowrap rounded-md px-2.5 py-1.5 text-sm ${
                           on
-                            ? "bg-surface text-text font-medium shadow-pill"
+                            ? "bg-selected font-medium text-text before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-primary"
                             : "text-muted hover:bg-shell-hover hover:text-text"
                         } ${path === "settings/danger" && !on ? "hover:text-error-text" : ""}`}
                       >

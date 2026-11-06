@@ -30,6 +30,14 @@ describe("top bar and settings menu", () => {
       "aria-current",
       "page",
     );
+    // The current entries share one clearly visible "selected" tint.
+    expect(settings.className).toMatch(/\bbg-selected\b/);
+    expect(within(menu).getByRole("link", { name: "Tracking & privacy" }).className).toMatch(
+      /\bbg-selected\b/,
+    );
+    expect(within(menu).getByRole("link", { name: "Team" }).className).not.toMatch(
+      /\bbg-selected\b/,
+    );
     // Integrations, developer pages and the rest of the old sidebar live in the Settings menu.
     for (const label of ["Integrations", "API keys", "AI assistants (MCP)", "Team", "Usage & data"])
       expect(within(menu).getByRole("link", { name: label })).toBeInTheDocument();

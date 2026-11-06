@@ -37,8 +37,8 @@ import { showRevenue, sourceKey, useAnalytics, useSource } from "./source";
 import { type DashboardState, rangeToParams, useDashboardState } from "./state";
 
 const TAG = "rounded-md px-2 py-[3px] text-xs disabled:opacity-40";
-const TAG_ON = "bg-surface text-text shadow-[0_0_0_1px_var(--dg-line-strong)]";
-const TAG_OFF = "bg-surface-2 text-muted hover:text-text";
+const TAG_ON = "bg-selected font-medium text-text";
+const TAG_OFF = "text-muted hover:bg-shell-hover hover:text-text";
 
 export const TIMESERIES_FIELDS =
   "visitors,new_visitors,returning_visitors,pageviews,sessions,revenue,payments,conversion_rate,bounce_rate,avg_session_duration,refunds";
@@ -684,7 +684,7 @@ export function OverviewDashboard({
                             setCommitPrefix(e.target.value);
                             writePref(`commit-prefix:${sourceKey(source)}`, e.target.value);
                           }}
-                          className="rounded-md bg-surface-2 px-1.5 py-[3px] text-xs text-muted"
+                          className="rounded-md bg-transparent px-1.5 py-[3px] text-xs text-muted hover:bg-shell-hover"
                         >
                           <option value="">All commits</option>
                           <option value="feat:">feat:</option>

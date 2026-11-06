@@ -281,7 +281,7 @@ export function Tabs({
           onKeyDown={(e) => onKey(e, i)}
           className={cx(
             "shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-sm",
-            value === t.id ? "bg-surface-2 font-medium text-text" : "text-muted hover:text-text",
+            value === t.id ? "bg-selected font-medium text-text" : "text-muted hover:text-text",
           )}
         >
           {t.label}
@@ -318,7 +318,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cx(
             "rounded px-2 py-1 text-xs disabled:opacity-40",
-            value === o.value ? "bg-surface-2 font-medium text-text" : "text-muted hover:text-text",
+            value === o.value ? "bg-selected font-medium text-text" : "text-muted hover:text-text",
           )}
         >
           {o.label}

@@ -163,7 +163,7 @@ export default function IntegrationsPage() {
               onClick={() => setCategory(t.id)}
               className={`rounded-md px-3 py-1 text-sm ${
                 category === t.id
-                  ? "bg-surface font-medium text-text shadow-pill"
+                  ? "bg-selected font-medium text-text"
                   : "text-muted hover:text-text"
               }`}
             >
