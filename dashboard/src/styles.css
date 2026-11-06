@@ -151,6 +151,12 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Always reserve the scrollbar's space, so pages don't shift sideways when one gets long enough
+   to scroll (or a dialog locks scrolling). */
+html {
+  scrollbar-gutter: stable;
+}
+
 html,
 body {
   background: var(--dg-bg);
