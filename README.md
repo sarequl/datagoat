@@ -15,6 +15,28 @@ One Worker, one D1 database, one script tag. MIT licensed.
 
 > **Status: pre-release.** Every feature below is built and covered by automated tests, and [`docs/PARITY.md`](docs/PARITY.md) tracks each DataFast feature in detail. Integrations with outside services (payment providers, email, X, Reddit, GitHub, Google, Meta, Expo push) are tested against mocked APIs only, so treat them as beta until you have verified them with your own accounts. Expect breaking changes until the first release.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/overview-dark.webp">
+    <img src="docs/images/overview-light.webp" alt="The DataGoat Overview: visitors, revenue, the #1 KPI goal and other key numbers above a visitors and revenue chart, with source and page breakdowns showing the revenue each one brings." width="960">
+  </picture>
+</p>
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/realtime.webp" alt="Realtime: a 3D globe of live visitors coloured by how likely they are to buy, next to a list of who is on the site now."></td>
+    <td width="33%"><img src="docs/images/revenue.webp" alt="Revenue: revenue, MRR, renewals and refunds, with revenue broken down by channel and by referrer."></td>
+    <td width="33%"><img src="docs/images/integrations.webp" alt="Integrations in Settings: Stripe connected, with Lemon Squeezy, Polar, Paddle, Dodo Payments, Creem, Shopify and WooCommerce ready to connect."></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Realtime visitors on a globe</sub></td>
+    <td align="center"><sub>Revenue by channel and source</sub></td>
+    <td align="center"><sub>Payment and growth integrations</sub></td>
+  </tr>
+</table>
+
+<sub>Screenshots use the built-in demo data (<code>npm run dev:mock</code>).</sub>
+
 ## Why DataGoat
 
 - **Revenue attribution is the point.** DataGoat joins a first-party visitor id to your payments, so every breakdown row shows visitors, revenue and payments together: which referrer, landing page, UTM campaign, country or device actually makes money.
