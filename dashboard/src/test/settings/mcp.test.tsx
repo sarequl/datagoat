@@ -16,6 +16,14 @@ describe("AI assistants (MCP) page", () => {
     ).toBeInTheDocument();
     const url = `${window.location.origin}/mcp`;
     expect(screen.getByRole("textbox", { name: "MCP server URL" })).toHaveValue(url);
+    // Grouped by maker: Anthropic's apps, then OpenAI's, then Cursor.
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Claude Code",
+      "Claude",
+      "ChatGPT",
+      "Codex",
+      "Cursor",
+    ]);
     // Claude Code first, with its one-line command.
     expect(screen.getByRole("tab", { name: "Claude Code" })).toHaveAttribute(
       "aria-selected",

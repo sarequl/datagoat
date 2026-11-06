@@ -17,8 +17,8 @@ const CLIENTS: ReadonlyArray<{ id: Client; label: string; app: AppId }> = [
   { id: "claude-code", label: "Claude Code", app: "claude" },
   { id: "claude", label: "Claude", app: "claude" },
   { id: "chatgpt", label: "ChatGPT", app: "chatgpt" },
-  { id: "cursor", label: "Cursor", app: "cursor" },
   { id: "codex", label: "Codex", app: "codex" },
+  { id: "cursor", label: "Cursor", app: "cursor" },
 ];
 
 /** Steps and, where the client takes one, a command or config file for `url`. */
