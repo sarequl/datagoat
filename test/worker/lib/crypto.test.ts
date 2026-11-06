@@ -75,7 +75,11 @@ describe("AES-GCM", () => {
   it("rejects tampering, wrong keys, bad formats and short keys", async () => {
     const ct = await encryptString(KEY, "secret");
     const parts = ct.split(".");
-    const flipped = `${parts[0]}.${parts[1]}.${(parts[2] ?? "").slice(0, -2)}AA`;
+    // Change the first ciphertext character (all 6 of its bits are data) to a different one, so the
+    // tampered value always differs; overwriting the tail could leave it unchanged.
+    const body = parts[2] ?? "";
+    const flipped = `${parts[0]}.${parts[1]}.${body[0] === "A" ? "B" : "A"}${body.slice(1)}`;
+    expect(flipped).not.toBe(ct);
     await expect(decryptString(KEY, flipped)).rejects.toThrow();
     await expect(decryptString("x".repeat(32), ct)).rejects.toThrow();
     await expect(decryptString(KEY, "v2.a.b")).rejects.toThrow("Unsupported");
