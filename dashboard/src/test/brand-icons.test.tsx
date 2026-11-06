@@ -29,8 +29,18 @@ describe("brand icons", () => {
     expect(appOf("Cursor")).toBe("cursor");
     expect(appOf("ChatGPT")).toBe("chatgpt");
     expect(appOf(null)).toBe("other");
-    const { container } = render(<AppIcon app="claude" />);
+    expect(appOf("Codex")).toBe("codex");
+    const { container, rerender } = render(<AppIcon app="claude" />);
     expect(container.querySelector("svg")?.getAttribute("fill")).toBe("#D97757");
+    // ChatGPT and Codex get their own marks, not generic icons, and differ from each other.
+    rerender(<AppIcon app="chatgpt" />);
+    const chatgpt = container.querySelector('svg[data-app="chatgpt"] path')?.getAttribute("d");
+    rerender(<AppIcon app="codex" />);
+    const codex = container.querySelector('svg[data-app="codex"] path');
+    expect(chatgpt).toBeTruthy();
+    expect(codex?.getAttribute("d")).toBeTruthy();
+    expect(codex?.getAttribute("d")).not.toBe(chatgpt);
+    expect(codex).toHaveAttribute("fill-rule", "evenodd");
   });
 
   it("summarises permissions instead of listing them inline", () => {
