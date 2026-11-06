@@ -46,8 +46,11 @@
   --dg-shell-hover: rgba(0, 0, 0, 0.045);
   --dg-shell-card: #ffffff;
   --dg-pill: #ffffff;
-  /* Selected tab, menu item or option: a tint clearly darker than the page and the cards. */
-  --dg-selected: rgba(0, 0, 0, 0.075);
+  /* Highlighted row in a dropdown list (period list, command menu). */
+  --dg-selected: rgba(0, 0, 0, 0.06);
+  /* Selected menu item or segmented option: a raised card. */
+  --dg-raised: #ffffff;
+  --dg-raised-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.1);
   --dg-pill-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.05);
   --dg-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.06);
   --dg-primary-text: #b4401c; /* links/active labels in primary hue, AA on light surfaces */
@@ -63,7 +66,9 @@
   --dg-shell-hover: rgba(255, 255, 255, 0.05);
   --dg-shell-card: #171717;
   --dg-pill: #242424;
-  --dg-selected: rgba(255, 255, 255, 0.1);
+  --dg-selected: rgba(255, 255, 255, 0.08);
+  --dg-raised: #2f2f2f;
+  --dg-raised-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
   --dg-pill-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
   --dg-card-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
   --dg-primary-fg: #171717;
@@ -182,4 +187,21 @@ body {
 *:focus-visible {
   outline: 2px solid var(--dg-primary);
   outline-offset: 2px;
+}
+
+/*
+ * Selected states. Tabs and the top bar: dark text with a 2px underline in the text colour.
+ * Menu items and segmented options: a raised card. Brand orange stays for buttons and revenue.
+ */
+@utility sel-underline {
+  color: var(--dg-text);
+  font-weight: 500;
+  box-shadow: inset 0 -2px 0 var(--dg-text);
+}
+
+@utility sel-raised {
+  color: var(--dg-text);
+  font-weight: 500;
+  background-color: var(--dg-raised);
+  box-shadow: var(--dg-raised-shadow);
 }

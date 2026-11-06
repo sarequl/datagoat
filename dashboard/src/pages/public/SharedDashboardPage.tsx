@@ -76,7 +76,7 @@ export default function SharedDashboardPage() {
                   onClick={() => setView(key)}
                   className={cx(
                     "rounded px-2.5 py-1 text-sm",
-                    view === key ? "bg-selected font-medium text-text" : "text-muted",
+                    view === key ? "sel-raised" : "text-muted",
                   )}
                 >
                   {label}

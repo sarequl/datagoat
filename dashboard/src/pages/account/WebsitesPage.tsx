@@ -220,7 +220,7 @@ export default function WebsitesPage() {
                 onClick={() => setPeriod(key)}
                 className={cx(
                   "rounded px-2.5 py-1 text-sm",
-                  period === key ? "bg-selected font-medium text-text" : "text-muted",
+                  period === key ? "sel-raised" : "text-muted",
                 )}
               >
                 {text}

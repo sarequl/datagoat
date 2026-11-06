@@ -93,10 +93,10 @@ export default function McpPage() {
               role="tab"
               aria-selected={client === c.id}
               onClick={() => setClient(c.id)}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm ${
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm ${
                 client === c.id
-                  ? "bg-selected font-medium text-text"
-                  : "text-muted hover:bg-surface-2 hover:text-text"
+                  ? "sel-underline"
+                  : "rounded-md text-muted hover:bg-shell-hover hover:text-text"
               }`}
             >
               <AppIcon app={c.app} />

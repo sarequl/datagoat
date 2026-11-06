@@ -280,8 +280,8 @@ export function Tabs({
           onClick={() => onChange(t.id)}
           onKeyDown={(e) => onKey(e, i)}
           className={cx(
-            "shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-sm",
-            value === t.id ? "bg-selected font-medium text-text" : "text-muted hover:text-text",
+            "shrink-0 whitespace-nowrap px-2 py-1 text-sm",
+            value === t.id ? "sel-underline" : "rounded-md text-muted hover:text-text",
           )}
         >
           {t.label}
@@ -318,7 +318,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={cx(
             "rounded px-2 py-1 text-xs disabled:opacity-40",
-            value === o.value ? "bg-selected font-medium text-text" : "text-muted hover:text-text",
+            value === o.value ? "sel-raised" : "text-muted hover:text-text",
           )}
         >
           {o.label}

@@ -162,9 +162,7 @@ export default function IntegrationsPage() {
               aria-selected={category === t.id}
               onClick={() => setCategory(t.id)}
               className={`rounded-md px-3 py-1 text-sm ${
-                category === t.id
-                  ? "bg-selected font-medium text-text"
-                  : "text-muted hover:text-text"
+                category === t.id ? "sel-raised" : "text-muted hover:text-text"
               }`}
             >
               {t.label}

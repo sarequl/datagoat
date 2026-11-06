@@ -37,7 +37,7 @@ import { showRevenue, sourceKey, useAnalytics, useSource } from "./source";
 import { type DashboardState, rangeToParams, useDashboardState } from "./state";
 
 const TAG = "rounded-md px-2 py-[3px] text-xs disabled:opacity-40";
-const TAG_ON = "bg-selected font-medium text-text";
+const TAG_ON = "sel-raised";
 const TAG_OFF = "text-muted hover:bg-shell-hover hover:text-text";
 
 export const TIMESERIES_FIELDS =

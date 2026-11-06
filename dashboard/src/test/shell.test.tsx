@@ -30,13 +30,16 @@ describe("top bar and settings menu", () => {
       "aria-current",
       "page",
     );
-    // The current entries share one clearly visible "selected" tint.
-    expect(settings.className).toMatch(/\bbg-selected\b/);
+    // Selected: the top-bar section is underlined, the current menu item is a raised card.
+    expect(settings.className).toMatch(/\bsel-underline\b/);
+    expect(within(nav()).getByRole("link", { name: "Overview" }).className).not.toMatch(
+      /\bsel-underline\b/,
+    );
     expect(within(menu).getByRole("link", { name: "Tracking & privacy" }).className).toMatch(
-      /\bbg-selected\b/,
+      /\bsel-raised\b/,
     );
     expect(within(menu).getByRole("link", { name: "Team" }).className).not.toMatch(
-      /\bbg-selected\b/,
+      /\bsel-raised\b/,
     );
     // Integrations, developer pages and the rest of the old sidebar live in the Settings menu.
     for (const label of ["Integrations", "API keys", "AI assistants (MCP)", "Team", "Usage & data"])
