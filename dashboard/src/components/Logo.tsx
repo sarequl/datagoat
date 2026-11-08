@@ -1,9 +1,22 @@
 /**
- * DataGoat's mark: a friendly goat head in profile on the brand orange. The same artwork is served as
- * /favicon.svg and /brand/logo-mark.svg (static/), so keep them in sync: edit static/brand/logo-mark.svg, then run
- * `node scripts/make-icons.mjs` and copy its shapes here.
+ * DataGoat's mark: three rounded bars, the last one curling into a goat horn at the peak.
+ * "tile" is the app icon (white bars on the brand orange), the same artwork as /favicon.svg and
+ * /brand/logo-mark.svg; "plain" is the bars alone in brand tints (/brand/logo.svg), for the top bar.
+ * Keep them in sync: edit static/brand/logo-mark.svg and logo.svg, run
+ * `node scripts/make-icons.mjs`, and copy the shapes here.
  */
-export function LogoMark({ size = 28, className }: { size?: number; className?: string }) {
+const HORN = "M40 46V32C40 22 47 16.5 58 15C52.5 24.5 52 28 52 32V46a6 6 0 0 1-12 0Z";
+
+export function LogoMark({
+  size = 28,
+  className,
+  variant = "tile",
+}: {
+  size?: number;
+  className?: string;
+  variant?: "tile" | "plain";
+}) {
+  const tile = variant === "tile";
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -13,22 +26,28 @@ export function LogoMark({ size = 28, className }: { size?: number; className?: 
       className={className}
       aria-hidden="true"
       focusable="false"
+      data-variant={variant}
     >
-      <rect width="64" height="64" rx="15" fill="#e16540" />
-      <path
-        d="M27.5 19.5 C25.5 12.5 19.5 9.5 13.5 12"
-        fill="none"
-        stroke="#1c1917"
-        strokeWidth="5.5"
-        strokeLinecap="round"
+      {tile ? <rect width="64" height="64" rx="15" fill="#e16540" /> : null}
+      <rect
+        x="10"
+        y="35"
+        width="12"
+        height="17"
+        rx="6"
+        fill={tile ? "#ffffff" : "#f3c2b2"}
+        fillOpacity={tile ? 0.5 : 1}
       />
-      <g fill="#1c1917">
-        <path d="M24.5 26.5 C18.5 25 13 27.5 10 32 C16.5 33.5 21.5 32.5 26 29.5 Z" />
-        <path d="M22.5 22 C27 16.5 36 16.5 42 22 C45 25 47.5 29 50.5 31.5 C53.5 34 53 39.5 48.5 40.5 C45 41.3 41.5 41 38.5 42 C35 44.5 30 45 27 42 C22.5 37.5 20.5 29 22.5 22 Z" />
-        <path d="M32 41 C33 46.5 32.3 50.5 29.8 54 C35.5 52.3 39.8 48 41 41 Z" />
-      </g>
-      <circle cx="35.5" cy="27.5" r="2.4" fill="#e16540" />
-      <circle cx="48.3" cy="35.2" r="1.1" fill="#e16540" />
+      <rect
+        x="25"
+        y="17"
+        width="12"
+        height="35"
+        rx="6"
+        fill={tile ? "#ffffff" : "#eb9578"}
+        fillOpacity={tile ? 0.75 : 1}
+      />
+      <path d={HORN} fill={tile ? "#ffffff" : "#e16540"} />
     </svg>
   );
 }

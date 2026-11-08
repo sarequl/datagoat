@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Regenerates every icon from static/brand/logo-mark.svg (the single source of the mark):
+// Regenerates every icon from static/brand/logo-mark.svg (the single source of the app icon; the
+// plain mark without the tile is static/brand/logo.svg):
 // static/favicon.svg, static/favicon.ico (16/32/48), static/apple-touch-icon.png (180, square),
 // static/brand/icon-192.png, icon-512.png and icon-maskable-512.png (square).
 // Needs a Chromium for Playwright: `npx playwright install chromium` if it is missing.
@@ -11,11 +12,15 @@ import { chromium } from "@playwright/test";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const source = readFileSync(join(root, "static/brand/logo-mark.svg"), "utf8");
-// Full-bleed version for platforms that apply their own mask (iOS, Android adaptive icons).
-const square = source.replace(
-  /<rect width="64" height="64" rx="[\d.]+"/,
-  '<rect width="64" height="64"',
-);
+// Full-bleed version for platforms that apply their own mask (iOS, Android adaptive icons): square
+// background, artwork scaled to 80% so the horn tip stays inside the masks' safe zone.
+const tile = /<rect width="64" height="64" rx="[\d.]+" fill="([^"]+)"\/>/;
+const fill = source.match(tile)?.[1] ?? "#e16540";
+const art = source
+  .replace(tile, "")
+  .replace(/^[\s\S]*?<svg[^>]*>/, "")
+  .replace(/<\/svg>\s*$/, "");
+const square = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="${fill}"/><g transform="translate(6.4 6.4) scale(0.8)">${art}</g></svg>`;
 
 async function png(page, svg, size) {
   const uri = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;

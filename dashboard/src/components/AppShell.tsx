@@ -308,7 +308,7 @@ export function AppShell({ websites }: { websites: WebsiteSummary[] }) {
             aria-label="DataGoat"
             className="flex shrink-0 items-center gap-2 rounded-md px-1 py-1 font-semibold"
           >
-            <LogoMark size={24} />
+            <LogoMark size={26} variant="plain" />
             <span className="hidden lg:inline">DataGoat</span>
           </Link>
           <span aria-hidden="true" className="text-line-strong">

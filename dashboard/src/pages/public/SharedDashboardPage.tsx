@@ -53,7 +53,7 @@ export default function SharedDashboardPage() {
       <div className="min-h-screen">
         <header className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 md:px-6">
           <span className="flex min-w-0 items-center gap-2 text-sm text-muted">
-            <LogoMark size={24} />
+            <LogoMark size={24} variant="plain" />
             Public dashboard
           </span>
           <div className="flex items-center gap-2">
