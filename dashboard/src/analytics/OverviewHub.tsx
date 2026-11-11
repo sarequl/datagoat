@@ -2,7 +2,7 @@
  * The Overview's hub sections below the breakdowns (signed-in websites only): Conversions
  * (funnel, goals, visitor activity), Live and revenue, and Growth. Each card links to its full
  * page with "Open"; a feature that is not set up shows a setup card in place, which can be
- * hidden (remembered per website in this browser) and brought back from "Add card". Cards load
+ * hidden (saved with the user's Overview layout) and brought back in Customize mode. Cards load
  * their data only once they scroll into view, to keep requests down.
  */
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +32,7 @@ import {
   useRealtimeMap,
   useRevenueSummary,
 } from "./hooks";
+import type { SectionDef } from "./layout";
 import {
   countryName,
   flagEmoji,
@@ -176,15 +177,6 @@ function ActionLink({
   );
 }
 
-function SectionTitle({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 pt-4">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{children}</h2>
-      <div className="h-px flex-1 bg-line" />
-    </div>
-  );
-}
-
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="min-w-0">
@@ -193,34 +185,6 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       {sub ? <div className="truncate text-xs text-muted">{sub}</div> : null}
     </div>
   );
-}
-
-// ---------------------------------------------------------------------------
-// Hidden cards
-// ---------------------------------------------------------------------------
-
-export const HIDEABLE = {
-  funnel: "Funnel",
-  revenue: "Revenue",
-  mentions: "Mentions",
-  keywords: "Search keywords",
-  crawlers: "AI crawlers and bots",
-  ads: "Meta Ads",
-} as const;
-export type HideableCard = keyof typeof HIDEABLE;
-
-function useHidden(siteId: string) {
-  const key = `hub-hidden:${siteId}`;
-  const [hidden, setHidden] = useState<HideableCard[]>(() => readPref<HideableCard[]>(key, []));
-  const save = (next: HideableCard[]) => {
-    setHidden(next);
-    writePref(key, next);
-  };
-  return {
-    hidden,
-    hide: (c: HideableCard) => save([...new Set([...hidden, c])]),
-    show: (c: HideableCard) => save(hidden.filter((h) => h !== c)),
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -359,7 +323,7 @@ function RevenueCard({
   const s = summary.data;
   if (summary.isPending)
     return (
-      <HubCard id="revenue" title="Revenue" className="lg:col-span-2">
+      <HubCard id="revenue" title="Revenue">
         <Skeleton className="h-40" />
       </HubCard>
     );
@@ -367,7 +331,7 @@ function RevenueCard({
   const empty = !s || (s.payments === 0 && s.revenue === 0 && !hasMrr);
   if (empty)
     return (
-      <HubCard id="revenue" title="Revenue" className="lg:col-span-2">
+      <HubCard id="revenue" title="Revenue">
         <SetupBody
           heading="Know which channels bring paying customers"
           text="Connect Stripe, Polar, Lemon Squeezy, Paddle, Creem or Shopify. Payments are matched to visitors automatically."
@@ -382,12 +346,7 @@ function RevenueCard({
     );
   const a = ads.data && ads.data.campaigns > 0 ? ads.data : null;
   return (
-    <HubCard
-      id="revenue"
-      title="Revenue"
-      className="lg:col-span-2"
-      open={{ to: "/app/$siteId/revenue", siteId }}
-    >
+    <HubCard id="revenue" title="Revenue" open={{ to: "/app/$siteId/revenue", siteId }}>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat
           label="Revenue"
@@ -441,7 +400,7 @@ function visitorPath(v: RealtimeVisitor): string {
   }
 }
 
-function RealtimeCard({ siteId, wide }: { siteId: string; wide?: boolean }) {
+function RealtimeCard({ siteId }: { siteId: string }) {
   const live = useRealtimeMap(siteId, 30_000);
   const theme = useResolvedTheme();
   const visitors = live.data?.visitors ?? [];
@@ -465,7 +424,6 @@ function RealtimeCard({ siteId, wide }: { siteId: string; wide?: boolean }) {
       }
       title={live.data ? `Realtime · ${formatNumber(live.data.count)} online` : "Realtime"}
       open={{ to: "/app/$siteId/realtime", siteId, label: "Open live map" }}
-      className={wide ? "lg:col-span-3" : undefined}
     >
       {live.isPending ? (
         <Skeleton className="h-40" />
@@ -814,42 +772,15 @@ function AdsCard({ siteId, range, onHide }: { siteId: string; range: Range; onHi
   );
 }
 
-function AddCard({
-  hidden,
-  onShow,
-}: {
-  hidden: HideableCard[];
-  onShow: (c: HideableCard) => void;
-}) {
-  return (
-    <section
-      aria-label="Add card"
-      data-testid="hub-add"
-      className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong p-6 text-center"
-    >
-      <p className="text-sm font-semibold">Add a card</p>
-      <p className="text-[13px] text-muted">Bring back a card you hid.</p>
-      <div className="mt-1 flex flex-wrap justify-center gap-2">
-        {hidden.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => onShow(c)}
-            className="rounded-lg border border-line-strong bg-surface px-3 py-1 text-sm hover:bg-surface-2"
-          >
-            + {HIDEABLE[c]}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 // ---------------------------------------------------------------------------
-// The hub
+// The hub's sections
 // ---------------------------------------------------------------------------
 
-export function OverviewHub({
+/**
+ * The hub's sections below the breakdowns, as card definitions for the customizable layout
+ * (analytics/layout.tsx). `hide` hides a card from a setup card's "Hide this card" link.
+ */
+export function hubSections({
   siteId,
   range,
   money,
@@ -858,6 +789,7 @@ export function OverviewHub({
   revenueColor,
   goals,
   heatmap,
+  hide,
 }: {
   siteId: string;
   range: Range;
@@ -867,70 +799,85 @@ export function OverviewHub({
   revenueColor: string;
   goals: ReactNode;
   heatmap: ReactNode;
-}) {
-  const { hidden, hide, show } = useHidden(siteId);
-  const on = (c: HideableCard) => !hidden.includes(c);
-  const growth: Array<[HideableCard, ReactNode]> = [
-    ["mentions", <MentionsCard key="m" siteId={siteId} onHide={() => hide("mentions")} />],
-    [
-      "keywords",
-      <KeywordsCard
-        key="k"
-        siteId={siteId}
-        range={range}
-        currency={currency}
-        onHide={() => hide("keywords")}
-      />,
-    ],
-    [
-      "crawlers",
-      <CrawlersCard key="c" siteId={siteId} range={range} onHide={() => hide("crawlers")} />,
-    ],
-    ...(money
-      ? ([
-          ["ads", <AdsCard key="a" siteId={siteId} range={range} onHide={() => hide("ads")} />],
-        ] as Array<[HideableCard, ReactNode]>)
-      : []),
-  ];
-  const shown = growth.filter(([c]) => on(c));
-  return (
-    <div className="space-y-4">
-      <SectionTitle>Conversions</SectionTitle>
-      <div className="grid gap-4 lg:grid-cols-2">
-        {on("funnel") ? (
-          <WhenVisible>
-            <FunnelCard siteId={siteId} range={range} onHide={() => hide("funnel")} />
-          </WhenVisible>
-        ) : null}
-        <div className={cx("min-w-0", on("funnel") ? "" : "lg:col-span-2")}>{goals}</div>
-      </div>
-      {heatmap}
-
-      <SectionTitle>{money ? "Live and revenue" : "Live"}</SectionTitle>
-      <div className="grid gap-4 lg:grid-cols-3">
-        {money && on("revenue") ? (
-          <WhenVisible>
-            <RevenueCard
+  hide: (id: string) => void;
+}): SectionDef[] {
+  const lazy = (node: ReactNode) => <WhenVisible>{node}</WhenVisible>;
+  return [
+    {
+      id: "conversions",
+      title: "Conversions",
+      cards: [
+        {
+          id: "funnel",
+          label: "Funnel",
+          node: lazy(<FunnelCard siteId={siteId} range={range} onHide={() => hide("funnel")} />),
+        },
+        { id: "goals", label: "Goals", node: goals },
+        { id: "heatmap", label: "Visitor activity", node: heatmap, full: true },
+      ],
+    },
+    {
+      id: "live",
+      title: money ? "Live and revenue" : "Live",
+      cards: [
+        ...(money
+          ? [
+              {
+                id: "revenue",
+                label: "Revenue",
+                node: lazy(
+                  <RevenueCard
+                    siteId={siteId}
+                    range={range}
+                    points={points}
+                    revenueColor={revenueColor}
+                    onHide={() => hide("revenue")}
+                  />,
+                ),
+              },
+            ]
+          : []),
+        { id: "realtime", label: "Realtime", node: lazy(<RealtimeCard siteId={siteId} />) },
+      ],
+    },
+    {
+      id: "growth",
+      title: "Growth",
+      cards: [
+        {
+          id: "mentions",
+          label: "Mentions",
+          node: lazy(<MentionsCard siteId={siteId} onHide={() => hide("mentions")} />),
+        },
+        {
+          id: "keywords",
+          label: "Search keywords",
+          node: lazy(
+            <KeywordsCard
               siteId={siteId}
               range={range}
-              points={points}
-              revenueColor={revenueColor}
-              onHide={() => hide("revenue")}
-            />
-          </WhenVisible>
-        ) : null}
-        <WhenVisible>
-          <RealtimeCard siteId={siteId} wide={!(money && on("revenue"))} />
-        </WhenVisible>
-      </div>
-
-      <SectionTitle>Growth</SectionTitle>
-      <div className="grid gap-4 md:grid-cols-2">
-        {shown.map(([c, node]) => (
-          <WhenVisible key={c}>{node}</WhenVisible>
-        ))}
-        {hidden.length ? <AddCard hidden={hidden} onShow={show} /> : null}
-      </div>
-    </div>
-  );
+              currency={currency}
+              onHide={() => hide("keywords")}
+            />,
+          ),
+        },
+        {
+          id: "crawlers",
+          label: "AI crawlers and bots",
+          node: lazy(
+            <CrawlersCard siteId={siteId} range={range} onHide={() => hide("crawlers")} />,
+          ),
+        },
+        ...(money
+          ? [
+              {
+                id: "ads",
+                label: "Meta Ads",
+                node: lazy(<AdsCard siteId={siteId} range={range} onHide={() => hide("ads")} />),
+              },
+            ]
+          : []),
+      ],
+    },
+  ];
 }

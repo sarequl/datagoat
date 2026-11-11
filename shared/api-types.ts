@@ -269,6 +269,22 @@ export interface WebsiteOrderRequest {
   websiteIds: string[];
 }
 
+/**
+ * DG `GET|PUT /api/v1/admin/account/overview-layout`: a user's Overview layout for one website.
+ * `sections` orders the sections, `cards[section]` orders that section's cards, `hidden` lists
+ * hidden cards. Unknown ids are ignored and new cards appear at their default place.
+ */
+export interface OverviewLayout {
+  sections: string[];
+  cards: Record<string, string[]>;
+  hidden: string[];
+}
+
+export interface OverviewLayoutResponse {
+  websiteId: string;
+  layout: OverviewLayout | null;
+}
+
 export interface CreatedWebsite {
   websiteId: string;
   domain: string;

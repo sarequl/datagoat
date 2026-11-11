@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { server } from "../../mocks/node";
+import { state } from "../../mocks/state";
 import { renderSite, SITE } from "./helpers";
 
 describe("overview hub", () => {
@@ -39,7 +40,7 @@ describe("overview hub", () => {
     }
   });
 
-  it("offers setup in place, hides a setup card and brings it back from Add card", async () => {
+  it("offers setup in place, hides a setup card and brings it back in Customize mode", async () => {
     server.use(
       http.get("/api/v1/search-console/status", () =>
         HttpResponse.json({
@@ -65,13 +66,15 @@ describe("overview hub", () => {
     const card = await screen.findByTestId("hub-keywords");
     const connect = await within(card).findByRole("link", { name: /Connect Search Console/ });
     expect(connect).toHaveAttribute("href", `/api/connect/gsc/start?websiteId=${SITE}`);
-    expect(screen.queryByTestId("hub-add")).not.toBeInTheDocument();
     await userEvent.click(within(card).getByRole("button", { name: "Hide this card" }));
-    expect(screen.queryByTestId("hub-keywords")).not.toBeInTheDocument();
-    const add = screen.getByRole("region", { name: "Add card" });
-    await userEvent.click(within(add).getByRole("button", { name: "+ Search keywords" }));
+    await waitFor(() => expect(screen.queryByTestId("hub-keywords")).not.toBeInTheDocument());
+    // Hidden cards are saved with the user's layout and come back from Customize mode.
+    expect(state.overviewLayouts[SITE]?.hidden).toEqual(["keywords"]);
+    await userEvent.click(screen.getByRole("button", { name: "Customize to show them" }));
+    await userEvent.click(screen.getByRole("button", { name: "Show Search keywords" }));
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
     expect(await screen.findByTestId("hub-keywords")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByTestId("hub-add")).not.toBeInTheDocument());
+    await waitFor(() => expect(state.overviewLayouts[SITE]).toBeNull());
   });
 
   it("points a website without visitors at the install guide", async () => {

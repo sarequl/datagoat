@@ -4,6 +4,7 @@ import type {
   AccessToken,
   CreateAccessTokenRequest,
   LoginRequest,
+  OverviewLayout,
   SetupRequest,
   TeamMember,
   Website,
@@ -143,6 +144,20 @@ export const authHandlers = [
     };
     state.websites = [...state.websites].sort((a, b) => rank(a._id) - rank(b._id));
     return ok(state.websites.map(summary));
+  }),
+  http.get("/api/v1/admin/account/overview-layout", ({ request }) => {
+    const websiteId = new URL(request.url).searchParams.get("websiteId") ?? "";
+    if (!state.websites.some((w) => w._id === websiteId)) return fail(404, "Website not found");
+    return ok([{ websiteId, layout: state.overviewLayouts[websiteId] ?? null }]);
+  }),
+  http.put("/api/v1/admin/account/overview-layout", async ({ request }) => {
+    const { websiteId, layout } = (await request.json()) as {
+      websiteId: string;
+      layout: OverviewLayout | null;
+    };
+    if (!state.websites.some((w) => w._id === websiteId)) return fail(404, "Website not found");
+    state.overviewLayouts[websiteId] = layout;
+    return ok([{ websiteId, layout }]);
   }),
   http.post("/api/v1/admin/websites", async ({ request }) => {
     const body = (await request.json()) as {

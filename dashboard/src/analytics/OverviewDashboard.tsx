@@ -26,13 +26,14 @@ import {
   useRealtimeCount,
   useSearchConsoleConnected,
 } from "./hooks";
+import { type CardDef, CustomizableOverview, type SectionDef, useHideCard } from "./layout";
 import { kpiColor } from "./lib/colors";
 import { upsertFilter } from "./lib/filters";
 import { formatDateTime, formatMoney, formatNumber, formatPercent } from "./lib/format";
 import { INTERVAL_LABELS } from "./lib/period";
 import { isTypingTarget, readPref, writePref } from "./lib/storage";
 import { addDays, endOfMonth, ymdInTz } from "./lib/tz";
-import { OverviewHub } from "./OverviewHub";
+import { hubSections } from "./OverviewHub";
 import { showRevenue, sourceKey, useAnalytics, useSource } from "./source";
 import { type DashboardState, rangeToParams, useDashboardState } from "./state";
 
@@ -477,6 +478,8 @@ export function OverviewDashboard({
   };
 
   const goalsCard = <GoalsCard state={state} siteId={siteId} />;
+  const [customizing, setCustomizing] = useState(false);
+  const hideCard = useHideCard(siteId ?? "");
   const heatmapCard = (
     <section
       className="min-w-0 rounded-lg border border-line bg-surface p-4"
@@ -499,6 +502,34 @@ export function OverviewDashboard({
       )}
     </section>
   );
+
+  const kpiGoalProp = kpiGoalName ? { name: kpiGoalName, label: kpiLabel ?? kpiGoalName } : null;
+  const breakdowns: CardDef[] = [
+    { id: "source", label: "Source", tabs: sourceCardTabs },
+    { id: "pages", label: "Pages", tabs: pageTabs(domain) },
+    { id: "location", label: "Location", tabs: locationTabs() },
+    { id: "system", label: "System", tabs: systemTabs() },
+  ].map(({ id, label, tabs }) => ({
+    id,
+    label,
+    node: <BreakdownCard id={id} title={label} tabs={tabs} state={state} kpiGoal={kpiGoalProp} />,
+  }));
+  const sections: SectionDef[] = siteId
+    ? [
+        { id: "breakdowns", cards: breakdowns },
+        ...hubSections({
+          siteId,
+          range: markerRange,
+          money,
+          currency: currencyCode,
+          points,
+          revenueColor: kpiColor(kpiColorScheme),
+          goals: goalsCard,
+          heatmap: heatmapCard,
+          hide: hideCard,
+        }),
+      ]
+    : [];
 
   return (
     <div className="space-y-4">
@@ -524,13 +555,40 @@ export function OverviewDashboard({
           Compare
         </button>
         <FilterBar state={state} segments={source.kind === "site"} />
+        {siteId ? (
+          <button
+            type="button"
+            aria-pressed={customizing}
+            onClick={() => setCustomizing(!customizing)}
+            className={cx(
+              "ml-auto inline-flex h-[34px] items-center gap-1.5 rounded-lg px-3 text-[13.5px] font-medium",
+              customizing ? "sel-raised" : "text-muted hover:bg-shell-hover hover:text-text",
+            )}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 16 16"
+              className="size-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinecap="round"
+            >
+              <rect x="2" y="2" width="5" height="5" rx="1.2" />
+              <rect x="9" y="2" width="5" height="5" rx="1.2" />
+              <rect x="2" y="9" width="5" height="5" rx="1.2" />
+              <rect x="9" y="9" width="5" height="5" rx="1.2" />
+            </svg>
+            Customize
+          </button>
+        ) : null}
         {siteId && liveCount.data !== undefined ? (
           <Link
             to="/app/$siteId/realtime"
             params={{ siteId }}
             title="Open the live map (M)"
             data-testid="kpi-live"
-            className="ml-auto inline-flex h-[34px] items-center gap-2 rounded-full border border-line bg-surface px-3 text-[13px] text-muted hover:text-text"
+            className="inline-flex h-[34px] items-center gap-2 rounded-full border border-line bg-surface px-3 text-[13px] text-muted hover:text-text"
           >
             <span
               aria-hidden="true"
@@ -716,54 +774,24 @@ export function OverviewDashboard({
           )}
         </section>
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <BreakdownCard
-          id="source"
-          title="Source"
-          tabs={sourceCardTabs}
-          state={state}
-          kpiGoal={kpiGoalName ? { name: kpiGoalName, label: kpiLabel ?? kpiGoalName } : null}
-        />
-        <BreakdownCard
-          id="pages"
-          title="Pages"
-          tabs={pageTabs(domain)}
-          state={state}
-          kpiGoal={kpiGoalName ? { name: kpiGoalName, label: kpiLabel ?? kpiGoalName } : null}
-        />
-        <BreakdownCard
-          id="location"
-          title="Location"
-          tabs={locationTabs()}
-          state={state}
-          kpiGoal={kpiGoalName ? { name: kpiGoalName, label: kpiLabel ?? kpiGoalName } : null}
-        />
-        <BreakdownCard
-          id="system"
-          title="System"
-          tabs={systemTabs()}
-          state={state}
-          kpiGoal={kpiGoalName ? { name: kpiGoalName, label: kpiLabel ?? kpiGoalName } : null}
-        />
-        {siteId ? null : (
-          <>
-            {goalsCard}
-            {heatmapCard}
-          </>
-        )}
-      </div>
       {siteId ? (
-        <OverviewHub
+        <CustomizableOverview
           siteId={siteId}
-          range={markerRange}
-          money={money}
-          currency={currencyCode}
-          points={points}
-          revenueColor={kpiColor(kpiColorScheme)}
-          goals={goalsCard}
-          heatmap={heatmapCard}
+          sections={sections}
+          editing={customizing}
+          onEditingChange={setCustomizing}
         />
-      ) : null}
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {breakdowns.map((card) => (
+            <div key={card.id} className="min-w-0">
+              {card.node}
+            </div>
+          ))}
+          {goalsCard}
+          {heatmapCard}
+        </div>
+      )}
     </div>
   );
 }

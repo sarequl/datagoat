@@ -66,8 +66,15 @@ card, or use its *Move up* / *Move down* buttons, to change the order; it is sav
   - *Growth*: X and Reddit mentions, Search Console keywords, AI crawlers and bots, and Meta Ads.
 
   A feature that is not set up shows a setup card in its place (for example *Connect Search
-  Console*, which starts the Google sign-in right there). *Hide this card* hides it in this
-  browser; *Add a card* brings hidden cards back. Cards load their data when they scroll into view.
+  Console*, which starts the Google sign-in right there); *Hide this card* hides it. Cards load
+  their data when they scroll into view.
+- **Customize.** *Customize* next to the period switches the Overview into an editing mode: drag a
+  card or a whole section by its handle (or use its up and down arrows, which also work with the
+  keyboard), hide or show any card below the headline card, and *Reset to default*. *Done* saves
+  the layout to your account for that website (`/api/v1/admin/account/overview-layout`), so it is
+  the same on every device and does not change anyone else's; *Cancel* drops the changes. Cards
+  sit two per row and a card without a partner stretches across the row. Shared dashboards always
+  use the default layout.
 - **New websites.** With no visitors in the period, a banner links to the install guide.
 
 ## Period selector

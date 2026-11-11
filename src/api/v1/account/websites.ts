@@ -2,7 +2,7 @@
  * `/api/v1/admin/websites` CRUD, website API keys and team (DataFast Account API), plus DataGoat
  * extensions: team role changes and pending invites.
  */
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { isRole, type Role } from "../../../../shared/permissions";
 import { getAccess, getAuth } from "../../../auth/context";
@@ -97,6 +97,82 @@ websiteRoutes.put(
           websiteSummaryDto(site, auth.roleCap && role === "owner" ? auth.roleCap : role),
         ),
     );
+  },
+);
+
+const LayoutId = z.string().regex(/^[a-z][a-z0-9-]{0,31}$/);
+const OverviewLayoutSchema = z
+  .object({
+    sections: z.array(LayoutId).max(12),
+    cards: z.record(LayoutId, z.array(LayoutId).max(40)),
+    hidden: z.array(LayoutId).max(60),
+  })
+  .strict()
+  .refine((l) => Object.keys(l.cards).length <= 12, "Too many sections");
+const OverviewLayoutBody = z
+  .object({
+    websiteId: z.string().trim().min(1).max(64),
+    layout: OverviewLayoutSchema.nullable(),
+  })
+  .strict();
+
+/** The caller's membership of a website (by id or tracking id), honouring token restrictions. */
+async function membershipSiteId(c: Context<AppEnv>, websiteId: string): Promise<string> {
+  const auth = getAuth(c);
+  const rows = await listUserSiteRows(c.env.DB, auth.user.id);
+  const row = rows.find((r) => r.id === websiteId || r.public_id === websiteId);
+  const id = row ? String(row.id) : null;
+  if (!id || (auth.websiteIds !== "all" && !auth.websiteIds.includes(id))) {
+    throw new ApiError(404, "Website not found");
+  }
+  return id;
+}
+
+function parseLayout(raw: unknown) {
+  if (typeof raw !== "string") return null;
+  try {
+    const parsed = OverviewLayoutSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * DG: the caller's Overview layout for a website (section and card order, hidden cards), set in
+ * the dashboard's Customize mode. Per user and website; `layout: null` means the default.
+ */
+websiteRoutes.get(
+  "/account/overview-layout",
+  requireAccountAccess("websites:read", { allowSiteKey: false }),
+  async (c) => {
+    const websiteId = c.req.query("websiteId") ?? "";
+    const id = await membershipSiteId(c, websiteId);
+    const row = await c.env.DB.prepare(
+      "SELECT overview_layout FROM memberships WHERE site_id = ? AND user_id = ?",
+    )
+      .bind(id, getAuth(c).user.id)
+      .first<{ overview_layout: string | null }>();
+    return success(c, [{ websiteId: id, layout: parseLayout(row?.overview_layout) }]);
+  },
+);
+
+/** DG: save (or with `layout: null`, reset) the caller's Overview layout. One row write. */
+websiteRoutes.put(
+  "/account/overview-layout",
+  requireAccountAccess("websites:read", { allowSiteKey: false }),
+  async (c) => {
+    const { websiteId, layout } = await parseJsonBody(c, OverviewLayoutBody, {
+      maxBytes: 8 * 1024,
+    });
+    const id = await membershipSiteId(c, websiteId);
+    const value = layout ? JSON.stringify(layout) : null;
+    await c.env.DB.prepare(
+      "UPDATE memberships SET overview_layout = ? WHERE site_id = ? AND user_id = ? AND overview_layout IS NOT ?",
+    )
+      .bind(value, id, getAuth(c).user.id, value)
+      .run();
+    return success(c, [{ websiteId: id, layout }]);
   },
 );
 

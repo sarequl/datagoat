@@ -9,6 +9,7 @@ import type {
   GrowthIntegrationStatus,
   IntegrationsStatus,
   OAuthConnection,
+  OverviewLayout,
   PendingInvite,
   TeamMember,
   Website,
@@ -42,6 +43,8 @@ export interface MockState {
   installPolls: Record<string, number>;
   /** Notes, segments, funnels and goal customizations created in the mock (W4). */
   analytics: AnalyticsMockState;
+  /** The signed-in user's saved Overview layout per website (null = default). */
+  overviewLayouts: Record<string, OverviewLayout | null>;
 }
 
 function initial(): MockState {
@@ -59,6 +62,7 @@ function initial(): MockState {
     oauthConnections: oauthConnections.map((c) => ({ ...c })),
     installPolls: {},
     analytics: { notes: {}, segments: {}, funnels: {}, goalCustomizations: {} },
+    overviewLayouts: {},
   };
 }
 
