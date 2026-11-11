@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 const SITE = "6728f0a0a1b2c3d4e5f6a001";
 const cards = (page: Page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll("[data-card]")].map((e) => e.getAttribute("data-card")),
+    Array.from(document.querySelectorAll("[data-card]"), (e) => e.getAttribute("data-card")),
   );
 
 test("customize the overview by dragging a card and saving it", async ({ page }) => {
