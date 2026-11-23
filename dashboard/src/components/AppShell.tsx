@@ -245,7 +245,7 @@ export function SettingsFrame({
     <div className="gap-8 md:grid md:grid-cols-[12.5rem_1fr]">
       <nav aria-label="Settings sections" className="mb-5 md:mb-0">
         <p className="mb-3 hidden px-2.5 text-lg font-semibold md:block">Settings</p>
-        <div className="-mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:block md:space-y-4 md:px-0">
+        <div className="-mx-4 flex gap-1 overflow-x-auto px-4 py-0.5 md:mx-0 md:block md:space-y-4 md:overflow-visible md:px-0 md:py-0">
           {SETTINGS_MENU.map((group) => (
             <div key={group.heading || "end"} className="flex shrink-0 gap-1 md:block">
               {group.heading ? (
