@@ -28,6 +28,7 @@ import {
   PageHeader,
   QueryState,
   ReadOnlyNotice,
+  Toggle,
 } from "./lib/ui";
 
 /**
@@ -941,7 +942,7 @@ function MentionsCard({
         "Choose Connect to link your X account for tweet link attribution.",
       ]}
       disabled={disabled}
-      oauthHint="Sign-in with X is not set up on this server (X_CLIENT_ID and X_CLIENT_SECRET, see docs/growth/mentions.md). Keyword search uses the server's X bearer token when one is set; Reddit needs nothing."
+      oauthHint="Sign-in with X is not set up on this server (X_CLIENT_ID and X_CLIENT_SECRET, see docs/growth/mentions.md). Keyword search uses the server's X bearer token when one is set; Reddit search needs Reddit app credentials (below)."
     >
       {(s) => (
         <KeywordsForm
@@ -967,11 +968,15 @@ function KeywordsForm({
   const save = useSaveGrowthIntegration(siteId, "x");
   const initialKeywords = strs(settings.keywords);
   const initialHandles = strs(settings.handles);
+  const initialReddit = settings.redditEnabled !== false;
+  const redditReady = settings.redditConfigured === true;
   const [keywords, setKeywords] = useState(initialKeywords);
   const [handles, setHandles] = useState(initialHandles);
+  const [reddit, setReddit] = useState(initialReddit);
   const dirty =
     JSON.stringify(keywords) !== JSON.stringify(initialKeywords) ||
-    JSON.stringify(handles) !== JSON.stringify(initialHandles);
+    JSON.stringify(handles) !== JSON.stringify(initialHandles) ||
+    reddit !== initialReddit;
   return (
     <div className="space-y-3">
       <FieldGroup
@@ -1004,11 +1009,25 @@ function KeywordsForm({
           }
         />
       </FieldGroup>
+      <Toggle
+        label="Also search Reddit"
+        description="Your domain and the keywords above are searched on Reddit too."
+        checked={reddit}
+        onChange={setReddit}
+        disabled={disabled}
+      />
+      {reddit && !redditReady ? (
+        <Notice>
+          Reddit search is off on this server: Reddit only answers apps it has approved. Create an
+          app at reddit.com/prefs/apps, request Data API access, then add REDDIT_CLIENT_ID and
+          REDDIT_CLIENT_SECRET as Worker secrets (see docs/growth/mentions.md).
+        </Notice>
+      ) : null}
       <SaveSettings
         save={save}
         dirty={dirty}
         disabled={disabled}
-        onSave={() => save.mutate({ settings: { keywords, handles } })}
+        onSave={() => save.mutate({ settings: { keywords, handles, redditEnabled: reddit } })}
       />
     </div>
   );

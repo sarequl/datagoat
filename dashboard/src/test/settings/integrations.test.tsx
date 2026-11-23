@@ -336,4 +336,23 @@ describe("growth integrations", () => {
     });
     expect(await within(card).findByText("Saved")).toBeInTheDocument();
   });
+
+  it("turns Reddit search on and off, and says when the server cannot search Reddit", async () => {
+    const log = recordRequests();
+    openPage(`/app/${SITE}/integrations`);
+    await openRow("x");
+    const reddit = await screen.findByRole("switch", { name: /Also search Reddit/ });
+    expect(reddit).toBeChecked();
+    // This server has Reddit credentials, so there is no warning.
+    expect(screen.queryByText(/Reddit search is off on this server/)).not.toBeInTheDocument();
+    await userEvent.click(reddit);
+    const card = reddit.closest("section") as HTMLElement;
+    await userEvent.click(within(card).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(
+        (writes(log, "PUT", "/integrations/x")[0]?.body as { redditEnabled?: boolean })
+          ?.redditEnabled,
+      ).toBe(false),
+    );
+  });
 });
