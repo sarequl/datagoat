@@ -39,6 +39,8 @@ const REDDIT_LOOKBACK_MS = 7 * 86_400_000;
 export interface XSettings {
   keywords?: string[];
   handles?: string[];
+  /** DG: X search and link attribution; off when the user disconnects X but keeps Reddit. */
+  xEnabled?: boolean;
   redditEnabled?: boolean;
 }
 
@@ -124,10 +126,13 @@ export async function syncMentionsForSite(
   const links: TcoLink[] = [];
   const errors: string[] = [];
 
-  const auth = await xToken(env, ctx.fetch, conn, now).catch((err) => {
-    errors.push(errorMessage(err));
-    return { token: null as string | null, credentialsEnc: undefined };
-  });
+  const xOff = conn.settings.xEnabled === false;
+  const auth = xOff
+    ? { token: null as string | null, credentialsEnc: undefined }
+    : await xToken(env, ctx.fetch, conn, now).catch((err) => {
+        errors.push(errorMessage(err));
+        return { token: null as string | null, credentialsEnc: undefined };
+      });
   const credentialsEnc = auth.credentialsEnc;
   if (auth.token) {
     try {

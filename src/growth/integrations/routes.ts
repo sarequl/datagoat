@@ -131,7 +131,10 @@ const Bodies = {
       keywords: z.array(zKeyword).max(20).optional(),
       handles: z.array(zHandle).max(20).optional(),
       redditEnabled: z.boolean().optional(),
+      xEnabled: z.boolean().optional(),
       bearerToken: z.string().trim().min(20).max(1000).optional(),
+      /** DG: forget the stored X token or account, keeping Reddit search and the keywords. */
+      clearCredentials: z.literal(true).optional(),
     })
     .strict(),
 } as const;
@@ -167,6 +170,7 @@ async function statusDto(
     settings.handles ??= [];
     settings.redditEnabled ??= true;
     settings.usesServerToken = !conn?.hasCredentials && Boolean(c.env.X_BEARER_TOKEN?.trim());
+    settings.xConfigured = Boolean(conn?.hasCredentials) || settings.usesServerToken === true;
     settings.redditConfigured = redditConfigured(c.env);
   }
   const configured = oauthConfigured(c.env, kind);
@@ -204,9 +208,10 @@ for (const kind of Object.keys(KIND_SLUGS) as IntegrationKind[]) {
     >;
     const current = await getConnection(c.env.DB, site.id, kind);
     const now = Date.now();
-    const { accessToken, bearerToken, ...rest } = body as {
+    const { accessToken, bearerToken, clearCredentials, ...rest } = body as {
       accessToken?: string;
       bearerToken?: string;
+      clearCredentials?: true;
     } & Record<string, unknown>;
     const settings: Record<string, unknown> = { ...(current?.settings ?? {}), ...rest };
     if (kind === "github" && rest.repo && rest.repo !== current?.settings.repo) {
@@ -222,7 +227,7 @@ for (const kind of Object.keys(KIND_SLUGS) as IntegrationKind[]) {
         a.startsWith("act_") ? a : `act_${a}`,
       );
     }
-    let credentialsEnc: string | undefined;
+    let credentialsEnc: string | null | undefined = clearCredentials ? null : undefined;
     const token = accessToken ?? bearerToken;
     if (token) {
       credentialsEnc = await encryptCredentials(
@@ -234,7 +239,8 @@ for (const kind of Object.keys(KIND_SLUGS) as IntegrationKind[]) {
           : { accessToken: token, via: "token" },
       );
     }
-    const hasCreds = Boolean(credentialsEnc) || Boolean(current?.hasCredentials);
+    const hasCreds =
+      Boolean(credentialsEnc) || (credentialsEnc !== null && Boolean(current?.hasCredentials));
     // X runs on the server token / Reddit and GitHub can read public repositories without a token.
     const needsCreds = kind === "gsc" || kind === "meta_ads";
     const status =

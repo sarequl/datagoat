@@ -47,7 +47,9 @@ describe("integrations directory", () => {
     const growthNames = within(growth)
       .getAllByRole("heading", { level: 3 })
       .map((h) => h.textContent);
-    expect(growthNames.slice(0, 2).sort()).toEqual(["GitHub", "X and Reddit"]);
+    // X and Reddit are separate rows (both connected in the mock).
+    expect(growthNames.slice(0, 3).sort()).toEqual(["GitHub", "Reddit", "X"]);
+    expect(growthNames).not.toContain("X and Reddit");
 
     await userEvent.click(screen.getByRole("tab", { name: "Payments" }));
     await userEvent.type(screen.getByRole("searchbox", { name: "Search integrations" }), "lemon");
@@ -337,22 +339,74 @@ describe("growth integrations", () => {
     expect(await within(card).findByText("Saved")).toBeInTheDocument();
   });
 
-  it("turns Reddit search on and off, and says when the server cannot search Reddit", async () => {
+  it("turns Reddit search on and off from its own row", async () => {
     const log = recordRequests();
     openPage(`/app/${SITE}/integrations`);
-    await openRow("x");
-    const reddit = await screen.findByRole("switch", { name: /Also search Reddit/ });
+    const row = await openRow("reddit");
+    expect(within(row).getByText("Connected")).toBeInTheDocument();
+    const reddit = within(row).getByRole("switch", { name: /Search Reddit for this website/ });
     expect(reddit).toBeChecked();
-    // This server has Reddit credentials, so there is no warning.
-    expect(screen.queryByText(/Reddit search is off on this server/)).not.toBeInTheDocument();
+    expect(within(row).queryByText(/Add Reddit app keys/)).not.toBeInTheDocument();
     await userEvent.click(reddit);
-    const card = reddit.closest("section") as HTMLElement;
-    await userEvent.click(within(card).getByRole("button", { name: "Save" }));
+    await userEvent.click(within(row).getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(
         (writes(log, "PUT", "/integrations/x")[0]?.body as { redditEnabled?: boolean })
           ?.redditEnabled,
       ).toBe(false),
     );
+  });
+
+  it("shows each platform's own error, and says when the server has no Reddit keys", async () => {
+    server.use(
+      http.get("/api/v1/admin/websites/:id/integrations/x", () =>
+        HttpResponse.json({
+          status: "success",
+          data: {
+            kind: "x",
+            connected: true,
+            status: "error",
+            settings: {
+              keywords: ["DataGoat"],
+              handles: [],
+              redditEnabled: true,
+              usesServerToken: true,
+              xConfigured: true,
+              redditConfigured: false,
+            },
+            lastSyncedAt: null,
+            lastError: "X: credits depleted; Reddit: HTTP 403",
+            oauthConfigured: false,
+            hasCredentials: false,
+          },
+        }),
+      ),
+    );
+    openPage(`/app/${SITE}/integrations`);
+    await userEvent.click(await screen.findByRole("tab", { name: "Growth" }));
+    const x = await provider("x");
+    expect(within(x).getByText("X: credits depleted")).toBeInTheDocument();
+    expect(within(x).queryByText(/Reddit: HTTP 403/)).not.toBeInTheDocument();
+    const reddit = await provider("reddit");
+    expect(within(reddit).getByText("Needs setup")).toBeInTheDocument();
+    expect(within(reddit).getByText("Reddit: HTTP 403")).toBeInTheDocument();
+    await userEvent.click(within(reddit).getByRole("button", { name: "Set up" }));
+    expect(within(reddit).getByText(/REDDIT_CLIENT_ID and/)).toBeInTheDocument();
+  });
+
+  it("disconnects X without turning off Reddit", async () => {
+    const log = recordRequests();
+    openPage(`/app/${SITE}/integrations`);
+    const row = await openRow("x");
+    await userEvent.click(within(row).getByRole("button", { name: "Disconnect X" }));
+    const dialog = await screen.findByRole("dialog", { name: "Disconnect X?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Disconnect" }));
+    await waitFor(() =>
+      expect(writes(log, "PUT", "/integrations/x")[0]?.body).toEqual({
+        xEnabled: false,
+        clearCredentials: true,
+      }),
+    );
+    expect(writes(log, "DELETE", "/integrations/x")).toHaveLength(0);
   });
 });

@@ -80,6 +80,18 @@ describe("integration settings", () => {
       .bind(site.id)
       .first<{ credentials_enc: string }>();
     expect(stored?.credentials_enc).toMatch(/^v1\./);
+    // Disconnecting X alone forgets its token and turns X off, keeping Reddit and the keywords.
+    const xOff = await api(`${W}/x`, {
+      cookie,
+      method: "PUT",
+      body: { xEnabled: false, clearCredentials: true },
+    });
+    expect(xOff.body.data).toMatchObject({
+      connected: true,
+      hasCredentials: false,
+      settings: { xEnabled: false, redditEnabled: true, keywords: ["DataGoat", "#goatstats"] },
+    });
+    expect(JSON.stringify(xOff.body.data.settings)).not.toContain("clearCredentials");
     const removed = await api(`${W}/x`, { cookie, method: "DELETE" });
     expect(removed.body.data.connected).toBe(false);
     expect(

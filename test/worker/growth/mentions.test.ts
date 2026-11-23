@@ -234,6 +234,28 @@ describe("mentions.sync", () => {
     expect(conn?.last_error).toBe("X: credits depleted");
   });
 
+  it("skips X when it is turned off (xEnabled: false) and still searches Reddit", async () => {
+    const owner = await createUser();
+    const site = await createSite(owner.id, { domain: "example.com" });
+    await connectX(site.id, { keywords: [], xEnabled: false });
+    const fetch = mockFetch()
+      .on("https://api.x.com/", () => jsonResponse({ never: "called" }))
+      .on("https://www.reddit.com/api/v1/access_token", () => ({
+        access_token: "rd-token",
+        expires_in: 3600,
+      }))
+      .on("https://oauth.reddit.com/search", () => ({ data: { children: [] } }));
+    const e = {
+      ...env,
+      X_BEARER_TOKEN: "x-app-token-0123456789",
+      REDDIT_CLIENT_ID: "id",
+      REDDIT_CLIENT_SECRET: "secret",
+    } as Cloudflare.Env;
+    await syncMentions(jobCtx({ now: NOW, fetch, env: e }));
+    expect(fetch.calls.filter((c) => c.url.includes("api.x.com"))).toEqual([]);
+    expect(fetch.calls.some((c) => c.url.includes("oauth.reddit.com/search"))).toBe(true);
+  });
+
   it("skips Reddit without app credentials (Reddit blocks anonymous server requests)", async () => {
     const owner = await createUser();
     const site = await createSite(owner.id, { domain: "example.com" });

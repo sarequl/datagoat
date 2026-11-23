@@ -37,7 +37,6 @@ function XSettings({ siteId }: { siteId: string }) {
   const [keywords, setKeywords] = useState("");
   const [handles, setHandles] = useState("");
   const [token, setToken] = useState("");
-  const [reddit, setReddit] = useState(true);
   useEffect(() => {
     const s = status.data?.settings as
       | { keywords?: string[]; handles?: string[]; redditEnabled?: boolean }
@@ -45,14 +44,13 @@ function XSettings({ siteId }: { siteId: string }) {
     if (!s) return;
     setKeywords((s.keywords ?? []).join(", "));
     setHandles((s.handles ?? []).map((h) => `@${h}`).join(", "));
-    setReddit(s.redditEnabled !== false);
   }, [status.data]);
   const save = useMutation({
     mutationFn: () =>
       api.put<GrowthIntegrationStatus>(`/api/v1/admin/websites/${siteId}/integrations/x`, {
         keywords: splitList(keywords),
         handles: splitList(handles),
-        redditEnabled: reddit,
+        xEnabled: true,
         ...(token.trim() ? { bearerToken: token.trim() } : {}),
       }),
     onSuccess: (res) => {
@@ -68,19 +66,20 @@ function XSettings({ siteId }: { siteId: string }) {
   const usesServer = Boolean(
     (st?.settings as { usesServerToken?: boolean } | undefined)?.usesServerToken,
   );
-  const redditReady = Boolean(
-    (st?.settings as { redditConfigured?: boolean } | undefined)?.redditConfigured,
-  );
+  const xError = (st?.lastError ?? "")
+    .split("; ")
+    .filter((e) => e && !e.startsWith("Reddit"))
+    .join("; ");
   return (
-    <form className="space-y-4" onSubmit={submit} aria-label="Mention tracking settings">
+    <form className="space-y-4" onSubmit={submit} aria-label="X settings">
       {save.error ? <Notice tone="error">{save.error.message}</Notice> : null}
       {save.isSuccess ? (
         <Notice tone="success">Saved. New mentions appear within 30 minutes.</Notice>
       ) : null}
-      {st?.lastError ? <Notice tone="error">Last sync: {st.lastError}</Notice> : null}
+      {xError ? <Notice tone="error">Last sync: {xError}</Notice> : null}
       <Field
         label="Keywords"
-        hint="4–15 characters each, comma separated, e.g. DataGoat, @datagoat, #launch. Your domain is always tracked on X and Reddit."
+        hint="4–15 characters each, comma separated, e.g. DataGoat, @datagoat, #launch. Your domain is always tracked. Shared with Reddit."
       >
         <Input
           value={keywords}
@@ -98,14 +97,6 @@ function XSettings({ siteId }: { siteId: string }) {
           placeholder="@you, @yourcompany"
         />
       </Field>
-      <Toggle label="Also search Reddit" checked={reddit} onChange={setReddit} />
-      {reddit && !redditReady ? (
-        <Notice>
-          Reddit only answers apps it has approved, so Reddit search is off until this server has
-          Reddit app credentials: create an app at reddit.com/prefs/apps, request Data API access,
-          then add REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET as Worker secrets.
-        </Notice>
-      ) : null}
       <Field
         label="X API bearer token"
         hint={
@@ -140,6 +131,63 @@ function XSettings({ siteId }: { siteId: string }) {
       {st?.lastSyncedAt ? (
         <p className="text-xs text-muted">Last checked {fmtDate(st.lastSyncedAt, true)}</p>
       ) : null}
+    </form>
+  );
+}
+
+/** Reddit search for this website (stored with the X settings; needs Reddit app keys on the server). */
+function RedditSettings({ siteId }: { siteId: string }) {
+  const qc = useQueryClient();
+  const key = ["integrations", siteId, "x"];
+  const status = useQuery({
+    queryKey: key,
+    queryFn: () =>
+      apiGet<GrowthIntegrationStatus>(`/api/v1/admin/websites/${siteId}/integrations/x`),
+  });
+  const [reddit, setReddit] = useState(true);
+  useEffect(() => {
+    const s = status.data?.settings as { redditEnabled?: boolean } | undefined;
+    if (s) setReddit(s.redditEnabled !== false);
+  }, [status.data]);
+  const save = useMutation({
+    mutationFn: () =>
+      api.put<GrowthIntegrationStatus>(`/api/v1/admin/websites/${siteId}/integrations/x`, {
+        redditEnabled: reddit,
+      }),
+    onSuccess: (res) => qc.setQueryData(key, res.data),
+  });
+  const st = status.data;
+  const ready = Boolean(
+    (st?.settings as { redditConfigured?: boolean } | undefined)?.redditConfigured,
+  );
+  const error = (st?.lastError ?? "")
+    .split("; ")
+    .filter((e) => e.startsWith("Reddit"))
+    .join("; ");
+  return (
+    <form
+      className="space-y-4"
+      aria-label="Reddit settings"
+      onSubmit={(e) => {
+        e.preventDefault();
+        save.mutate();
+      }}
+    >
+      {save.error ? <Notice tone="error">{save.error.message}</Notice> : null}
+      {save.isSuccess ? <Notice tone="success">Saved.</Notice> : null}
+      {error ? <Notice tone="error">Last sync: {error}</Notice> : null}
+      <Toggle label="Also search Reddit" checked={reddit} onChange={setReddit} />
+      {reddit && !ready ? (
+        <Notice>
+          Reddit only answers apps it has approved, so Reddit search is off until this server has
+          Reddit app credentials: create an app at reddit.com/prefs/apps, request Data API access,
+          then add REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET as Worker secrets.
+        </Notice>
+      ) : null}
+      <p className="text-xs text-muted">Uses your domain and the keywords from the X settings.</p>
+      <Button type="submit" disabled={save.isPending}>
+        Save
+      </Button>
     </form>
   );
 }
@@ -307,9 +355,14 @@ export default function MentionsPage() {
         </Card>
       ) : null}
       {tab === "settings" ? (
-        <Card title="X and Reddit">
-          <XSettings siteId={siteId} />
-        </Card>
+        <div className="space-y-4">
+          <Card title="X">
+            <XSettings siteId={siteId} />
+          </Card>
+          <Card title="Reddit">
+            <RedditSettings siteId={siteId} />
+          </Card>
+        </div>
       ) : null}
     </div>
   );

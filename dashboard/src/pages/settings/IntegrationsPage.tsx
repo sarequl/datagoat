@@ -39,20 +39,72 @@ import {
  */
 type Category = "payments" | "growth";
 
-const GROWTH: ReadonlyArray<{ kind: GrowthKind; name: string; description: string }> = [
+/**
+ * Growth integrations. X and Reddit are separate rows; both are stored in the "x" connection
+ * (shared brand keywords, `redditEnabled` for Reddit), so a row's `id` can differ from its kind.
+ */
+const GROWTH: ReadonlyArray<{ id: string; kind: GrowthKind; name: string; description: string }> = [
   {
+    id: "google-search-console",
     kind: "google-search-console",
     name: "Google Search Console",
     description: "Search keywords, clicks and impressions next to your traffic and revenue.",
   },
-  { kind: "github", name: "GitHub", description: "Commits as markers on your charts." },
   {
-    kind: "x",
-    name: "X and Reddit",
-    description: "Mentions of your brand, and X link attribution.",
+    id: "github",
+    kind: "github",
+    name: "GitHub",
+    description: "Commits as markers on your charts.",
   },
-  { kind: "meta-ads", name: "Meta Ads", description: "Facebook and Instagram ad spend with ROAS." },
+  {
+    id: "x",
+    kind: "x",
+    name: "X",
+    description: "Brand mentions on X, and the X posts and profiles that send you visitors.",
+  },
+  {
+    id: "reddit",
+    kind: "x",
+    name: "Reddit",
+    description: "Reddit posts that mention your brand or domain, on your charts.",
+  },
+  {
+    id: "meta-ads",
+    kind: "meta-ads",
+    name: "Meta Ads",
+    description: "Facebook and Instagram ad spend with ROAS.",
+  },
 ];
+
+/** The X connection's errors split by platform (each starts with its provider name). */
+export function platformErrors(lastError: string | null | undefined) {
+  const parts = (lastError ?? "").split("; ").filter(Boolean);
+  const reddit = parts.filter((p) => p.startsWith("Reddit"));
+  const x = parts.filter((p) => !p.startsWith("Reddit"));
+  return { x: x.length ? x.join("; ") : null, reddit: reddit.length ? reddit.join("; ") : null };
+}
+
+/** Reddit search runs when it is switched on and this server has Reddit app credentials. */
+export function redditActive(s: GrowthIntegrationStatus | undefined): boolean {
+  return Boolean(
+    s?.connected && s.settings.redditEnabled !== false && s.settings.redditConfigured === true,
+  );
+}
+
+/** X search or attribution runs with the site's token, the server token or a connected account. */
+export function xActive(s: GrowthIntegrationStatus | undefined): boolean {
+  return Boolean(
+    s?.connected &&
+      s.settings.xEnabled !== false &&
+      (s.hasCredentials || s.settings.usesServerToken === true),
+  );
+}
+
+function growthConnected(id: string, s: GrowthIntegrationStatus | undefined): boolean {
+  if (id === "x") return xActive(s);
+  if (id === "reddit") return redditActive(s);
+  return Boolean(s?.connected);
+}
 
 export default function IntegrationsPage() {
   const siteId = useSiteId();
@@ -62,7 +114,7 @@ export default function IntegrationsPage() {
   const disabled = !access.canEditSettings;
   const [hash] = useState(() => window.location.hash.replace(/^#/, ""));
   const [category, setCategory] = useState<Category>(() =>
-    GROWTH.some((g) => g.kind === hash) ? "growth" : "payments",
+    GROWTH.some((g) => g.id === hash) ? "growth" : "payments",
   );
   const [query, setQuery] = useState("");
   const gsc = useGrowthIntegration(siteId, "google-search-console");
@@ -90,7 +142,9 @@ export default function IntegrationsPage() {
     const ids = PROVIDERS.filter((p) => providerState(status.data, p.id).connected).map(
       (p) => p.id,
     );
-    const kinds = GROWTH.filter((g) => growthStatus[g.kind]?.connected).map((g) => g.kind);
+    const kinds = GROWTH.filter((g) => growthConnected(g.id, growthStatus[g.kind])).map(
+      (g) => g.id,
+    );
     setInitial(new Set<string>([...ids, ...kinds]));
   });
   const wasConnected = (id: string) => initial?.has(id) ?? false;
@@ -107,7 +161,7 @@ export default function IntegrationsPage() {
   const growth = initial
     ? GROWTH.filter((g) => matches(g.name, g.description)).map((g) => ({
         g,
-        connected: wasConnected(g.kind),
+        connected: wasConnected(g.id),
       }))
     : [];
   const showPayments = category === "payments";
@@ -125,11 +179,12 @@ export default function IntegrationsPage() {
         initiallyOpen={hash === p.id}
       />
     ) : null;
-  const growthRow = (kind: GrowthKind) => {
-    const props = { key: kind, siteId, disabled };
-    if (kind === "google-search-console") return <SearchConsoleCard {...props} />;
-    if (kind === "github") return <GithubCard {...props} />;
-    if (kind === "x") return <MentionsCard {...props} domain={website.data?.domain} />;
+  const growthRow = (id: string) => {
+    const props = { key: id, siteId, disabled };
+    if (id === "google-search-console") return <SearchConsoleCard {...props} />;
+    if (id === "github") return <GithubCard {...props} />;
+    if (id === "x") return <XCard {...props} domain={website.data?.domain} />;
+    if (id === "reddit") return <RedditCard {...props} domain={website.data?.domain} />;
     return <MetaAdsCard {...props} />;
   };
   // One list per tab; connected integrations first (stable sort keeps the catalogue order).
@@ -195,7 +250,7 @@ export default function IntegrationsPage() {
           title="Growth"
           description="Search, code, social and ad data shown next to your traffic."
         >
-          {growthRows.map((r) => growthRow(r.g.kind))}
+          {growthRows.map((r) => growthRow(r.g.id))}
         </IntegrationSection>
       ) : null}
       {initial && !paymentRows.length && !growthRows.length ? (
@@ -589,6 +644,9 @@ function GrowthShell({
   disabled,
   oauthHint,
   children,
+  errorOf = (st) => st.lastError,
+  activeOf = (st) => st.connected,
+  onDisconnect,
 }: {
   kind: GrowthKind;
   siteId: string;
@@ -599,22 +657,30 @@ function GrowthShell({
   /** Shown instead of the Connect button when the server has no OAuth client for this provider. */
   oauthHint: string;
   children?: (state: GrowthIntegrationStatus) => ReactNode;
+  /** This row's part of the connection's last error (X and Reddit share one connection). */
+  errorOf?: (state: GrowthIntegrationStatus) => string | null;
+  /** Whether this row counts as connected. */
+  activeOf?: (state: GrowthIntegrationStatus) => boolean;
+  /** Replaces deleting the connection (X turns itself off and keeps Reddit's settings). */
+  onDisconnect?: (save: ReturnType<typeof useSaveGrowthIntegration>, done: () => void) => void;
 }) {
   const status = useGrowthIntegration(siteId, kind);
   const save = useSaveGrowthIntegration(siteId, kind);
   const [confirming, setConfirming] = useState(false);
   const [open, setOpen] = useState(() => window.location.hash === `#${kind}`);
   const s = status.data;
+  const lastError = s ? errorOf(s) : null;
+  const active = s ? activeOf(s) : false;
   const badge = s ? (
-    s.connected ? (
-      s.status === "error" ? (
+    active ? (
+      lastError ? (
         <Badge tone="error">Error</Badge>
       ) : (
         <Badge tone="success">Connected</Badge>
       )
     ) : null
   ) : null;
-  const oauth = s && !s.connected && s.oauthConfigured !== false && !disabled;
+  const oauth = s && !active && s.oauthConfigured !== false && !disabled;
   return (
     <div className="min-w-0">
       <IntegrationRow
@@ -622,7 +688,7 @@ function GrowthShell({
         name={title}
         status={badge}
         summary={
-          s?.connected ? (
+          s && active ? (
             <span>Last sync {formatRelative(s.lastSyncedAt)}</span>
           ) : (
             <span>{description}</span>
@@ -645,7 +711,7 @@ function GrowthShell({
                 aria-expanded={open}
                 onClick={() => setOpen(!open)}
               >
-                {open ? "Close" : s.connected ? "Manage" : oauth ? "Details" : "Set up"}
+                {open ? "Close" : active ? "Manage" : oauth ? "Details" : "Set up"}
               </Button>
             </>
           ) : null
@@ -653,12 +719,12 @@ function GrowthShell({
       >
         {!s ? (
           <QueryState query={status} />
-        ) : s.lastError || open ? (
+        ) : lastError || open ? (
           <>
-            {s.lastError ? <Notice tone="error">{s.lastError}</Notice> : null}
+            {lastError ? <Notice tone="error">{lastError}</Notice> : null}
             {open ? (
               <>
-                {s.connected ? (
+                {active ? (
                   <p className="text-muted">{description}</p>
                 ) : (
                   <ol className="list-decimal space-y-1 pl-5">
@@ -668,10 +734,10 @@ function GrowthShell({
                   </ol>
                 )}
                 {children?.(s)}
-                {!disabled && !s.connected && s.oauthConfigured === false ? (
+                {!disabled && !active && s.oauthConfigured === false ? (
                   <p className="text-xs text-muted">{oauthHint}</p>
                 ) : null}
-                {!disabled && s.connected ? (
+                {!disabled && active ? (
                   <Button
                     variant="ghost"
                     className="-ml-3 text-error-text"
@@ -696,7 +762,9 @@ function GrowthShell({
           save.reset();
         }}
         onConfirm={() =>
-          save.mutate({ disconnect: true }, { onSuccess: () => setConfirming(false) })
+          onDisconnect
+            ? onDisconnect(save, () => setConfirming(false))
+            : save.mutate({ disconnect: true }, { onSuccess: () => setConfirming(false) })
         }
       >
         <p>DataGoat deletes the stored credentials and stops syncing. Synced data stays.</p>
@@ -921,7 +989,7 @@ function RepoForm({
   );
 }
 
-function MentionsCard({
+function XCard({
   siteId,
   domain,
   disabled,
@@ -934,21 +1002,26 @@ function MentionsCard({
     <GrowthShell
       kind="x"
       siteId={siteId}
-      title="X and Reddit"
-      description="Mentions of your brand on X and Reddit appear on your chart, and tweets with your links get traffic and revenue attributed."
+      title="X"
+      description="Posts on X that mention your brand appear on your chart, and X posts and profiles that link to you get their visitors and revenue attributed."
       steps={[
-        `Your domain${domain ? ` (${domain})` : ""} is searched automatically on X and Reddit.`,
-        "Add keywords below (brand, product, @handle or #hashtag). They are shared by X and Reddit search.",
-        "Choose Connect to link your X account for tweet link attribution.",
+        `Your domain${domain ? ` (${domain})` : ""} is searched on X automatically.`,
+        "Add brand keywords and the X handles whose profiles link to your site, then Save.",
+        "Choose Connect to sign in with X, or paste an X API bearer token on the Mentions page.",
       ]}
       disabled={disabled}
-      oauthHint="Sign-in with X is not set up on this server (X_CLIENT_ID and X_CLIENT_SECRET, see docs/growth/mentions.md). Keyword search uses the server's X bearer token when one is set; Reddit search needs Reddit app credentials (below)."
+      oauthHint="Sign-in with X is not set up on this server (X_CLIENT_ID and X_CLIENT_SECRET, see docs/growth/mentions.md). Search then uses the server's X_BEARER_TOKEN, or a bearer token pasted on the Mentions page."
+      errorOf={(st) => platformErrors(st.lastError).x}
+      activeOf={xActive}
+      onDisconnect={(save, done) =>
+        save.mutate({ settings: { xEnabled: false, clearCredentials: true } }, { onSuccess: done })
+      }
     >
-      {(s) => (
-        <KeywordsForm
-          key={String(s.connected)}
+      {(st) => (
+        <XForm
+          key={`${st.connected}-${strs(st.settings.keywords).join(",")}`}
           siteId={siteId}
-          settings={s.settings}
+          settings={st.settings}
           disabled={disabled}
         />
       )}
@@ -956,7 +1029,38 @@ function MentionsCard({
   );
 }
 
-function KeywordsForm({
+function KeywordsField({
+  keywords,
+  onChange,
+  disabled,
+  shared,
+}: {
+  keywords: string[];
+  onChange: (next: string[]) => void;
+  disabled: boolean;
+  shared: "X" | "Reddit";
+}) {
+  return (
+    <FieldGroup
+      label="Brand keywords"
+      hint={`4 to 15 characters each, case-insensitive. Avoid generic words. Shared with ${shared}.`}
+    >
+      <ListEditor
+        label="Mention keywords"
+        items={keywords}
+        onChange={onChange}
+        disabled={disabled}
+        placeholder="YourProduct"
+        max={20}
+        validate={(v) =>
+          v.length < 4 || v.length > 15 ? "Keywords are 4 to 15 characters." : null
+        }
+      />
+    </FieldGroup>
+  );
+}
+
+function XForm({
   siteId,
   settings,
   disabled,
@@ -968,33 +1072,21 @@ function KeywordsForm({
   const save = useSaveGrowthIntegration(siteId, "x");
   const initialKeywords = strs(settings.keywords);
   const initialHandles = strs(settings.handles);
-  const initialReddit = settings.redditEnabled !== false;
-  const redditReady = settings.redditConfigured === true;
   const [keywords, setKeywords] = useState(initialKeywords);
   const [handles, setHandles] = useState(initialHandles);
-  const [reddit, setReddit] = useState(initialReddit);
+  const off = settings.xEnabled === false;
   const dirty =
+    off ||
     JSON.stringify(keywords) !== JSON.stringify(initialKeywords) ||
-    JSON.stringify(handles) !== JSON.stringify(initialHandles) ||
-    reddit !== initialReddit;
+    JSON.stringify(handles) !== JSON.stringify(initialHandles);
   return (
     <div className="space-y-3">
-      <FieldGroup
-        label="Keywords"
-        hint="4 to 15 characters each, case-insensitive. Avoid generic words."
-      >
-        <ListEditor
-          label="Mention keywords"
-          items={keywords}
-          onChange={setKeywords}
-          disabled={disabled}
-          placeholder="YourProduct"
-          max={20}
-          validate={(v) =>
-            v.length < 4 || v.length > 15 ? "Keywords are 4 to 15 characters." : null
-          }
-        />
-      </FieldGroup>
+      <KeywordsField
+        keywords={keywords}
+        onChange={setKeywords}
+        disabled={disabled}
+        shared="Reddit"
+      />
       <FieldGroup label="Link-in-bio handles" hint="X accounts whose profile links to your site.">
         <ListEditor
           label="Link-in-bio handles"
@@ -1009,26 +1101,136 @@ function KeywordsForm({
           }
         />
       </FieldGroup>
-      <Toggle
-        label="Also search Reddit"
-        description="Your domain and the keywords above are searched on Reddit too."
-        checked={reddit}
-        onChange={setReddit}
-        disabled={disabled}
-      />
-      {reddit && !redditReady ? (
+      {settings.xConfigured === false ? (
         <Notice>
-          Reddit search is off on this server: Reddit only answers apps it has approved. Create an
-          app at reddit.com/prefs/apps, request Data API access, then add REDDIT_CLIENT_ID and
-          REDDIT_CLIENT_SECRET as Worker secrets (see docs/growth/mentions.md).
+          X search needs an X API bearer token: set X_BEARER_TOKEN as a Worker secret for every
+          website, or paste one in the Mentions page settings for this website. X charges per
+          request (see docs/growth/mentions.md).
         </Notice>
       ) : null}
       <SaveSettings
         save={save}
         dirty={dirty}
         disabled={disabled}
-        onSave={() => save.mutate({ settings: { keywords, handles, redditEnabled: reddit } })}
+        onSave={() => save.mutate({ settings: { keywords, handles, xEnabled: true } })}
       />
+    </div>
+  );
+}
+
+/**
+ * Reddit search. Stored in the X connection (`redditEnabled`, shared keywords); it runs when this
+ * server has Reddit app credentials, which Reddit requires.
+ */
+function RedditCard({
+  siteId,
+  domain,
+  disabled,
+}: {
+  siteId: string;
+  domain?: string;
+  disabled: boolean;
+}) {
+  const status = useGrowthIntegration(siteId, "x");
+  const save = useSaveGrowthIntegration(siteId, "x");
+  const s = status.data;
+  const [open, setOpen] = useState(() => window.location.hash === "#reddit");
+  const ready = s?.settings.redditConfigured === true;
+  const on = s ? s.settings.redditEnabled !== false : true;
+  const active = redditActive(s);
+  const error = s ? platformErrors(s.lastError).reddit : null;
+  const initialKeywords = strs(s?.settings.keywords);
+  const [keywords, setKeywords] = useState(initialKeywords);
+  const [enabled, setEnabled] = useState(on);
+  // Keep the form in step when the X row saves the shared keywords.
+  useEffect(() => {
+    setKeywords(strs(s?.settings.keywords));
+    setEnabled(s ? s.settings.redditEnabled !== false : true);
+  }, [s]);
+  const dirty = enabled !== on || JSON.stringify(keywords) !== JSON.stringify(initialKeywords);
+  const badge = !s ? null : !ready ? (
+    <Badge>Needs setup</Badge>
+  ) : active ? (
+    error ? (
+      <Badge tone="error">Error</Badge>
+    ) : (
+      <Badge tone="success">Connected</Badge>
+    )
+  ) : null;
+  return (
+    <div className="min-w-0">
+      <IntegrationRow
+        id="reddit"
+        name="Reddit"
+        status={badge}
+        summary={
+          active ? (
+            <span>Last sync {formatRelative(s?.lastSyncedAt ?? null)}</span>
+          ) : (
+            <span>Reddit posts that mention your brand or domain, on your charts.</span>
+          )
+        }
+        actions={
+          s ? (
+            <Button variant="secondary" aria-expanded={open} onClick={() => setOpen(!open)}>
+              {open ? "Close" : active ? "Manage" : "Set up"}
+            </Button>
+          ) : null
+        }
+      >
+        {!s ? (
+          <QueryState query={status} />
+        ) : error || open ? (
+          <>
+            {error ? <Notice tone="error">{error}</Notice> : null}
+            {open ? (
+              <div className="space-y-3">
+                <p className="text-muted">
+                  Reddit posts that mention your domain
+                  {domain ? ` (${domain})` : ""} or your brand keywords appear on your chart and on
+                  the Mentions page. Checked every few hours.
+                </p>
+                {!ready ? (
+                  <div className="space-y-2 rounded-lg border border-line bg-surface-2 p-3">
+                    <p className="font-medium">Add Reddit app keys to this server (once)</p>
+                    <ol className="list-decimal space-y-1 pl-5 text-muted">
+                      <li>
+                        At reddit.com/prefs/apps, create an app of type “web app” and request Data
+                        API access if Reddit asks.
+                      </li>
+                      <li>
+                        In Cloudflare: Workers &amp; Pages → your DataGoat Worker → Settings →
+                        Variables and Secrets, add the secrets REDDIT_CLIENT_ID and
+                        REDDIT_CLIENT_SECRET.
+                      </li>
+                      <li>Come back here; Reddit search starts on the next sync.</li>
+                    </ol>
+                  </div>
+                ) : null}
+                <Toggle
+                  label="Search Reddit for this website"
+                  description="Uses your domain and the brand keywords below."
+                  checked={enabled}
+                  onChange={setEnabled}
+                  disabled={disabled}
+                />
+                <KeywordsField
+                  keywords={keywords}
+                  onChange={setKeywords}
+                  disabled={disabled}
+                  shared="X"
+                />
+                <SaveSettings
+                  save={save}
+                  dirty={dirty}
+                  disabled={disabled}
+                  onSave={() => save.mutate({ settings: { keywords, redditEnabled: enabled } })}
+                />
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </IntegrationRow>
     </div>
   );
 }

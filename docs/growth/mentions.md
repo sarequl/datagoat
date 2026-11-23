@@ -17,11 +17,20 @@ no plan tiers, so results are never sampled (`meta.sampled: false`).
   at developer.x.com. Either set `X_BEARER_TOKEN` (app-only bearer token for the
   whole install), paste a bearer token in the Mentions settings, or connect with OAuth 2.0 by
   setting `X_CLIENT_ID` and `X_CLIENT_SECRET` and clicking "Connect with X" (scopes `tweet.read
-  users.read offline.access`; tokens refresh automatically).
+users.read offline.access`; tokens refresh automatically).
 - **Reddit** needs a Reddit app: Reddit answers anonymous requests from servers, Cloudflare
   included, with a 403 block page. Create a "script" or "web" app at reddit.com/prefs/apps, request
   Data API access if Reddit asks for it, and set `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` as
   Worker secrets (app-only OAuth). Until then Reddit is skipped and the Mentions settings say so.
+
+X and Reddit are separate rows under **Settings → Integrations → Growth**, each with its own status,
+error and switch (they share one stored connection and keyword list). Keys go in Cloudflare, never
+in the dashboard, except an optional per-website X bearer token:
+
+| Network | Where the key goes                                                                                                                             | Turn off                                                                                       |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| X       | Worker secret `X_BEARER_TOKEN`, or `X_CLIENT_ID` + `X_CLIENT_SECRET` for "Connect with X", or a bearer token pasted in the X row               | **Disconnect** on the X row (`xEnabled: false`, clears the stored token); Reddit keeps running |
+| Reddit  | Worker secrets `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` (`npx wrangler secret put …`, or the Worker's **Settings → Variables and Secrets**) | The "Search Reddit for this website" switch (`redditEnabled: false`)                           |
 
 ## X link attribution
 

@@ -192,7 +192,10 @@ describe("Mentions page", () => {
     const keywords = await screen.findByLabelText(/^Keywords/);
     await waitFor(() => expect(keywords).toHaveValue("DataGoat"));
     await userEvent.type(keywords, ", #launch");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    // X and Reddit have their own cards and Save buttons.
+    const xForm = screen.getByRole("form", { name: "X settings" });
+    expect(screen.getByRole("form", { name: "Reddit settings" })).toBeInTheDocument();
+    await userEvent.click(within(xForm).getByRole("button", { name: "Save" }));
     expect(await screen.findByText(/Saved\. New mentions appear/)).toBeInTheDocument();
     // This server has Reddit credentials: no setup notice.
     expect(screen.queryByText(/Reddit only answers apps it has approved/)).not.toBeInTheDocument();
