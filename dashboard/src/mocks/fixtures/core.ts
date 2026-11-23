@@ -16,6 +16,17 @@ import type {
 export const MOCK_PASSWORD = "demo-password";
 export const NOW = "2026-11-04T12:00:00.000Z";
 
+/**
+ * A timestamp `days` before today (at `hour` UTC), for demo data that must stay inside the default
+ * "last 30 days" view however long ago the fixtures were written (chart markers, mentions).
+ */
+export function daysAgo(days: number, hour = 10): string {
+  const d = new Date();
+  d.setUTCHours(hour, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString();
+}
+
 export const demoUser: User = {
   id: "6728f0a0a1b2c3d4e5f60001",
   email: "demo@datagoat.dev",

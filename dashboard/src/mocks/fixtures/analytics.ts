@@ -30,7 +30,7 @@ import type {
   VisitorListRow,
   VisitorProfile,
 } from "../../../../shared/api-types";
-import { NOW } from "./core";
+import { daysAgo, NOW } from "./core";
 
 /** Deterministic pseudo-random numbers so screenshots and tests are stable. */
 export function seeded(seed: number): () => number {
@@ -506,10 +506,10 @@ export function notes(websiteId: string): Note[] {
       id: "6728f0a0a1b2c3d4e5f6f001",
       websiteId,
       text: "Launched the new landing page",
-      timestamp: "2026-10-20T10:00:00.000Z",
+      timestamp: daysAgo(14),
       author: { id: "6728f0a0a1b2c3d4e5f60001", name: "Demo Owner", image: null },
-      createdAt: "2026-10-20T10:01:00.000Z",
-      updatedAt: "2026-10-20T10:01:00.000Z",
+      createdAt: daysAgo(14),
+      updatedAt: daysAgo(14),
     },
   ];
 }

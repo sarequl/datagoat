@@ -20,7 +20,7 @@ import type {
   SearchConsoleRow,
   XLinkRow,
 } from "../../../../shared/api-types";
-import { NOW } from "./core";
+import { daysAgo, NOW } from "./core";
 
 export const integrations: IntegrationsStatus = {
   stripe: { connected: true },
@@ -284,7 +284,7 @@ export function mentions(websiteId: string): Mention[] {
       id: "m1",
       websiteId,
       platform: "x",
-      timestamp: NOW,
+      timestamp: daysAgo(2),
       text: "We launched our new website: example.com",
       url: "https://x.com/example/status/123",
       author: { name: "Alex", username: "example", image: null },
@@ -296,7 +296,7 @@ export function mentions(websiteId: string): Mention[] {
       id: "m2",
       websiteId,
       platform: "reddit",
-      timestamp: NOW,
+      timestamp: daysAgo(2),
       text: "Anyone tried example.com for analytics?",
       url: "https://reddit.com/r/SaaS/comments/abc",
       author: { name: null, username: "founder42", image: null },
@@ -328,7 +328,7 @@ export const commits: GithubCommit[] = [
     additions: 120,
     deletions: 14,
     url: "https://github.com/example/app/commit/a1b2c3d",
-    timestamp: "2026-10-20T09:00:00.000Z",
+    timestamp: daysAgo(14, 9),
   },
 ];
 
